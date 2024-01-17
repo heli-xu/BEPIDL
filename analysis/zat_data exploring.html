@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.3.450">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="heli">
+
+<title>data exploring</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="zat_data exploring_files/libs/clipboard/clipboard.min.js"></script>
+<script src="zat_data exploring_files/libs/quarto-html/quarto.js"></script>
+<script src="zat_data exploring_files/libs/quarto-html/popper.min.js"></script>
+<script src="zat_data exploring_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="zat_data exploring_files/libs/quarto-html/anchor.min.js"></script>
+<link href="zat_data exploring_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="zat_data exploring_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="zat_data exploring_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="zat_data exploring_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="zat_data exploring_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+
+<script src="zat_data exploring_files/libs/core-js-2.5.3/shim.min.js"></script>
+<script src="zat_data exploring_files/libs/react-18.2.0/react.min.js"></script>
+<script src="zat_data exploring_files/libs/react-18.2.0/react-dom.min.js"></script>
+<script src="zat_data exploring_files/libs/reactwidget-1.0.0/react-tools.js"></script>
+<script src="zat_data exploring_files/libs/htmlwidgets-1.6.4/htmlwidgets.js"></script>
+<link href="zat_data exploring_files/libs/reactable-0.4.4/reactable.css" rel="stylesheet">
+<script src="zat_data exploring_files/libs/reactable-binding-0.4.4/reactable.js"></script>
+
+
+</head>
+
+<body class="fullcontent">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">data exploring</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>heli </p>
+          </div>
+  </div>
+    
+  
+    
+  </div>
+  
+
+</header>
+
+<section id="zat-level" class="level2">
+<h2 class="anchored" data-anchor-id="zat-level">ZAT level</h2>
+<section id="items-involved" class="level3">
+<h3 class="anchored" data-anchor-id="items-involved">Items involved</h3>
+<ul>
+<li><p><code>Intersections/ZAT_INDICADORES.xlsx</code>: data with old variable names (codebook)</p></li>
+<li><p><code>ZAT.zip</code>: boundary files (more rows than data)</p></li>
+</ul>
+</section>
+<section id="data-distribution---transit" class="level3">
+<h3 class="anchored" data-anchor-id="data-distribution---transit">Data distribution - transit</h3>
+<div class="cell">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(readxl)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stderr">
+<pre><code>
+Attaching package: 'dplyr'</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>The following objects are masked from 'package:stats':
+
+    filter, lag</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>The following objects are masked from 'package:base':
+
+    intersect, setdiff, setequal, union</code></pre>
+</div>
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyr)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(readr)</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>zat_data <span class="ot">&lt;-</span> <span class="fu">read_xlsx</span>(<span class="st">"ZAT_INDICADORES.xlsx"</span>)</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>zat_data_long <span class="ot">&lt;-</span> zat_data <span class="sc">%&gt;%</span> </span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span><span class="dv">2</span>, <span class="sc">-</span><span class="dv">3</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="sc">-</span>ZAT, <span class="at">names_to =</span> <span class="st">"indicator"</span>)</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>bus <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">'BUSTOPDENS'</span>, <span class="st">'NUMRBP'</span>, <span class="st">'LONGRBP'</span>, <span class="st">'NUMRT'</span>, <span class="st">'LONGRT'</span>)</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>onroad <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">'LONGMV'</span>, <span class="st">'LRDENS'</span>, <span class="st">'BPRDRATE'</span>, <span class="st">'NUMINT'</span>, <span class="st">'INTDENS'</span>)</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>tlight <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">'NUMTTFLIGH'</span>, <span class="st">'NUMPTFLIGH'</span>)</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>byroad <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">'NUMTTREES'</span>, <span class="st">'NUMSTTREES'</span>, <span class="st">'NUMBRIDGES'</span>)</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>zat_data_long <span class="sc">%&gt;%</span> </span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(indicator<span class="sc">%in%</span><span class="fu">all_of</span>(bus)) <span class="sc">%&gt;%</span> </span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x=</span>value)) <span class="sc">+</span></span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>           <span class="fu">geom_density</span>(<span class="at">fill =</span> <span class="st">"skyblue"</span>, <span class="at">color =</span> <span class="st">"blue"</span>, <span class="at">alpha =</span> <span class="fl">0.7</span>)<span class="sc">+</span></span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>           <span class="fu">facet_wrap</span>(<span class="sc">~</span>indicator, <span class="at">scales =</span> <span class="st">"free"</span>) <span class="sc">+</span></span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>           <span class="fu">theme_minimal</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stderr">
+<pre><code>Warning: There was 1 warning in `filter()`.
+ℹ In argument: `indicator %in% all_of(bus)`.
+Caused by warning:
+! Using `all_of()` outside of a selecting function was deprecated in tidyselect
+  1.2.0.
+ℹ See details at
+  &lt;https://tidyselect.r-lib.org/reference/faq-selection-context.html&gt;</code></pre>
+</div>
+<div class="cell-output-display">
+<p><img src="zat_data-exploring_files/figure-html/unnamed-chunk-1-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+</section>
+<section id="data-distribution---road" class="level3">
+<h3 class="anchored" data-anchor-id="data-distribution---road">Data distribution - road</h3>
+<div class="cell">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>zat_data_long <span class="sc">%&gt;%</span> </span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(indicator<span class="sc">%in%</span><span class="fu">all_of</span>(onroad)) <span class="sc">%&gt;%</span> </span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x=</span>value)) <span class="sc">+</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>           <span class="fu">geom_density</span>(<span class="at">fill =</span> <span class="st">"skyblue"</span>, <span class="at">color =</span> <span class="st">"blue"</span>, <span class="at">alpha =</span> <span class="fl">0.7</span>)<span class="sc">+</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>           <span class="fu">facet_wrap</span>(<span class="sc">~</span>indicator, <span class="at">scales =</span> <span class="st">"free"</span>) <span class="sc">+</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>           <span class="fu">theme_minimal</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<p><img src="zat_data-exploring_files/figure-html/unnamed-chunk-2-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+<div class="cell">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>zat_data_long <span class="sc">%&gt;%</span> </span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(indicator<span class="sc">%in%</span><span class="fu">all_of</span>(byroad)) <span class="sc">%&gt;%</span> </span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x=</span>value)) <span class="sc">+</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>           <span class="fu">geom_density</span>(<span class="at">fill =</span> <span class="st">"skyblue"</span>, <span class="at">color =</span> <span class="st">"blue"</span>, <span class="at">alpha =</span> <span class="fl">0.7</span>)<span class="sc">+</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>           <span class="fu">facet_wrap</span>(<span class="sc">~</span>indicator, <span class="at">scales =</span> <span class="st">"free"</span>) <span class="sc">+</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>           <span class="fu">theme_minimal</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<p><img src="zat_data-exploring_files/figure-html/unnamed-chunk-3-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+</section>
+<section id="data-distribution---traffic-light" class="level3">
+<h3 class="anchored" data-anchor-id="data-distribution---traffic-light">Data distribution - traffic light</h3>
+<div class="cell">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>zat_data_long <span class="sc">%&gt;%</span> </span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(indicator<span class="sc">%in%</span><span class="fu">all_of</span>(tlight)) <span class="sc">%&gt;%</span> </span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x=</span>value)) <span class="sc">+</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>           <span class="fu">geom_density</span>(<span class="at">fill =</span> <span class="st">"skyblue"</span>, <span class="at">color =</span> <span class="st">"blue"</span>, <span class="at">alpha =</span> <span class="fl">0.7</span>)<span class="sc">+</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>           <span class="fu">facet_wrap</span>(<span class="sc">~</span>indicator, <span class="at">scales =</span> <span class="st">"free"</span>) <span class="sc">+</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>           <span class="fu">theme_minimal</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<p><img src="zat_data-exploring_files/figure-html/unnamed-chunk-4-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+</section>
+</section>
+<section id="street-level" class="level2">
+<h2 class="anchored" data-anchor-id="street-level">Street level</h2>
+<section id="files" class="level3">
+<h3 class="anchored" data-anchor-id="files">Files</h3>
+<ul>
+<li><code>Calles_datos/</code></li>
+</ul>
+<p>Variable names do not seem to be in codebook. Skimming the table:</p>
+<div class="cell">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(reactable)</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>skim_calles <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"skim_calles.csv"</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span><span class="dv">1</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stderr">
+<pre><code>New names:
+Rows: 67 Columns: 18
+── Column specification
+──────────────────────────────────────────────────────── Delimiter: "," chr
+(3): skim_type, skim_variable, numeric.hist dbl (15): ...1, n_missing,
+complete_rate, character.min, character.max, char...
+ℹ Use `spec()` to retrieve the full column specification for this data. ℹ
+Specify the column types or set `show_col_types = FALSE` to quiet this message.
+• `` -&gt; `...1`</code></pre>
+</div>
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">reactable</span>(skim_calles) </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+
+<div class="reactable html-widget html-fill-item" id="htmlwidget-c4255cc8ffe96d085749" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-c4255cc8ffe96d085749">{"x":{"tag":{"name":"Reactable","attribs":{"data":{"skim_type":["character","character","character","character","character","character","character","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric"],"skim_variable":["CodigoCL","puente_vh","Puente_PT","sent_vial","Etiquetas","Etiqueta_1","geometry","FID_EP_IND","CODIGO_IDE","area","arboles","AVE_pendie","A_Calzada","P_Ancho_Cl","A_separado","A_andenes","Rutas_TRM","Rutas_SITP","Parad_SITP","Caril_SITP","largo_cicl","sen_horizo","se_hor_seg","sen_vert","semaforo","segme_via","velcidad","sum_carril","av_carrile","sini_total","sini_herid","sini_muert","sini_solod","si_act_Tot","si_act_pea","si_act_cic","sin_veh_to","si_veh_bic","sen_v_inv","s_pare_inv","comp_cl","OID_","Administra","not_resp_p","under_infl","Mobile_pho","NO_DATA","traffic_si","Not_Stoppi","safety_dev","Parking_Vi","Pedest_Bic","driving_be","Smoking_dr","Speeding","tehcnical","Total_gene","X1_girar_iz","X2_ciclov.","X3bus_o_Tra","X4peatonale","X5policiasa","X6pare","X7estaciona","X8zonas_esc","X9ceder_el","Total_ge_1"],"n_missing":[0,99809,100138,0,68909,82146,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"complete_rate":[1,0.0100179529652149,0.00675467917753603,1,0.316507801108918,0.18521310467273,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],"character.min":[3,9,8,3,3,4,146,"NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA"],"character.max":[8,9,8,5,8,8,102781,"NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA"],"character.empty":[0,0,0,0,0,0,0,"NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA"],"character.n_unique":[100819,1,1,3,31910,18673,100819,"NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA"],"character.whitespace":[0,0,0,0,0,0,0,"NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA"],"numeric.mean":["NA","NA","NA","NA","NA","NA","NA",50419.7350003256,10123471.1875233,856.135352011155,3.96951963419594,3.02760775052317,481.828150553334,6.18806975858644,76.1152240306523,274.600865204756,0.320138069213144,2.62208512284391,0.0638966861405092,0.00694313571846577,5.12586902690604,0.958420535811702,0.47652724188893,1.59799244190083,0.014362372171912,1.20305696346919,19.4709330582529,2.3188684672532,1.7701921264841,1.86249615647844,0.62754044376556,0.0307878475287396,1.20416786518414,3.66302978605223,0.204405915551632,0.113450837639731,3.22336067606304,0.113450837639731,0.510251043950049,0.116485979825231,3.07004632063401,5049.72371279223,0.784961168033737,0.0374631765837775,0.010553566292072,0.0777829575774293,0.0190737856951562,0.972951526994041,0.0452494073537705,0.0660589769785572,1.10039774248885,0.440264235907942,0.246987175036512,0.00575288388101365,0.584453327249486,0.239984526726119,4.63193445679903,0.0109999107311142,0.00570329005445383,0.0193614298892041,0.0196193177873248,0.00097203900058496,0.122417401481865,0.100824249397405,0.0447832253841093,0.00403693748202275,0.328717801208093],"numeric.sd":["NA","NA","NA","NA","NA","NA","NA",29108.4226274276,5654381.78146258,1732.55104844517,17.5028940380585,4.87627456372524,808.987503506601,2.85804254769365,752.983477660625,409.283235041074,3.19196012064212,10.1780427177625,0.320288359418941,0.0838681171033398,33.9118530969268,3.64637835318607,1.70035348823115,3.23835806845696,0.122187995392602,1.03234320199139,14.7737738225216,2.59186398126186,0.670927446762907,8.9695608655688,2.64778017591656,0.233958542964504,6.6080964376612,17.6822228267665,0.946324779717629,0.615648507154003,16.0876809132293,0.615648507154003,1.4128106728666,0.394948019259464,53.1910990340806,9051.18089258555,9.49113124552393,0.803698511759939,0.805321445964544,0.663968428571625,0.380654628112387,13.116437684036,0.729725888998478,0.773374391293375,7.49784483311886,5.64225128975286,3.29824833319869,0.0872033774800013,43.7035415096103,2.8330813964908,59.1248811448697,0.130494122826698,0.0874905224781529,0.197843079927583,0.187309730459718,0.0405658292676401,0.408103999631821,0.523487890362185,0.265427470551617,0.0786320086446427,0.912599050308835],"numeric.p0":["NA","NA","NA","NA","NA","NA","NA",0,0,2.69400181319e-05,0,0,-1.00000008274e-11,0,-3.57999965672e-07,-1.11000076686e-07,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"numeric.p25":["NA","NA","NA","NA","NA","NA","NA",25213.5,7000231.5,245.8578802485,0,0.2312,163.753997245,4.54,0,62.0830794677,0,0,0,0,0,0,0,0,0,1,0,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"numeric.p50":["NA","NA","NA","NA","NA","NA","NA",50418,10001709,483.283495878,0,0.6178,295.800475149,6.14,0,169.651948751,0,0,0,0,0,0,0,0,0,1,30,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"numeric.p75":["NA","NA","NA","NA","NA","NA","NA",75628.5,14000265.5,913.401255082,3,3.7293,535.1630484935,7.51,0,348.5374946285,0,0,0,0,0,0,0,2,0,1,30,2,2,1,0,0,0,2,0,0,2,0,0,0,0,6704.5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0],"numeric.p100":["NA","NA","NA","NA","NA","NA","NA",100840,50009620,221177.878376,2155,39.8728,88474.4336637,326.51,112610.48317,20018.2262571,115,316,19,2,1809.3294138,338,75,150,2,42,50,113,6,603,102,14,510,1140,46,42,1076,42,55,7,9551,31909,1080,133,240,93,38,1348,102,99,1221,702,395,6,9340,280,9564,6,5,18,8,5,7,17,8,5,19],"numeric.hist":[null,null,null,null,null,null,null,"▇▇▇▇▇","▇▇▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▅▁▇▁▁","▇▁▁▁▁","▃▇▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁","▇▁▁▁▁"]},"columns":[{"id":"skim_type","name":"skim_type","type":"character"},{"id":"skim_variable","name":"skim_variable","type":"character"},{"id":"n_missing","name":"n_missing","type":"numeric"},{"id":"complete_rate","name":"complete_rate","type":"numeric"},{"id":"character.min","name":"character.min","type":"numeric"},{"id":"character.max","name":"character.max","type":"numeric"},{"id":"character.empty","name":"character.empty","type":"numeric"},{"id":"character.n_unique","name":"character.n_unique","type":"numeric"},{"id":"character.whitespace","name":"character.whitespace","type":"numeric"},{"id":"numeric.mean","name":"numeric.mean","type":"numeric"},{"id":"numeric.sd","name":"numeric.sd","type":"numeric"},{"id":"numeric.p0","name":"numeric.p0","type":"numeric"},{"id":"numeric.p25","name":"numeric.p25","type":"numeric"},{"id":"numeric.p50","name":"numeric.p50","type":"numeric"},{"id":"numeric.p75","name":"numeric.p75","type":"numeric"},{"id":"numeric.p100","name":"numeric.p100","type":"numeric"},{"id":"numeric.hist","name":"numeric.hist","type":"character"}],"dataKey":"b0f2bb12fb8381d32065be310d74b493"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+<p>Some of the variables have many zeros, with 75% percentile =0.</p>
+</section>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>

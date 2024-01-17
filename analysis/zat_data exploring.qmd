@@ -1,0 +1,96 @@
+---
+title: "Initial exploratory data analysis of BEPIDL data"
+subtitle: "ZAT and street level"
+author: "heli"
+format: 
+  html:
+    code-fold: true
+    toc: true
+editor: visual
+---
+
+## ZAT level
+
+### Items involved
+
+-   `Intersections/ZAT_INDICADORES.xlsx`: data with old variable names (codebook)
+
+-   `ZAT.zip`: boundary files (more rows than data)
+
+### Data distribution - transit
+
+```{r}
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(readr)
+
+zat_data <- read_xlsx("ZAT_INDICADORES.xlsx")
+
+zat_data_long <- zat_data %>% 
+  select(-2, -3) %>% 
+  pivot_longer(-ZAT, names_to = "indicator")
+
+bus <- c('BUSTOPDENS', 'NUMRBP', 'LONGRBP', 'NUMRT', 'LONGRT')
+onroad <- c('LONGMV', 'LRDENS', 'BPRDRATE', 'NUMINT', 'INTDENS')
+tlight <- c('NUMTTFLIGH', 'NUMPTFLIGH')
+byroad <- c('NUMTTREES', 'NUMSTTREES', 'NUMBRIDGES')
+  
+zat_data_long %>% 
+  filter(indicator%in%all_of(bus)) %>% 
+  ggplot(aes(x=value)) +
+           geom_density(fill = "skyblue", color = "blue", alpha = 0.7)+
+           facet_wrap(~indicator, scales = "free") +
+           theme_minimal()
+```
+
+### Data distribution - road
+
+```{r}
+zat_data_long %>% 
+  filter(indicator%in%all_of(onroad)) %>% 
+  ggplot(aes(x=value)) +
+           geom_density(fill = "skyblue", color = "blue", alpha = 0.7)+
+           facet_wrap(~indicator, scales = "free") +
+           theme_minimal()
+```
+
+```{r}
+zat_data_long %>% 
+  filter(indicator%in%all_of(byroad)) %>% 
+  ggplot(aes(x=value)) +
+           geom_density(fill = "skyblue", color = "blue", alpha = 0.7)+
+           facet_wrap(~indicator, scales = "free") +
+           theme_minimal()
+```
+
+### Data distribution - traffic light
+
+```{r}
+zat_data_long %>% 
+  filter(indicator%in%all_of(tlight)) %>% 
+  ggplot(aes(x=value)) +
+           geom_density(fill = "skyblue", color = "blue", alpha = 0.7)+
+           facet_wrap(~indicator, scales = "free") +
+           theme_minimal()
+```
+
+## Street level
+
+### Files
+
+-   `Calles_datos/`
+
+Variable names do not seem to be in codebook. Skimming the table:
+
+```{r}
+library(reactable)
+
+skim_calles <- read_csv("skim_calles.csv") %>% 
+  select(-1)
+
+reactable(skim_calles) 
+```
+
+Some of the variables have many zeros, with 75% percentile =0.
