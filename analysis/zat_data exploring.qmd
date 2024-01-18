@@ -1,32 +1,60 @@
 ---
 title: "Initial exploratory data analysis of BEPIDL data"
 subtitle: "ZAT and street level"
-author: "heli"
+author: "Heli Xu"
+date: 1/17/24
 format: 
   html:
     code-fold: true
     toc: true
+    self-contained: true
 editor: visual
 ---
 
+In this report, my goal is to get familiar with the variables (indicators), what they represent (according to codebook), how complete the datasets are, and potentially examine the distribution of the variables.
+
 ## ZAT level
 
-### Items involved
+At ZAT level, two files (folders) are included (along with the codebook).
 
--   `Intersections/ZAT_INDICADORES.xlsx`: data with old variable names (codebook)
+-   `ZAT.zip`: boundary files – a table of 1141 rows, 6 cols (each row being a ZAT unit);
 
--   `ZAT.zip`: boundary files (more rows than data)
+-   `Intersections/ZAT_INDICADORES.xlsx`: a table of 919 rows, 18 cols (each row being a ZAT unit).
 
-### Data distribution - transit
+### ZAT folder
 
-```{r}
+To begin with, I looked at the ZAT folder, which contains shapefiles that define boundaries of each ZAT zone.
+
+```{r, warning=FALSE, message=FALSE}
 library(readxl)
 library(dplyr)
 library(tidyr)
 library(ggplot2)
 library(readr)
+library(sf)
+library(leaflet)
 
-zat_data <- read_xlsx("ZAT_INDICADORES.xlsx")
+zat <- st_read("../data/ZAT/ZAT.shp")
+
+zat
+
+zat %>%
+  st_zm() %>% 
+  leaflet() %>%
+  addTiles() %>%
+  leaflet::addPolygons()
+
+
+```
+
+### ZAT_INDICADORES
+
+Next, we're looking at the `ZAT_INDICADORES.xlsx` table. From referencing the codebook, I noticed the indicators in this table seem to be the "old" version. For all the ZAT included, there are no missing data, while some of the values are zeros. Here we are showing the distribution of all the indicators in the table, grouped into three categories (loosely tentatively): features about public transit, road and traffic lights.
+
+#### Public transit
+
+```{r, warning=FALSE}
+zat_data <- read_xlsx("../data/ZAT_INDICADORES.xlsx")
 
 zat_data_long <- zat_data %>% 
   select(-2, -3) %>% 
@@ -40,49 +68,69 @@ byroad <- c('NUMTTREES', 'NUMSTTREES', 'NUMBRIDGES')
 zat_data_long %>% 
   filter(indicator%in%all_of(bus)) %>% 
   ggplot(aes(x=value)) +
-           geom_density(fill = "skyblue", color = "blue", alpha = 0.7)+
+           geom_histogram(fill = "skyblue", color = "blue")+
            facet_wrap(~indicator, scales = "free") +
-           theme_minimal()
+           theme_minimal() +
+  labs(title = "Distribution of Indicators related to Bus/BRT")
+  
 ```
 
-### Data distribution - road
+#### Road features
 
-```{r}
+```{r, warning=FALSE}
+x <- zat_data_long %>% 
+  filter(indicator == "BPRDRATE")
+
 zat_data_long %>% 
   filter(indicator%in%all_of(onroad)) %>% 
   ggplot(aes(x=value)) +
-           geom_density(fill = "skyblue", color = "blue", alpha = 0.7)+
+           geom_histogram(fill = "skyblue", color = "blue")+
            facet_wrap(~indicator, scales = "free") +
-           theme_minimal()
+           theme_minimal()+
+  labs(title = "Distribution of Indicators related to Features on the Road")
 ```
 
-```{r}
+```{r, warning=FALSE}
 zat_data_long %>% 
   filter(indicator%in%all_of(byroad)) %>% 
   ggplot(aes(x=value)) +
-           geom_density(fill = "skyblue", color = "blue", alpha = 0.7)+
+           geom_histogram(fill = "skyblue", color = "blue", alpha = 0.7)+
            facet_wrap(~indicator, scales = "free") +
-           theme_minimal()
+           theme_minimal()+
+  labs(title = "Distribution of Indicators related to Features by the Road")
 ```
 
-### Data distribution - traffic light
+#### Traffic lights
 
 ```{r}
 zat_data_long %>% 
   filter(indicator%in%all_of(tlight)) %>% 
   ggplot(aes(x=value)) +
-           geom_density(fill = "skyblue", color = "blue", alpha = 0.7)+
+           geom_histogram(fill = "skyblue", color = "blue", alpha = 0.7)+
            facet_wrap(~indicator, scales = "free") +
-           theme_minimal()
+           theme_minimal()+
+  labs(title = "Distribution of Indicators about Traffic Lights")
 ```
 
-## Street level
+## Street level 
 
-### Files
+So far, the data folder included is:
 
 -   `Calles_datos/`
 
-Variable names do not seem to be in codebook. Skimming the table:
+This is a geo-referenced data table containing qualitative and quantitative data at the street level. Due to the size of the table, we are taking first 1000 rows to take a look at the geometry:
+
+```{r}
+calles_1000 <- readRDS("../data/calles_1000.rds")
+
+calles_1000 %>% 
+  leaflet() %>% 
+  addTiles() %>% 
+  leaflet::addPolygons()
+
+```
+
+Apart from the geometry information, there are many variables included in the table, and the variable names do not seem to be in codebook. Skimming the full table:
 
 ```{r}
 library(reactable)
@@ -93,4 +141,4 @@ skim_calles <- read_csv("skim_calles.csv") %>%
 reactable(skim_calles) 
 ```
 
-Some of the variables have many zeros, with 75% percentile =0.
+In the initial skimming report above, the types of all 67 columns, mean/sd and distribution (for numeric columns) are shown. While the completion rate of the columns seem high, some of the columns have many zeros, with 75% percentile =0.
