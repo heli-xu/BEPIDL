@@ -7,6 +7,7 @@ format:
   html:
     code-fold: true
     toc: true
+    toc-depth: 4
     self-contained: true
 editor: visual
 ---
@@ -53,7 +54,7 @@ Next, we're looking at the `ZAT_INDICADORES.xlsx` table. From referencing the co
 
 #### Public transit
 
-```{r, warning=FALSE}
+```{r, warning=FALSE, message=FALSE}
 zat_data <- read_xlsx("../data/ZAT_INDICADORES.xlsx")
 
 zat_data_long <- zat_data %>% 
@@ -77,7 +78,7 @@ zat_data_long %>%
 
 #### Road features
 
-```{r, warning=FALSE}
+```{r, warning=FALSE, message=FALSE}
 x <- zat_data_long %>% 
   filter(indicator == "BPRDRATE")
 
@@ -90,7 +91,7 @@ zat_data_long %>%
   labs(title = "Distribution of Indicators related to Features on the Road")
 ```
 
-```{r, warning=FALSE}
+```{r, warning=FALSE, message=FALSE}
 zat_data_long %>% 
   filter(indicator%in%all_of(byroad)) %>% 
   ggplot(aes(x=value)) +
@@ -102,7 +103,7 @@ zat_data_long %>%
 
 #### Traffic lights
 
-```{r}
+```{r, message=FALSE}
 zat_data_long %>% 
   filter(indicator%in%all_of(tlight)) %>% 
   ggplot(aes(x=value)) +
@@ -132,12 +133,14 @@ calles_1000 %>%
 
 Apart from the geometry information, there are many variables included in the table, and the variable names do not seem to be in codebook. Skimming the full table:
 
-```{r}
+```{r, message=FALSE}
 library(reactable)
 
 skim_calles <- read_csv("skim_calles.csv") %>% 
-  select(-1)
-
+  select(-1) %>% 
+  rename(col_type = skim_type,
+         col_names = skim_variable)
+         
 reactable(skim_calles) 
 ```
 
