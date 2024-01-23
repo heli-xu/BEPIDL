@@ -1,0 +1,267 @@
+---
+title: "Exploratory data analysis of BEPIDL data"
+subtitle: "Geo-referenced ZAT level indicators"
+author: "Heli Xu"
+date: 1/23/24
+format: 
+  html:
+    code-fold: true
+    toc: true
+    toc-depth: 4
+    self-contained: true
+editor: visual
+---
+
+Building on the previous report on exploring target data files and variable distribution, I'd like to join the spatial information from ZAT folder with the variables from `ZAT_INDICADORES.xlsx` and visualize the geo-referenced data.
+
+## Files included
+
+### `ZAT/`
+
+This folder contains boundary files for the ZAT units – a table of 1141 rows, 6 cols (each row being a ZAT unit); (dropping z dimension to create interactive maps).
+
+```{r, warning=FALSE, message=FALSE}
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(readr)
+library(sf)
+library(leaflet)
+
+zat <- st_read("../data/ZAT/ZAT.shp")
+
+zat %>%
+  st_zm() %>% 
+  leaflet() %>%
+  addProviderTiles(providers$CartoDB.Voyager) %>%
+  addPolygons()
+
+
+```
+
+### `ZAT_INDICADORES.xlsx`
+
+This is a data table of 919 rows, 18 cols (each row being a ZAT unit).
+
+According to the codebook, the indicators in this table seem to be the "old" version. For all the ZAT included, there are no missing data, while some of the values are zeros. As seen from the row count, it contains fewer ZAT units than the shapefiles. (first 10 rows shown below)
+
+```{r}
+zat_data <- read_xlsx("../data/ZAT_INDICADORES.xlsx")
+zat_data[1:10,]
+```
+
+## Joining Geometry with Data
+
+Here we'll join the ZAT shapefiles with the `ZAT_INDICADORES.xlsx` by ZAT ID, keeping the ZAT units that we have data for, resulting in a table of 919 rows and 23 columns.
+
+```{r}
+georef_zat <- zat_data %>% 
+  left_join(zat, by = "ZAT") %>% 
+  st_as_sf()
+```
+
+## Visualizing Indicators in Maps
+
+We'll use the georeferenced data to visualize the indicators in maps (dropping z dimension, datum set to WGS84). With loose categorizing the variables into 3 groups: public transits, road features and traffic lights, we'll show interactive maps for one variable for each group along with distributions of all variables.
+
+#### Public transit
+
+```{r}
+library(glue)
+# set color palette for circles
+pal <- colorNumeric(
+  palette = c("orange","navy"),
+  domain = georef_zat$BUSTOPDENS
+)
+
+zat_label <- glue("ZAT{georef_zat$ZAT} Bus stop density: {round(georef_zat$BUSTOPDENS,2)}/km2")
+
+georef_zat %>%
+  st_zm() %>%
+  st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>%
+  leaflet() %>%
+  addProviderTiles(providers$CartoDB.Voyager)  %>%
+  addPolygons(color = "white", 
+              weight = 2,
+              smoothFactor = 0.5,
+              opacity = 1,
+              fillColor = ~pal(BUSTOPDENS),
+              fillOpacity = 0.8,
+              highlightOptions = highlightOptions(
+                weight = 5,
+                color = "#666",
+                fillOpacity = 0.8,
+                bringToFront = TRUE),
+              label = zat_label,
+              labelOptions = labelOptions(
+                style = list(
+                  "font-family" = "Fira Sans, sans-serif",
+                  "font-size" = "1.2em"
+                ))
+              ) %>% 
+  addLegend("bottomleft",
+            pal = pal,
+            values = ~BUSTOPDENS,
+            title = "Bus Stop Density in Bogotá</br>(ZAT-level)",
+            opacity = 1)
+```
+
+#### 
+
+```{r, warning=FALSE, message=FALSE}
+zat_data_long <- zat_data %>% 
+  select(-2, -3) %>% 
+  pivot_longer(-ZAT, names_to = "indicator")
+
+bus <- c('BUSTOPDENS', 'NUMRBP', 'LONGRBP', 'NUMRT', 'LONGRT')
+onroad <- c('LONGMV', 'LRDENS', 'BPRDRATE', 'NUMINT', 'INTDENS')
+tlight <- c('NUMTTFLIGH', 'NUMPTFLIGH')
+byroad <- c('NUMTTREES', 'NUMSTTREES', 'NUMBRIDGES')
+  
+zat_data_long %>% 
+  filter(indicator%in%all_of(bus)) %>% 
+  ggplot(aes(x=value)) +
+           geom_histogram(fill = "skyblue", color = "blue")+
+           facet_wrap(~indicator, scales = "free") +
+           theme_minimal() +
+  labs(title = "Distribution of Indicators related to Bus/BRT")+
+  theme(
+    strip.background = element_rect(fill = "#dadada", color = "white"),
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(size = 15, face = "bold")
+  )
+  
+```
+
+#### Road features
+
+```{r}
+pal2 <- colorNumeric(
+  palette = c("orange","navy"),
+  domain = georef_zat$INTDENS
+)
+
+zat_label2 <- glue("ZAT{georef_zat$ZAT} Intersection density: {round(georef_zat$INTDENS,2)}/km2")
+
+georef_zat %>%
+  st_zm() %>%
+  st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>%
+  leaflet() %>%
+  addProviderTiles(providers$CartoDB.Voyager)  %>%
+  addPolygons(color = "white", 
+              weight = 2,
+              smoothFactor = 0.5,
+              opacity = 1,
+              fillColor = ~pal2(INTDENS),
+              fillOpacity = 0.8,
+              highlightOptions = highlightOptions(
+                weight = 5,
+                color = "#666",
+                fillOpacity = 0.8,
+                bringToFront = TRUE),
+              label = zat_label2,
+              labelOptions = labelOptions(
+                style = list(
+                  "font-family" = "Fira Sans, sans-serif",
+                  "font-size" = "1.2em"
+                ))
+              ) %>% 
+  addLegend("bottomleft",
+            pal = pal2,
+            values = ~INTDENS,
+            title = "Intersection Density in Bogotá</br>(ZAT-level)",
+            opacity = 1)
+```
+
+```{r, warning=FALSE, message=FALSE}
+zat_data_long %>% 
+  filter(indicator%in%all_of(onroad)) %>% 
+  ggplot(aes(x=value)) +
+           geom_histogram(fill = "skyblue", color = "blue")+
+           facet_wrap(~indicator, scales = "free") +
+           theme_minimal()+
+  labs(title = "Distribution of Indicators related to Features on the Road") +
+  theme(
+    strip.background = element_rect(fill = "#dadada", color = "white"),
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(size = 15, face = "bold")
+  )
+```
+
+```{r, warning=FALSE, message=FALSE}
+#| fig-height: 3.5
+#| fig-width: 7
+
+zat_data_long %>% 
+  filter(indicator%in%all_of(byroad)) %>% 
+  ggplot(aes(x=value)) +
+           geom_histogram(fill = "skyblue", color = "blue", alpha = 0.7)+
+           facet_wrap(~indicator, scales = "free") +
+           theme_minimal()+
+  labs(title = "Distribution of Indicators related to Features by the Road") +
+  theme(
+    strip.background = element_rect(fill = "#dadada", color = "white"),
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(size = 15, face = "bold")
+  )
+```
+
+#### Traffic lights
+
+```{r}
+pal3 <- colorNumeric(
+  palette = c("orange","navy"),
+  domain = georef_zat$NUMTTFLIGH
+)
+
+zat_label3 <- glue("ZAT{georef_zat$ZAT} Total traffic lights: {georef_zat$NUMTTFLIGH}")
+
+georef_zat %>%
+  st_zm() %>%
+  st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>%
+  leaflet() %>%
+  addProviderTiles(providers$CartoDB.Voyager)  %>%
+  addPolygons(color = "white", 
+              weight = 2,
+              smoothFactor = 0.5,
+              opacity = 1,
+              fillColor = ~pal3(NUMTTFLIGH),
+              fillOpacity = 0.8,
+              highlightOptions = highlightOptions(
+                weight = 5,
+                color = "#666",
+                fillOpacity = 0.8,
+                bringToFront = TRUE),
+              label = zat_label3,
+              labelOptions = labelOptions(
+                style = list(
+                  "font-family" = "Fira Sans, sans-serif",
+                  "font-size" = "1.2em"
+                ))
+              ) %>% 
+  addLegend("bottomleft",
+            pal = pal3,
+            values = ~NUMTTFLIGH,
+            title = "Total Traffic Lights in Bogotá</br>(ZAT-level)",
+            opacity = 1)
+```
+
+```{r, message=FALSE}
+#| fig-height: 3.5
+#| fig-width: 6
+
+zat_data_long %>% 
+  filter(indicator%in%all_of(tlight)) %>% 
+  ggplot(aes(x=value)) +
+           geom_histogram(fill = "skyblue", color = "blue", alpha = 0.7)+
+           facet_wrap(~indicator, scales = "free") +
+           theme_minimal()+
+  labs(title = "Distribution of Indicators about Traffic Lights") +
+  theme(
+    strip.background = element_rect(fill = "#dadada", color = "white"),
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(size = 15, face = "bold")
+  )
+```
+
