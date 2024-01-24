@@ -12,7 +12,7 @@ format:
 editor: visual
 ---
 
-Building on the previous report on exploring target data files and variable distribution, I'd like to join the spatial information from ZAT folder with the variables from `ZAT_INDICADORES.xlsx` and visualize the geo-referenced data.
+Building on the initial exploratory data analysis on variable distribution, I'd like to join the spatial information from ZAT folder with the variables from `ZAT_INDICADORES.xlsx` and visualize the geo-referenced data.
 
 ## Files included
 
@@ -264,4 +264,5 @@ zat_data_long %>%
     plot.title = element_text(size = 15, face = "bold")
   )
 ```
+
 Initial takeaway: some of the indicators seem to show similar spatial patterns, though there is a significant number of lower count values in the dataset which might make the visualization less clear.
