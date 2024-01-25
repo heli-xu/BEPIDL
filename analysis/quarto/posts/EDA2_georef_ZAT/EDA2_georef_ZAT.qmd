@@ -29,7 +29,7 @@ library(readr)
 library(sf)
 library(leaflet)
 
-zat <- st_read("../data/ZAT/ZAT.shp")
+zat <- st_read("../../../../data/ZAT/ZAT_geo/ZAT.shp")
 
 zat %>%
   st_zm() %>% 
@@ -47,7 +47,7 @@ This is a data table of 919 rows, 18 cols (each row being a ZAT unit).
 According to the codebook, the indicators in this table seem to be the "old" version. For all the ZAT included, there are no missing data, while some of the values are zeros. As seen from the row count, it contains fewer ZAT units than the shapefiles. (first 10 rows shown below)
 
 ```{r}
-zat_data <- read_xlsx("../data/ZAT_INDICADORES.xlsx")
+zat_data <- read_xlsx("../../../../data/ZAT/ZAT_INDICADORES.xlsx")
 zat_data[1:10,]
 ```
 

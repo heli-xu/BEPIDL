@@ -35,7 +35,7 @@ library(readr)
 library(sf)
 library(leaflet)
 
-zat <- st_read("../data/ZAT/ZAT.shp")
+zat <- st_read("../../../../data/ZAT/ZAT_geo/ZAT.shp")
 
 zat
 
@@ -55,7 +55,7 @@ Next, we're looking at the `ZAT_INDICADORES.xlsx` table. From referencing the co
 #### Public transit
 
 ```{r, warning=FALSE, message=FALSE}
-zat_data <- read_xlsx("../data/ZAT_INDICADORES.xlsx")
+zat_data <- read_xlsx("../../../../data/ZAT/ZAT_INDICADORES.xlsx")
 
 zat_data_long <- zat_data %>% 
   select(-2, -3) %>% 
@@ -79,9 +79,6 @@ zat_data_long %>%
 #### Road features
 
 ```{r, warning=FALSE, message=FALSE}
-x <- zat_data_long %>% 
-  filter(indicator == "BPRDRATE")
-
 zat_data_long %>% 
   filter(indicator%in%all_of(onroad)) %>% 
   ggplot(aes(x=value)) +
@@ -113,7 +110,7 @@ zat_data_long %>%
   labs(title = "Distribution of Indicators about Traffic Lights")
 ```
 
-## Street level 
+## Street level
 
 So far, the data folder included is:
 
@@ -122,7 +119,7 @@ So far, the data folder included is:
 This is a geo-referenced data table containing qualitative and quantitative data at the street level. Due to the size of the table, we are taking first 1000 rows to take a look at the geometry:
 
 ```{r}
-calles_1000 <- readRDS("../data/calles_1000.rds")
+calles_1000 <- readRDS("../../../../data/Calles/calles_1000.rds")
 
 calles_1000 %>% 
   leaflet() %>% 
@@ -136,7 +133,7 @@ Apart from the geometry information, there are many variables included in the ta
 ```{r, message=FALSE}
 library(reactable)
 
-skim_calles <- read_csv("skim_calles.csv") %>% 
+skim_calles <- read_csv("../../../../analysis/skim_calles.csv") %>% 
   select(-1) %>% 
   rename(col_type = skim_type,
          col_names = skim_variable)
