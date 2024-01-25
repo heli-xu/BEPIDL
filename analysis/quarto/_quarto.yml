@@ -4,8 +4,12 @@ project:
 website:
   title: "Built Environment, Pedestrian Injuries, and Deep Learning"
   navbar:
+    background: warning
     right:
-      - about.qmd
+      - text: 'Home'
+        href: index.qmd
+      - text: 'About'
+        href: about.qmd
       - icon: github
         href: https://github.com/
       - icon: twitter
