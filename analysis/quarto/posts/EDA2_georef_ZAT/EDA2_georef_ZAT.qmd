@@ -1,7 +1,8 @@
 ---
-title: "Exploratory data analysis of BEPIDL data"
+title: "Exploratory data analysis 2 of BEPIDL data"
 subtitle: "Geo-referenced ZAT level indicators"
 author: "Heli Xu"
+image: image.jpg
 date: 1/23/24
 format: 
   html:
@@ -11,6 +12,7 @@ format:
     self-contained: true
 editor: visual
 ---
+
 
 Building on the initial exploratory data analysis on variable distribution, I'd like to join the spatial information from ZAT folder with the variables from `ZAT_INDICADORES.xlsx` and visualize the geo-referenced data.
 

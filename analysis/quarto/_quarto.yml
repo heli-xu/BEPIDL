@@ -19,5 +19,8 @@ format:
     theme: superhero
     css: styles.css
 
+execute: 
+  cache: true
+  freeze: true
 editor: visual
 
