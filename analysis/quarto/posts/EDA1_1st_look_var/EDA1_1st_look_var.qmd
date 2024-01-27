@@ -1,7 +1,8 @@
 ---
-title: "Initial exploratory data analysis of BEPIDL data"
-subtitle: "ZAT and street level"
+title: "Initial Look into BEPIDL Data"
+subtitle: "ZAT and Street Level"
 author: "Heli Xu"
+image: bogota.jpg
 date: 1/17/24
 format: 
   html:
@@ -18,7 +19,7 @@ In this report, my goal is to get familiar with the variables (indicators), what
 
 At ZAT level, two files (folders) are included (along with the codebook).
 
--   `ZAT.zip`: boundary files – a table of 1141 rows, 6 cols (each row being a ZAT unit);
+-   `ZAT.zip`: boundary files -- a table of 1141 rows, 6 cols (each row being a ZAT unit);
 
 -   `Intersections/ZAT_INDICADORES.xlsx`: a table of 919 rows, 18 cols (each row being a ZAT unit).
 

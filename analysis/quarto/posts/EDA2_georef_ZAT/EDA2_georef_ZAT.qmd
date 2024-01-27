@@ -1,8 +1,8 @@
 ---
-title: "Exploratory data analysis 2 of BEPIDL data"
-subtitle: "Geo-referenced ZAT level indicators"
+title: "Exploratory Data Analysis of BEPIDL Data"
+subtitle: "Geo-referenced ZAT-level Indicators"
 author: "Heli Xu"
-image: image.jpg
+image: map.jpg
 date: 1/23/24
 format: 
   html:
@@ -13,14 +13,13 @@ format:
 editor: visual
 ---
 
-
 Building on the initial exploratory data analysis on variable distribution, I'd like to join the spatial information from ZAT folder with the variables from `ZAT_INDICADORES.xlsx` and visualize the geo-referenced data.
 
 ## Files included
 
 ### `ZAT/`
 
-This folder contains boundary files for the ZAT units – a table of 1141 rows, 6 cols (each row being a ZAT unit); (dropping z dimension to create interactive maps).
+This folder contains boundary files for the ZAT units -- a table of 1141 rows, 6 cols (each row being a ZAT unit); (dropping z dimension to create interactive maps).
 
 ```{r, warning=FALSE, message=FALSE}
 library(readxl)

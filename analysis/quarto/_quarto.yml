@@ -4,7 +4,7 @@ project:
 website:
   title: "Built Environment, Pedestrian Injuries, and Deep Learning"
   navbar:
-    background: warning
+    background: primary
     right:
       - text: 'Home'
         href: index.qmd
@@ -16,11 +16,10 @@ website:
         href: https://twitter.com
 format:
   html:
-    theme: superhero
+    theme: solar
     css: styles.css
 
 execute: 
-  cache: true
   freeze: true
 editor: visual
 
