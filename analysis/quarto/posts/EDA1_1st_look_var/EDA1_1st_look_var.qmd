@@ -117,12 +117,12 @@ So far, the data folder included is:
 
 -   `Calles_datos/`
 
-This is a geo-referenced data table containing qualitative and quantitative data at the street level. Due to the size of the table, we are taking first 1000 rows to take a look at the geometry:
+This is a geo-referenced data table containing qualitative and quantitative data at the street level. Due to the size of the table, we are taking first 100 rows to take a look at the geometry:
 
 ```{r}
-calles_1000 <- readRDS("../../../../data/Calles/calles_1000.rds")
+calles_100 <- readRDS("../../../../clean_data/calles/calles_100.rds")
 
-calles_1000 %>% 
+calles_100 %>% 
   leaflet() %>% 
   addTiles() %>% 
   leaflet::addPolygons()
@@ -134,11 +134,12 @@ Apart from the geometry information, there are many variables included in the ta
 ```{r, message=FALSE}
 library(reactable)
 
-skim_calles <- read_csv("../../../../analysis/skim_calles.csv") %>% 
+skim_calles <- read_csv("../../../../clean_data/calles/skim_calles.csv") %>% 
   select(-1) %>% 
   rename(col_type = skim_type,
          col_names = skim_variable)
          
+
 reactable(skim_calles) 
 ```
 
