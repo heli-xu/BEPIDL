@@ -6,6 +6,5 @@ I'm a data analyst working with Dr. Quistberg, and this repo is for documenting 
 
 ## Content
 
--   `data_process.R` This script is used to generate the datasets in `clean_data/`
--   `clean_data/` Includes `calles/`(street) and `ZAT/` folders for geographic levels. Datasets in `.rds` format, ready for use in visualization or analysis.
+-   `clean_data/` Processed datasets for `calles`(street) and `ZAT` geographic levels, and R scripts used to process the raw data (not included). Datasets are in `.rds` format, ready for use in visualization or analysis.
 -   `analysis/` Statistical analysis, modeling, and reports. See my [BEPIDL notes](https://heli-xu.github.io/BEPIDL/), built using [Quarto](https://quarto.org/).
