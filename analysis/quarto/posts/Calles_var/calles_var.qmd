@@ -1,0 +1,296 @@
+---
+title: "Street Level Variables"
+author: "Heli Xu"
+date: 1/29/24
+format: 
+  html:
+    code-fold: true
+    toc: true
+    toc-depth: 4
+    self-contained: true
+editor: visual
+---
+
+From the [first look](../EDA1_1st_look_var/EDA1_1st_look_var.qmd#Street%20level), the street-level variables names in `Calles_datos/` seemed a bit confusing, but after cross-referencing the codebook with `CRUCES_DATOS.xlsx` and variables in `siniestros/`, we have gained a much better understanding of what they mean. The column names in `Calles_datos/`and their corresponding description from the codebook are organized into `codebook_calles-var.xlsx` for future reference (there're also a few uncertain variables to be confirmed/better defined).
+
+In this post, we'll describe the data cleaning process and explore the distributions of the variables related to road infrastructure at the street level.
+
+## Data Cleaning
+
+As mentioned in the first look, the data included in `Calles_datos/` is a geo-referenced table with 100,819 street units (rows) and 66 attributes (columns, including street id and variables).
+
+If we look at the histogram of total area and roadway area, we'll see there're a lot of very small streets with area close to 0, which may not be very useful for our downstream analysis.
+
+```{r setup, warning=FALSE, message=FALSE}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+```
+
+```{r, eval = FALSE}
+calle %>% 
+  as.data.frame() %>% 
+  select(CodigoCL,total_area = area, roadway_area = A_Calzada) %>% 
+  pivot_longer(-CodigoCL, names_to = "variables") %>% 
+  ggplot(aes(x=value)) +
+  geom_histogram(fill = "skyblue", color = "blue", binwidth = 50)+
+  theme_minimal()+
+  facet_wrap(~variables)+
+  labs(title = "Distribution of Street-level Roadway and Total Areas")+
+  theme(
+    strip.background = element_rect(fill = "#dadada", color = "white"),
+    strip.text = element_text(size = 13),
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(size = 15, face = "bold")
+  )
+```
+
+![](images/calles_areas.png){width="600"}
+
+Sorting the roadway area in ascending order, and zooming in on the smallest side, we take the first 500 rows (street units) of data:
+
+```{r, eval = FALSE}
+calle %>% 
+    as.data.frame() %>% 
+    select(CodigoCL,total_area = area, roadway_area = A_Calzada) %>% 
+    arrange(total_area) %>% 
+    slice(1:500) %>% 
+    pivot_longer(-CodigoCL, names_to = "variables") %>% 
+    ggplot(aes(x=value)) +
+      geom_histogram(fill = "skyblue", color = "blue", binwidth = 0.5)+
+      theme_minimal()+
+      facet_wrap(~variables)+
+  labs(title = "Distribution of Street-level Roadway and Total Areas",
+    subtitle = "for 500 street units with the smallest roadways")+
+  theme(
+    strip.background = element_rect(fill = "#dadada", color = "white"),
+    strip.text = element_text(size = 12),
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(size = 15, face = "bold"),
+    plot.subtitle = element_text(size = 13)
+  )
+```
+
+![](images/sm500area.png){width="608"}
+
+If we leave out the values that are too small, for example here we're choosing anything below 5m^2^, the 500 street units with the smallest roadways will look like this:
+
+```{r, eval=FALSE}
+calle %>% 
+    as.data.frame() %>% 
+    select(CodigoCL,total_area = area, roadway_area = A_Calzada) %>% 
+    filter(roadway_area > 5 ) %>% 
+    arrange(total_area) %>% 
+    slice(1:500) %>% 
+    pivot_longer(-CodigoCL, names_to = "variables") %>% 
+    ggplot(aes(x=value)) +
+    geom_histogram(fill = "skyblue", color = "blue", binwidth = 0.5)+
+    theme_minimal()+
+    facet_wrap(~variables)+
+  labs(title = "Distribution of Street-level Roadway and Total Areas",
+    subtitle = expression("for 500 street units with the smallest roadways >5"* m^2))+
+  theme(
+    strip.background = element_rect(fill = "#dadada", color = "white"),
+    strip.text = element_text(size = 12),
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(size = 15, face = "bold"),
+    plot.subtitle = element_text(size = 13)
+  )
+```
+
+![](images/sm500area-over5.png){width="607"}
+
+At this point, our dataset went from 100,819 rows to 99,560 rows. I included one extra step here in an attempt to clean it further, by adding all the numeric columns for each row (except the ones for id, area-related and speed limit) and leaving out the rows that have a sum of less than 1. Considering most of the variables are counts of certain features, this step will remove the street units that have almost none of the feature that we're studying. The resulting table now has 99,533 rows.
+
+In addition, we're also removing the columns that contain arbitrary IDs, repeated labels, summarization columns (that add up certain columns), and a few uncertain variables. For the character column `sent_vial` , we are recoding "uno" and "doble" to the numeric value 1 and 2.
+
+```{r, eval=FALSE}
+calle_clean <- calle %>%
+  filter(A_Calzada > 5) %>%
+  select(
+    -c(CODIGO_IDE,
+      FID_EP_IND,
+      Etiquetas,
+      Etiqueta_1,
+      sen_v_inv,
+      comp_cl,
+      OID_,
+      Total_gene,
+      Total_ge_1)
+  ) %>%
+  mutate(total = rowSums(pick(
+    where(is.numeric),
+    -c(sent_vial,
+      puente_vh,
+      Puente_PT,
+      velcidad,
+      area,
+      A_Calzada,
+      CodigoCL)
+  ))) %>% #99560row
+  ##much much faster, see rowwise ops with dplyr
+  filter(total >= 1) %>% #99533rows
+  select(-total) %>%
+  mutate(sent_vial = case_match(sent_vial, "uno" ~ 1, "doble" ~ 2, "SinD*" ~ 0))
+```
+
+## Variables about Road Features
+
+```{r, echo=FALSE}
+calle_clean_df <- readRDS("../../../../clean_data/calles/calle_clean_df.rds")
+```
+
+For better visualization, we're (again, loosely) categorizing the variables into several groups, based on the common domains used with road infrastructure features. Below is the domain and the variables involved:
+
+-   **Road Geometry**: AVE_pendie, A_Calzada, P_Ancho_Cl, A_separado, A_andenes, sum_carril;
+
+-   **Signage and Markings**: sen_horizo , se_hor_seg , sen_vert , semaforo, X1_girar_iz , X5policiasa , X6pare , X7estaciona , X8zonas_esc , X9ceder_el;
+
+-   **Traffic Flow and Patterns**: segme_via, velcidad, sent_vial;
+
+-   **Pedestrian Infrastructure**: Puente_PT, A_andenes, peatonale
+
+-   **Cycling Infrastructure**: largo_cicl, X2_ciclov.;
+
+-   **Public Transportation**: Rutas_TRM, Rutas_SITP, Parad_SITP, Caril_SITP, X3bus_o\_Tra;
+
+-   **Landscaping**: arboles.
+
+```{r}
+road_geo <- c("AVE_pendie", "A_Calzada", "P_Ancho_Cl",
+  "A_separado", "A_andenes","sum_carril") 
+#not including "av_carrile"
+
+sign1 <- c("sen_horizo","se_hor_seg","sen_vert", "semaforo")
+sign2 <- c("X1_girar_iz", "X5policiasa", "X6pare", 
+  "X7estaciona", "X8zonas_esc", "X9ceder_el")
+
+flow <- c("segme_via", "velcidad", "sent_vial")
+
+ped <- c("A_andenes", "X4peatonale")
+
+bike <- c("largo_cicl","X2_ciclov.")
+
+transit <- c("Rutas_TRM","Rutas_SITP", "Parad_SITP",  
+  "Caril_SITP","X3bus_o_Tra")
+
+landsc <- c("arboles")
+```
+
+Below are the distribution of the variables in each domain:
+
+### Road Geometry
+
+```{r, message=FALSE}
+calle_clean_df %>% 
+  select(CodigoCL, all_of(road_geo)) %>%
+  pivot_longer(-CodigoCL, names_to = "variables") %>% 
+  ggplot(aes(x=value)) +
+  geom_histogram(fill = "skyblue", color = "blue")+
+  theme_minimal()+
+  facet_wrap(~variables, scales = "free")+
+  labs(title = "Distribution of Street-level Road Geometry Features")+
+  theme(
+    strip.background = element_rect(fill = "#dadada", color = "white"),
+    strip.text = element_text(size = 12),
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(size = 15, face = "bold")
+  )
+```
+
+### Signage and Markings
+
+```{r, message=FALSE}
+calle_clean_df %>% 
+  select(CodigoCL, all_of(sign1)) %>%
+  pivot_longer(-CodigoCL, names_to = "variables") %>% 
+  ggplot(aes(x=value)) +
+  geom_histogram(fill = "skyblue", color = "blue")+
+  theme_minimal()+
+  facet_wrap(~variables, scales = "free")+
+  labs(title = "Distribution of Street-level Signage Features",
+    subtitle = "Part 1")+
+  theme(
+    strip.background = element_rect(fill = "#dadada", color = "white"),
+    strip.text = element_text(size = 12),
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(size = 15, face = "bold")
+  )
+
+calle_clean_df %>% 
+  select(CodigoCL, all_of(sign2)) %>%
+  pivot_longer(-CodigoCL, names_to = "variables") %>% 
+  ggplot(aes(x=value)) +
+  geom_histogram(fill = "skyblue", color = "blue")+
+  theme_minimal()+
+  facet_wrap(~variables, scales = "free")+
+  labs(title = "Distribution of Street-level Signage Features",
+    subtitle = "Part 2")+
+  theme(
+    strip.background = element_rect(fill = "#dadada", color = "white"),
+    strip.text = element_text(size = 12),
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(size = 15, face = "bold")
+  )
+```
+
+### Traffic Flow and Patterns
+
+```{r, message=FALSE}
+#| fig-height: 3
+#| fig-width: 7
+
+calle_clean_df %>% 
+  select(CodigoCL, all_of(flow)) %>%
+  pivot_longer(-CodigoCL, names_to = "variables") %>% 
+  ggplot(aes(x=value)) +
+  geom_histogram(fill = "skyblue", color = "blue", binwidth = 1)+
+  theme_minimal()+
+  facet_wrap(~variables, scales = "free")+
+  labs(title = "Distribution of Street-level Features on Traffic Flow")+
+  theme(
+    strip.background = element_rect(fill = "#dadada", color = "white"),
+    strip.text = element_text(size = 12),
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(size = 15, face = "bold")
+  )
+```
+
+### Pedestrian and Cycling Infrastructure
+
+```{r, message=FALSE}
+calle_clean_df %>% 
+  select(CodigoCL, all_of(ped), all_of(bike)) %>%
+  pivot_longer(-CodigoCL, names_to = "variables") %>% 
+  ggplot(aes(x=value)) +
+  geom_histogram(fill = "skyblue", color = "blue")+
+  theme_minimal()+
+  facet_wrap(~variables, scales = "free")+
+  labs(title = "Distribution of Street-level Pedestrian and Cycling Features")+
+  theme(
+    strip.background = element_rect(fill = "#dadada", color = "white"),
+    strip.text = element_text(size = 12),
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(size = 15, face = "bold"))
+```
+
+### Landscaping
+
+```{r, message=FALSE}
+#| fig-height: 4
+#| fig-width: 5
+
+calle_clean_df %>% 
+  select(CodigoCL, all_of(landsc)) %>%
+  pivot_longer(-CodigoCL, names_to = "variables") %>% 
+  ggplot(aes(x=value)) +
+  geom_histogram(fill = "skyblue", color = "blue")+
+  theme_minimal()+
+  facet_wrap(~variables, scales = "free")+
+  labs(title = "Distribution of ST-level Landscaping Features")+
+  theme(
+    strip.background = element_rect(fill = "#dadada", color = "white"),
+    strip.text = element_text(size = 11),
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(size = 12, face = "bold", hjust = 0))
+```
