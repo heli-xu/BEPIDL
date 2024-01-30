@@ -1,6 +1,8 @@
 ---
 title: "Street Level Variables"
+subtitle: "Part 1: Road Infrastructure"
 author: "Heli Xu"
+image: calle_arcgis.jpeg
 date: 1/29/24
 format: 
   html:
@@ -102,7 +104,7 @@ calle %>%
 
 At this point, our dataset went from 100,819 rows to 99,560 rows. I included one extra step here in an attempt to clean it further, by adding all the numeric columns for each row (except the ones for id, area-related and speed limit) and leaving out the rows that have a sum of less than 1. Considering most of the variables are counts of certain features, this step will remove the street units that have almost none of the feature that we're studying. The resulting table now has 99,533 rows.
 
-In addition, we're also removing the columns that contain arbitrary IDs, repeated labels, summarization columns (that add up certain columns), and a few uncertain variables. For the character column `sent_vial` , we are recoding "uno" and "doble" to the numeric value 1 and 2.
+In addition, we're also removing the columns that contain arbitrary IDs, repeated labels, summarization columns (that add up certain columns), and a few uncertain variables. For the character column `sent_vial` , we are recoding "uno" and "doble" to the numeric value 1 and 2, and set "SinD\*" (no assigned direction) as numeric value 0.
 
 ```{r, eval=FALSE}
 calle_clean <- calle %>%
@@ -152,7 +154,7 @@ For better visualization, we're (again, loosely) categorizing the variables into
 
 -   **Cycling Infrastructure**: largo_cicl, X2_ciclov.;
 
--   **Public Transportation**: Rutas_TRM, Rutas_SITP, Parad_SITP, Caril_SITP, X3bus_o\_Tra;
+-   **Public Transportation**: Rutas_TRM, Rutas_SITP, Parad_SITP, Caril_SITP, X3bus_o_Tra;
 
 -   **Landscaping**: arboles.
 
