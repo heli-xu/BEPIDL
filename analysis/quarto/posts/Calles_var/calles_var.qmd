@@ -2,7 +2,7 @@
 title: "Street Level Variables"
 subtitle: "Part 1: Road Infrastructure"
 author: "Heli Xu"
-image: calle_arcgis.jpeg
+image: satell_bogota.jpg
 date: 1/29/24
 format: 
   html:
