@@ -1,0 +1,38 @@
+---
+title: "ZAT Level Variables"
+subtitle: "Coorelation and Mixture Models"
+author: "Heli Xu"
+date: 1/31/24
+format: 
+  html:
+    code-fold: true
+    toc: true
+    toc-depth: 4
+    self-contained: true
+editor: visual
+---
+
+```{r setup, warning=FALSE, message=FALSE}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+```
+
+```{r, message=FALSE}
+#| fig-height: 4
+#| fig-width: 5
+
+calle_clean_df %>% 
+  select(CodigoCL, all_of(landsc)) %>%
+  pivot_longer(-CodigoCL, names_to = "variables") %>% 
+  ggplot(aes(x=value)) +
+  geom_histogram(fill = "skyblue", color = "blue")+
+  theme_minimal()+
+  facet_wrap(~variables, scales = "free")+
+  labs(title = "Distribution of ST-level Landscaping Features")+
+  theme(
+    strip.background = element_rect(fill = "#dadada", color = "white"),
+    strip.text = element_text(size = 11),
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(size = 12, face = "bold", hjust = 0))
+```
