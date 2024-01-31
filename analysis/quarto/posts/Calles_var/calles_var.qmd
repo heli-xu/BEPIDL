@@ -296,3 +296,13 @@ calle_clean_df %>%
     panel.grid.minor = element_blank(),
     plot.title = element_text(size = 12, face = "bold", hjust = 0))
 ```
+
+## Multicorrelation between Variables
+
+```{r}
+cor_mx <- calle_clean_df %>% 
+  select(-CodigoCL, -area, -Puente_PT, -puente_vh) %>% 
+  cor(.)
+
+cor_mx[lower.tri(cor_mx, diag = TRUE)] <- NA
+```
