@@ -51,6 +51,5 @@ rsconnect/
 # other folders/files
 data/
 reading/
-*.html
 *_files/
 clean_data/calles/calle_clean.rds
