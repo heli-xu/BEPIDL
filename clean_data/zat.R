@@ -88,14 +88,16 @@ zat_std2 <- zat_std %>% drop_na()
 
 saveRDS(zat_std2, file = "clean_data/zat_std2.rds")
 
+
+
 #var_to_model
 var_to_model <- zat_std2 %>% select(-ZAT)
-list <- colnames(var_to_model)
 
 fit_model <- function(k){
 mix <- flexmix(as.matrix(var_to_model) ~ 1, data = var_to_model, model = FLXMCmvpois(), k =k)
 return(BIC(mix))
 }
+
 # Apply the function for different values of k
 k_values <- 1:10  # You can adjust the range based on your needs
 
@@ -103,7 +105,7 @@ bic_values <- map_dbl(k_values, fit_model)
 
 results <- data.frame(Clusters = k_values, BIC = bic_values)
 
-
+# elbow plot
 ggplot(results, aes(x = Clusters, y = BIC)) +
   geom_line(color = "blue", ) +
   geom_point() +
@@ -120,3 +122,4 @@ BIC(mix2)
 
 mix_best <- getModel(mix2, "BIC")
 
+mix_best
