@@ -62,20 +62,61 @@ cor_matrix[upper.tri(cor_matrix, diag = TRUE)] <- NA
 # >0.6 only those with related variables
 
 # FMM ------------------------------------------------------------
-zat_std <- zat_data %>% 
+library(flexmix)
+# note the zeros whenever you do standardize
+zat_std <- zat_data %>%
   mutate(
-        road_length_log = log(LRDENS),
-         st_4ln_length_log = log(LONGMV),
-         tree_per_km2 = NUMTTREES/areakm2,
-        bridg_per_km2 = NUMBRIDGES/areakm2,
-        trlight_per_int = NUMTTFLIGH/NUMINT,
-        bus_rt_length_log = case_when(LONGRBP > 0 ~ log(LONGRBP),
-                                      .default = LONGRBP)
-         )
+    road_length_log = case_when(LRDENS >0 ~ log(LRDENS),
+                                .default = LRDENS),
+    st_4ln_length_log = case_when(LONGMV > 0 ~log(LONGMV),
+                                .default = LONGMV),
+    tree_per_km2 = NUMTTREES / areakm2,
+    bridg_per_km2 = NUMBRIDGES / areakm2,
+    trlight_per_int = NUMTTFLIGH / NUMINT,
+    bus_length_log = case_when(LONGRBP > 0 ~ log(LONGRBP),
+                                  .default = LONGRBP),
+    brt_length_log = case_when(LONGRT > 0 ~ log(LONGRT),
+                                .default = LONGRT)
+  ) %>% 
+  select(ZAT, BUSTOPDENS, road_length_log, st_4ln_length_log, BPRDRATE,
+        NUMINT, INTDENS, tree_per_km2, bridg_per_km2, trlight_per_int,
+    NUMRBP, bus_length_log, NUMRT, brt_length_log)
+
+trlight_int_na <- zat_std %>% filter(is.na(trlight_per_int))
+
+zat_std2 <- zat_std %>% drop_na()
+
+saveRDS(zat_std2, file = "clean_data/zat_std2.rds")
+
+#var_to_model
+var_to_model <- zat_std2 %>% select(-ZAT)
+list <- colnames(var_to_model)
+
+fit_model <- function(k){
+mix <- flexmix(as.matrix(var_to_model) ~ 1, data = var_to_model, model = FLXMCmvpois(), k =k)
+return(BIC(mix))
+}
+# Apply the function for different values of k
+k_values <- 1:10  # You can adjust the range based on your needs
+
+bic_values <- map_dbl(k_values, fit_model) 
+
+results <- data.frame(Clusters = k_values, BIC = bic_values)
 
 
-  zat_data %>% mutate(
-    bus_rt_length_log = case_when(
-      LONGRBP > 0 ~ log(LONGRBP),
-      .default = LONGRBP))
-                                                                                              .default = LONGRBP)
+ggplot(results, aes(x = Clusters, y = BIC)) +
+  geom_line(color = "blue", ) +
+  geom_point() +
+  theme_minimal() +
+  labs(title = "Elbow Plot for BIC Values",
+    x = "Number of Clusters",
+    y = "BIC")
+
+
+mix2 <- stepFlexmix(as.matrix(var_to_model) ~ 1, data = var_to_model, model = FLXMCmvpois(), k = 1:7, 
+  nrep = 3)
+
+BIC(mix2)
+
+mix_best <- getModel(mix2, "BIC")
+

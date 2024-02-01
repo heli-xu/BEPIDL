@@ -12,27 +12,50 @@ format:
 editor: visual
 ---
 
+After checking distribution of each variable at ZAT level (see [shiny dashboard](https://heli-xu.shinyapps.io/zat-indicator/)), we'll now try using finite mixture modeling to fit our data to understand the neighborhood profiles.
+
 ```{r setup, warning=FALSE, message=FALSE}
 library(dplyr)
 library(ggplot2)
 library(tidyr)
+library(flexmix)
 ```
 
 ```{r, message=FALSE}
-#| fig-height: 4
-#| fig-width: 5
+zat_std2 <- readRDS("../../../../clean_data/zat_std2.rds")
 
-calle_clean_df %>% 
-  select(CodigoCL, all_of(landsc)) %>%
-  pivot_longer(-CodigoCL, names_to = "variables") %>% 
-  ggplot(aes(x=value)) +
-  geom_histogram(fill = "skyblue", color = "blue")+
-  theme_minimal()+
-  facet_wrap(~variables, scales = "free")+
-  labs(title = "Distribution of ST-level Landscaping Features")+
-  theme(
-    strip.background = element_rect(fill = "#dadada", color = "white"),
-    strip.text = element_text(size = 11),
-    panel.grid.minor = element_blank(),
-    plot.title = element_text(size = 12, face = "bold", hjust = 0))
+var_to_model <- zat_std2 %>% select(-ZAT)
+
+fit_model <- function(k){
+mix <- flexmix(as.matrix(var_to_model) ~ 1, data = var_to_model, model = FLXMCmvpois(), k =k)
+return(BIC(mix))
+}
+
+k_values <- 1:7  # You can adjust the range based on your needs
+
+bic_values <- map_dbl(k_values, fit_model) 
+
+results <- data.frame(Clusters = k_values, BIC = bic_values)
+
+
+ggplot(results, aes(x = Clusters, y = BIC)) +
+  geom_line(color = "blue", ) +
+  geom_point() +
+  theme_minimal() +
+  labs(title = "Elbow Plot for BIC Values",
+    x = "Number of Clusters",
+    y = "BIC")
+
+
+```
+
+```{r}
+mix2 <- stepFlexmix(as.matrix(var_to_model) ~ 1, data = var_to_model, model = FLXMCmvpois(), k = 1:7, 
+  nrep = 3)
+
+BIC(mix2)
+
+mix_best <- getModel(mix2, "BIC")
+
+mix_best
 ```
