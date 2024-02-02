@@ -48,16 +48,36 @@ server <- function(input, output, session) {
   output$distPlot <- renderPlot({
     df_to_plot<- georef_zat_xtr %>% 
                  as.data.frame() %>% 
-                 select(input$indicator)
+                 select(input$indicator) 
     
+    mean_value <- mean(df_to_plot[,1])
+    sd_value <- sd(df_to_plot[,1])
     
-      ggplot(df_to_plot, aes_string(input$indicator[1])) +
-      geom_histogram(fill = "skyblue", color = "blue")+
+    ggplot(df_to_plot, aes(.data[[input$indicator]])) +
+      geom_histogram(fill = "skyblue", color = "blue") +
+      geom_vline(xintercept = mean_value, color = "#002f6c", #drexel blue
+        linewidth = 2) +
+      geom_vline( xintercept = mean_value + sd_value, color = "#f2ca00",
+        linetype = "dotted",linewidth = 2
+      ) +
+      geom_vline(xintercept = mean_value - sd_value,color = "#f2ca00",
+        linetype = "dotted",linewidth = 2
+       ) +
+      annotate("text", x = mean_value, y = -5, label = "Mean",  
+               size = 8, color = "#808080") +
+      annotate("text", x = mean_value + sd_value, y =-5,label = "+1 SD",
+                size = 8,  color = "#808080") +
+      annotate("text", x = mean_value - sd_value, y = -5, label = "-1 SD", 
+                size = 8, color = "#808080")+
       theme_minimal() +
+      ylab("Number of ZAT Units")+
       theme(
         panel.grid.minor = element_blank(),
-        plot.title = element_text(size = 15, face = "bold")
-      )
+        axis.text.x = element_text(size = 14),
+        axis.text.y = element_text(size = 14, face = "bold"),
+        axis.title.x = element_text(size = 15, face = "bold"),
+        axis.title.y = element_text(size = 15, face = "bold")
+        )
   })
 }
 
