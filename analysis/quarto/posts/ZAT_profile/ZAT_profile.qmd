@@ -18,44 +18,102 @@ After checking distribution of each variable at ZAT level (see [shiny dashboard]
 library(dplyr)
 library(ggplot2)
 library(tidyr)
+library(purrr)
 library(flexmix)
+library(ggbeeswarm)
+
 ```
 
 ```{r, message=FALSE}
 zat_std2 <- readRDS("../../../../clean_data/zat_std2.rds")
 
-var_to_model <- zat_std2 %>% select(-ZAT)
+street <- zat_std2 %>% 
+  select(road_length_log, st_4ln_length_log, NUMINT, INTDENS, trlight_per_int, tree_per_km2) %>% 
+  colnames()
 
-fit_model <- function(k){
-mix <- flexmix(as.matrix(var_to_model) ~ 1, data = var_to_model, model = FLXMCmvpois(), k =k)
-return(BIC(mix))
+
+transportation <- zat_std2 %>% 
+  select(BUSTOPDENS, bus_length_log, brt_length_log, NUMRBP, NUMRT, BPRDRATE, bridg_per_km2) %>% 
+  colnames()
+
+all <- zat_std2 %>% 
+  select(-ZAT) %>% 
+  colnames()
+
+#binary
+fmm_binary <- function(domain, k){
+  var_to_model <- zat_std2 %>% select(-ZAT, all_of(domain))
+  
+  mix <- stepFlexmix(as.matrix(var_to_model) ~ 1, data = zat_std2, 
+  model = FLXMCmvbinary(), k = k, 
+  nrep = 3)
+  
+  return(mix)
 }
 
-k_values <- 1:7  # You can adjust the range based on your needs
+street_mix<- fmm_binary(street, 1:7)
+transp_mix <- fmm_binary(transportation, 1:7)
+all_mix <- fmm_binary(all, 1:7)
 
-bic_values <- map_dbl(k_values, fit_model) 
-
-results <- data.frame(Clusters = k_values, BIC = bic_values)
-
-
-ggplot(results, aes(x = Clusters, y = BIC)) +
+elbow_bic <- function(mix, k){
+  bic <- BIC(mix)
+  result <- data.frame(Clusters = k, BIC = bic)
+  
+  ggplot(results, aes(x = Clusters, y = BIC)) +
   geom_line(color = "blue", ) +
   geom_point() +
   theme_minimal() +
   labs(title = "Elbow Plot for BIC Values",
     x = "Number of Clusters",
     y = "BIC")
+}
+
+elbow_bic(street_mix, 1:7)
+elbow_bic(transp_mix, 1:7)
+
+#beeswarm
+mix_best <- getModel(street_mix, "BIC")
+mix_best2 <- getModel(transp_mix, "BIC")
+
+plot_profile <- function(mix, domain){
+  mix_best <- getModel(mix, "BIC")
+  data <- zat_std2 %>% select(ZAT, all_of(domain)) %>% 
+    mutate(cluster = clusters(mix_best)) %>% 
+    pivot_longer(-c(ZAT, cluster), names_to = "indicator")
+  
+  data %>% 
+    ggplot(aes(x = value, y= indicator, color = factor(cluster)))+
+  geom_beeswarm()+
+  facet_wrap(~indicator, scales = "free", ncol = 1)+
+    theme(
+      strip.text = element_blank()
+    )
+}
+
+plot_profile(street_mix, street)
+plot_profile(transp_mix, transportation)
+plot_profile(all_mix, all)
 
 
 ```
 
 ```{r}
-mix2 <- stepFlexmix(as.matrix(var_to_model) ~ 1, data = var_to_model, model = FLXMCmvpois(), k = 1:7, 
+#poisson
+fmm_poisson <- function(domain, k){
+  var_to_model <- zat_std2 %>% select(-ZAT, all_of(domain))
+  
+  mix <- stepFlexmix(as.matrix(var_to_model) ~ 1, data = zat_std2, 
+  model = FLXMCmvpois(), k = k, 
   nrep = 3)
+  
+  return(mix)
+}
 
-BIC(mix2)
+street_pmix <- fmm_poisson(street, 1:7)
+transp_pmix <- fmm_poisson(transportation, 1:7)
+all_pmix <- fmm_poisson(all, 1:7)
 
-mix_best <- getModel(mix2, "BIC")
-
-mix_best
+plot_profile(street_pmix, street)
+plot_profile(transp_pmix, transportation)
+plot_profile(all_pmix, all)
 ```
