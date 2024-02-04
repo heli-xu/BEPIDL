@@ -7,7 +7,7 @@ library(tidyverse)
 
 zat <- st_read("data/ZAT/ZAT_geo/ZAT.shp")
 
-zat_data <- read_xlsx("data/ZAT/ZAT_INDICADORES.xlsx")
+zat_data <- read_xlsx("../data/ZAT/ZAT_INDICADORES.xlsx")
 
 # zat_data_xtr.rds --------------------------------------------------------
 
@@ -88,7 +88,19 @@ zat_std2 <- zat_std %>% drop_na()
 
 saveRDS(zat_std2, file = "clean_data/zat_std2.rds")
 
+## log doesn't seem to model well
+zat_std3 <- zat_data %>%
+  mutate(
+    tree_per_km2 = NUMSTTREES / areakm2,
+    bridg_per_km2 = NUMBRIDGES / areakm2,
+    trlight_per_int = NUMTTFLIGH / NUMINT
+  ) %>% 
+  select(ZAT, BUSTOPDENS, LRDENS, LONGMV, BPRDRATE,
+    NUMINT, INTDENS, tree_per_km2, bridg_per_km2, trlight_per_int,
+    NUMRBP, LONGRBP, NUMRT, LONGRT) %>% 
+  drop_na()
 
+saveRDS(zat_std3, file = "../clean_data/zat_std3.rds")
 
 #var_to_model
 var_to_model <- zat_std2 %>% select(-ZAT)
@@ -118,8 +130,12 @@ ggplot(results, aes(x = Clusters, y = BIC)) +
 mix2 <- stepFlexmix(as.matrix(var_to_model) ~ 1, data = var_to_model, model = FLXMCmvpois(), k = 1:7, 
   nrep = 3)
 
-BIC(mix2)
+#NB.MClust
+library(NB.MClust)
 
-mix_best <- getModel(mix2, "BIC")
+data <- zat_std2 %>% select(-c(st_4ln_length_log, INTDENS, NUMRBP, NUMRT)) %>% 
+  column_to_rownames(var = "ZAT") %>% 
+  as.matrix()
 
-mix_best
+nb_mix <- NB.MClust(data, K = 2:7)
+
