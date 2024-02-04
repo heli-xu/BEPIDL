@@ -42,10 +42,10 @@ tags$head(includeCSS("CSS/styles.css")),
 )
 
 server <- function(input, output, session) {
-  load("R/zat_std2.rda")
+  load("R/zat_std.rda")
   
   output$distPlot <- renderPlot({
-    df_to_plot<- zat_std2 %>% 
+    df_to_plot<- zat_std %>% 
                  select(input$indicator) 
     
     mean_value <- mean(df_to_plot[[1]])
