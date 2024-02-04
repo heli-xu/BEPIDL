@@ -1,6 +1,6 @@
 ---
-title: "ZAT Level Variables"
-subtitle: "Coorelation and Mixture Models"
+title: "Street Profiles for Bogotá Neighborhoods (ZAT)"
+subtitle: "Finite Mixture Modeling with `flexmix`"
 author: "Heli Xu"
 date: 1/31/24
 format: 
@@ -12,32 +12,64 @@ format:
 editor: visual
 ---
 
-After checking distribution of each variable at ZAT level (see [shiny dashboard](https://heli-xu.shinyapps.io/zat-indicator/)), we'll now try using finite mixture modeling to fit our data to understand the neighborhood profiles.
+After checking distribution of each variable at ZAT level (with mean and variance, see [shiny dashboard](https://heli-xu.shinyapps.io/zat-indicator/)), we'll now try using finite mixture modeling to fit our data to understand the neighborhood profiles.
 
 ```{r setup, warning=FALSE, message=FALSE}
 library(dplyr)
 library(ggplot2)
 library(tidyr)
 library(purrr)
+library(tibble)
 library(flexmix)
 library(ggbeeswarm)
 
 ```
 
-```{r, message=FALSE}
+## Correlation between variables
+
+For count data, Poisson and Negative Binomial distribution are commonly used for modeling. They generally assume variables are independent of each other, we'll first explore the correlation among these variables.
+
+```{r}
 zat_std2 <- readRDS("../../../../clean_data/zat_std2.rds")
+zat_std3 <- readRDS("../../../../clean_data/zat_std3.rds")
+
+zat_cor <- zat_std2 %>% select(-ZAT) %>% cor()
+zat_cor <- zat_std3 %>% select(-ZAT) %>% cor()
+
+zat_cor[lower.tri(zat_cor, diag = FALSE)] <- NA
+# >0.6 related variables
+zat_cor
+```
+
+The variables that show strong correlation are:
+
+```{r}
+as.data.frame(zat_cor) %>%
+  rownames_to_column("var1") %>% 
+  pivot_longer(cols = -var1, names_to = "var2", values_to = "cor") %>% 
+  filter(cor >0.6 & cor != 1)
+```
+
+Therefore, we'll exclude `st_4ln_length_log`, `INTDENS`, `NUMRBP`, and `NUMRT` in our modeling.
+
+INTDENS, LONGMV, NUMRBP, NUMRT, LONGRBP, LONGRT
+
+```{r, message=FALSE}
 
 street <- zat_std2 %>% 
-  select(road_length_log, st_4ln_length_log, NUMINT, INTDENS, trlight_per_int, tree_per_km2) %>% 
+  select(road_length_log, NUMINT, trlight_per_int, tree_per_km2) %>% 
   colnames()
 
+street <- zat_std3 %>% 
+  select(LRDENS, NUMINT, trlight_per_int) %>% 
+  colnames()
 
 transportation <- zat_std2 %>% 
-  select(BUSTOPDENS, bus_length_log, brt_length_log, NUMRBP, NUMRT, BPRDRATE, bridg_per_km2) %>% 
+  select(BUSTOPDENS, bus_length_log,brt_length_log, BPRDRATE, bridg_per_km2) %>% 
   colnames()
 
 all <- zat_std2 %>% 
-  select(-ZAT) %>% 
+  select(-c(ZAT, st_4ln_length_log, INTDENS, NUMRBP, NUMRT)) %>% 
   colnames()
 
 #binary
@@ -77,7 +109,7 @@ mix_best2 <- getModel(transp_mix, "BIC")
 
 plot_profile <- function(mix, domain){
   mix_best <- getModel(mix, "BIC")
-  data <- zat_std2 %>% select(ZAT, all_of(domain)) %>% 
+  data <- zat_std3 %>% select(ZAT, all_of(domain)) %>% 
     mutate(cluster = clusters(mix_best)) %>% 
     pivot_longer(-c(ZAT, cluster), names_to = "indicator")
   
@@ -100,9 +132,9 @@ plot_profile(all_mix, all)
 ```{r}
 #poisson
 fmm_poisson <- function(domain, k){
-  var_to_model <- zat_std2 %>% select(-ZAT, all_of(domain))
+  var_to_model <- zat_std3 %>% select(-ZAT, all_of(domain))
   
-  mix <- stepFlexmix(as.matrix(var_to_model) ~ 1, data = zat_std2, 
+  mix <- stepFlexmix(as.matrix(var_to_model) ~ 1, data = zat_std3, 
   model = FLXMCmvpois(), k = k, 
   nrep = 3)
   
@@ -113,7 +145,13 @@ street_pmix <- fmm_poisson(street, 1:7)
 transp_pmix <- fmm_poisson(transportation, 1:7)
 all_pmix <- fmm_poisson(all, 1:7)
 
+mix_best <- getModel(street_pmix, "BIC")
+
 plot_profile(street_pmix, street)
 plot_profile(transp_pmix, transportation)
 plot_profile(all_pmix, all)
+```
+
+```{r}
+library(NB.Clust)
 ```
