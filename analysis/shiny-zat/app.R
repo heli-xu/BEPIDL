@@ -10,7 +10,6 @@
 library(shiny)
 library(dplyr)
 library(ggplot2)
-library(sf)
 
 
 load("R/zat_indicator_list.rda")
@@ -43,25 +42,24 @@ tags$head(includeCSS("CSS/styles.css")),
 )
 
 server <- function(input, output, session) {
-  load("R/georef_zat_xtr.rda")
+  load("R/zat_std2.rda")
   
   output$distPlot <- renderPlot({
-    df_to_plot<- georef_zat_xtr %>% 
-                 as.data.frame() %>% 
+    df_to_plot<- zat_std2 %>% 
                  select(input$indicator) 
     
-    mean_value <- mean(df_to_plot[,1])
-    sd_value <- sd(df_to_plot[,1])
+    mean_value <- mean(df_to_plot[[1]])
+    sd_value <- sd(df_to_plot[[1]])
     
     ggplot(df_to_plot, aes(.data[[input$indicator]])) +
       geom_histogram(fill = "skyblue", color = "blue") +
       geom_vline(xintercept = mean_value, color = "#002f6c", #drexel blue
-        linewidth = 2) +
+        size = 2) +
       geom_vline( xintercept = mean_value + sd_value, color = "#f2ca00",
-        linetype = "dotted",linewidth = 2
+        linetype = "dotted",size = 2
       ) +
-      geom_vline(xintercept = mean_value - sd_value,color = "#f2ca00",
-        linetype = "dotted",linewidth = 2
+      geom_vline(xintercept = mean_value - sd_value, color = "#f2ca00",
+        linetype = "dotted",size = 2
        ) +
       annotate("text", x = mean_value, y = -5, label = "Mean",  
                size = 8, color = "#808080") +
