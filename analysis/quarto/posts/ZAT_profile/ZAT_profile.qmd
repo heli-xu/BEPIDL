@@ -25,9 +25,15 @@ library(ggbeeswarm)
 
 ```
 
-## Correlation between variables
+## Variable Types
 
-For count data, Poisson and Negative Binomial distribution are commonly used for modeling. They generally assume variables are independent of each other, we'll first explore the correlation among these variables.
+We have both continuous and count data in our dataset. While normal (Gaussian) distribution is commonly used for modeling continuous data, Poisson and Negative Binomial distribution are often used for modeling.
+
+Count data: NUMINT, NUMTTREES, NUMSTTREES, NUMBRIDGES, NUMTFLIGH, NUMPTFLIGH, NUMRT, NUMRBP (
+
+Continuous data: BUSTOPDENS, LONGMV (st-4ln-log), LRDENS (rd-log), BPRDRATE, INTDENS, bridg_per_km2, trlight_per_int, bus-rt-log (many zero), brt-rt-log, tree_per_km2,
+
+They generally assume variables are independent of each other, we'll first explore the correlation among these variables.
 
 ```{r}
 zat_std2 <- readRDS("../../../../clean_data/zat_std2.rds")

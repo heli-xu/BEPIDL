@@ -31,6 +31,7 @@ saveRDS(georef_zat, file = "clean_data/ZAT/georef_zat.rds")
 
 georef_zat <- readRDS("../../clean_data/ZAT/georef_zat.rds")
 
+#Hiwot's derived variables:
 georef_zat_xtr <- georef_zat %>%
   mutate(STTREESPROAD = NUMSTTREES/LONGMV,
          NUMBRIDGESAREA = NUMBRIDGES/areakm2,
@@ -56,7 +57,7 @@ zat_std <- zat_data %>%
       .default = LRDENS),
     st_4ln_length_log = case_when(LONGMV > 0 ~log(LONGMV),
       .default = LONGMV),
-    tree_per_km2 = NUMTTREES / areakm2,
+    tree_per_km2 = NUMSTTREES / areakm2,
     bridg_per_km2 = NUMBRIDGES / areakm2,
     trlight_per_int = NUMTTFLIGH / NUMINT,
     bus_length_log = case_when(LONGRBP > 0 ~ log(LONGRBP),
@@ -128,7 +129,8 @@ saveRDS(zat_std3, file = "../clean_data/zat_std3.rds")
 var_to_model <- zat_std2 %>% select(-ZAT)
 
 fit_model <- function(k){
-mix <- flexmix(as.matrix(var_to_model) ~ 1, data = var_to_model, model = FLXMCmvnorm(family = "poisson"), k =3)
+mix <- flexmix(as.matrix(var_to_model) ~ 1, data = var_to_model, 
+  model = FLXMCmvnorm(family = "poisson"), k =3)
 return(BIC(mix))
 }
 
@@ -152,5 +154,7 @@ ggplot(results, aes(x = Clusters, y = BIC)) +
 mix2 <- stepFlexmix(as.matrix(var_to_model) ~ 1, data = var_to_model, model = FLXMCmvpois(), k = 1:7, 
   nrep = 3)
 
-#NB.MClust requires integer!
+var_to_model <- column_to_rownames(zat_std2, var = "ZAT") %>% drop_na() %>% as.matrix()
+
+
 
