@@ -12,7 +12,7 @@ format:
 editor: visual
 ---
 
-After checking distribution of each variable at ZAT level (with mean and variance, see [shiny dashboard](https://heli-xu.shinyapps.io/zat-indicator/)), we'll now try using finite mixture modeling to fit our data to understand the neighborhood profiles.
+After visualizing ZAT-level variable distributions spatially on maps and statistically through histograms, we'll now try using finite mixture modeling to fit our data to understand the neighborhood profiles.
 
 ```{r setup, warning=FALSE, message=FALSE}
 library(dplyr)
@@ -25,26 +25,61 @@ library(ggbeeswarm)
 
 ```
 
-## Variable Types
+## Data preparation
 
-We have both continuous and count data in our dataset. While normal (Gaussian) distribution is commonly used for modeling continuous data, Poisson and Negative Binomial distribution are often used for modeling.
+In the previous post, we used the raw data to explore the variable distributions. To get the data ready for modeling, we'll need to clean and standardize the data.
 
-Count data: NUMINT, NUMTTREES, NUMSTTREES, NUMBRIDGES, NUMTFLIGH, NUMPTFLIGH, NUMRT, NUMRBP (
+The cleaning step is straightforward, where we leave out the ZAT units with zero road network length (`LRDENS`, in meters) and/or intersections. 4 ZAT units don't have measurable road network length or intersections, and another 9 ZAT units don't have intersections, which reduce the dataset from 919 rows (ZAT units) to 906 rows.
 
-Continuous data: BUSTOPDENS, LONGMV (st-4ln-log), LRDENS (rd-log), BPRDRATE, INTDENS, bridg_per_km2, trlight_per_int, bus-rt-log (many zero), brt-rt-log, tree_per_km2,
+To standardize the data, we're using `areakm2` to normalize the countinuous and count data that have not already been area-adjusted (eg., `NUMRBP`, `NUMTTFLIGH`, `NUMSTTREES`), and taking a natural log of the length measurements in meters (eg., `LRDENS`, `LONGRBP`), with the bike lane rate transformed into log length of bike lanes.
 
-They generally assume variables are independent of each other, we'll first explore the correlation among these variables.
+```{r, eval=FALSE}
+zat_std <- zat_raw_data %>%
+  filter(LRDENS > 0, 
+         NUMINT >0) %>% 
+  mutate(
+    road_length_log = log(LRDENS),
+    st_4ln_length_log = log(LONGMV),
+    bikelane_per_km2 = BPRDRATE * LRDENS,
+    bikelane_m_log = case_when(bikelane_per_km2 > 0 ~ log(bikelane_per_km2),
+                              .default = bikelane_per_km2),
+    sttree_per_km2 = NUMSTTREES / areakm2,
+    bridg_per_km2 = NUMBRIDGES / areakm2,
+    trlight_per_km2 = NUMTTFLIGH / areakm2,
+    numrbp_per_km2 = NUMRBP/areakm2,
+    numrt_per_km2 = NUMRT/areakm2,
+    longrbp_per_km2 = LONGRBP / areakm2,
+    longrt_per_km2 = LONGRT / areakm2,
+    bus_length_log = case_when(longrbp_per_km2 > 0 ~ log(longrbp_per_km2),
+                               .default = longrbp_per_km2),
+    brt_length_log = case_when(longrt_per_km2 > 0 ~ log(longrt_per_km2),
+                               .default = longrt_per_km2)
+  ) 
+```
+
+The histograms of the distribution of the original variables, standardized variables and their mean/variance can be viewed on this interactive [shiny dashboard](https://heli-xu.shinyapps.io/zat-indicator/).
+
+We'll select the standardized variables for modeling.
+
+```{r, eval=FALSE}
+zat_std2 <- zat_std %>% 
+  select(ZAT, BUSTOPDENS, road_length_log, st_4ln_length_log, bikelane_m_log, 
+         sttree_per_km2, bridg_per_km2, trlight_per_km2, numrbp_per_km2,
+         numrt_per_km2, bus_length_log, brt_length_log)
+```
+
+## Correlation among variables
+
+first explore the correlation among these variables.
 
 ```{r}
-zat_std2 <- readRDS("../../../../clean_data/zat_std2.rds")
-zat_std3 <- readRDS("../../../../clean_data/zat_std3.rds")
+zat_std2 <- readRDS("../../../../clean_data/ZAT/zat_std2.rds")
 
 zat_cor <- zat_std2 %>% select(-ZAT) %>% cor()
-zat_cor <- zat_std3 %>% select(-ZAT) %>% cor()
 
 zat_cor[lower.tri(zat_cor, diag = FALSE)] <- NA
 # >0.6 related variables
-zat_cor
+zat_cor %>% as_tibble()
 ```
 
 The variables that show strong correlation are:
@@ -56,46 +91,42 @@ as.data.frame(zat_cor) %>%
   filter(cor >0.6 & cor != 1)
 ```
 
-Therefore, we'll exclude `st_4ln_length_log`, `INTDENS`, `NUMRBP`, and `NUMRT` in our modeling.
-
-INTDENS, LONGMV, NUMRBP, NUMRT, LONGRBP, LONGRT
+The length of toad network is shown to be correlated with both the length of streets with 4 or more lanes and the length of bus routes. Although the number of BRT routes are expectedly correlated with the length of the BRT routes, that's not the case for bus routes. Based on this, we'll exclude `road_length_log` and `numrt_per_km2` in our modeling.
 
 ```{r, message=FALSE}
 
-street <- zat_std2 %>% 
-  select(road_length_log, NUMINT, trlight_per_int, tree_per_km2) %>% 
+zat_fmm <- zat_std2 %>% select(-road_length_log, -numrt_per_km2)
+
+street <- zat_fmm %>% 
+  select(st_4ln_length_log, bikelane_m_log, trlight_per_km2, sttree_per_km2, bridg_per_km2) %>% 
   colnames()
 
-street <- zat_std3 %>% 
-  select(LRDENS, NUMINT, trlight_per_int) %>% 
+transportation <- zat_fmm %>% 
+  select(BUSTOPDENS, bus_length_log, brt_length_log, numrbp_per_km2) %>% 
   colnames()
 
-transportation <- zat_std2 %>% 
-  select(BUSTOPDENS, bus_length_log,brt_length_log, BPRDRATE, bridg_per_km2) %>% 
+all <- zat_fmm %>% 
+  select(-ZAT) %>% 
   colnames()
 
-all <- zat_std2 %>% 
-  select(-c(ZAT, st_4ln_length_log, INTDENS, NUMRBP, NUMRT)) %>% 
-  colnames()
-
-#binary
-fmm_binary <- function(domain, k){
-  var_to_model <- zat_std2 %>% select(-ZAT, all_of(domain))
+#normal
+fmm_normal <- function(domain, k){
+  var_to_model <- zat_fmm %>% select(-ZAT, all_of(domain))
   
-  mix <- stepFlexmix(as.matrix(var_to_model) ~ 1, data = zat_std2, 
-  model = FLXMCmvbinary(), k = k, 
+  mix <- stepFlexmix(as.matrix(var_to_model) ~ 1, data = zat_fmm, 
+  model = FLXMCmvnorm(diagonal = FALSE), k = k, 
   nrep = 3)
   
   return(mix)
 }
 
-street_mix<- fmm_binary(street, 1:7)
-transp_mix <- fmm_binary(transportation, 1:7)
-all_mix <- fmm_binary(all, 1:7)
+street_mix<- fmm_normal(street, 1:7)
+transp_mix <- fmm_normal(transportation, 1:7)
+all_mix <- fmm_normal(all, 1:7)
 
 elbow_bic <- function(mix, k){
   bic <- BIC(mix)
-  result <- data.frame(Clusters = k, BIC = bic)
+  results <- data.frame(Clusters = k, BIC = bic)
   
   ggplot(results, aes(x = Clusters, y = BIC)) +
   geom_line(color = "blue", ) +
@@ -115,7 +146,7 @@ mix_best2 <- getModel(transp_mix, "BIC")
 
 plot_profile <- function(mix, domain){
   mix_best <- getModel(mix, "BIC")
-  data <- zat_std3 %>% select(ZAT, all_of(domain)) %>% 
+  data <- zat_fmm %>% select(ZAT, all_of(domain)) %>% 
     mutate(cluster = clusters(mix_best)) %>% 
     pivot_longer(-c(ZAT, cluster), names_to = "indicator")
   
@@ -151,7 +182,7 @@ street_pmix <- fmm_poisson(street, 1:7)
 transp_pmix <- fmm_poisson(transportation, 1:7)
 all_pmix <- fmm_poisson(all, 1:7)
 
-mix_best <- getModel(street_pmix, "BIC")
+mix_best <- getModel(street_mix, "BIC")
 
 plot_profile(street_pmix, street)
 plot_profile(transp_pmix, transportation)
@@ -159,5 +190,19 @@ plot_profile(all_pmix, all)
 ```
 
 ```{r}
-library(NB.Clust)
+post_p <- posterior(mix_best) %>% as.data.frame() %>% 
+  rownames_to_column(var = "ZAT") %>% 
+  mutate(order = V1-V2) %>% 
+  pivot_longer(c(V1, V2), names_to = "cluster", values_to = "prob")
+
+ggplot(post_p, aes(x = reorder(ZAT, order), y = prob, fill = cluster)) +
+  geom_bar(stat = "identity", position = "fill", width = 1) +  # Adjust the width to fill the space
+  scale_fill_brewer(palette = "YlGnBu") +
+  coord_flip() +  # Rotate the plot to make it look like a heatmap
+  scale_x_discrete(expand = c(0, 0)) +  # Remove space between groups
+  labs(x = "ZAT Units", y = "Posterior Probabilities", title = "Posterior Probabilities of Cluster Assignment of Each ZAT Unit") +
+  theme(axis.text.y = element_blank(),
+        axis.line.y = element_blank(),
+        title = element_text(face = "bold", size = 13),
+        axis.title.x = element_text(size = 13))
 ```
