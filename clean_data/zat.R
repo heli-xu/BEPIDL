@@ -39,6 +39,35 @@ georef_zat_xtr <- georef_zat %>%
          TRAFLIGHTINTS = NUMPTFLIGH/NUMINT,
          .before = geometry) 
 
+# Cleaning and Standardizing ---------------------------------------------------
+## note the zeros whenever you do standardize
+
+zat_clean <- zat_data %>% 
+  filter(LRDENS > 0, 
+         NUMINT >0)
+## went from 919 -> 906 rows
+
+## after standardizing, all count data will not be integers any more
+zat_std <- zat_clean %>%
+  mutate(
+    road_length_log = log(LRDENS),
+    st_4ln_length_log = log(LONGMV),
+    bikelane_per_km2 = BPRDRATE * LRDENS,
+    bikelane_m_log = case_when(bikelane_per_km2 > 0 ~ log(bikelane_per_km2),
+                              .default = bikelane_per_km2),
+    sttree_per_km2 = NUMSTTREES / areakm2,
+    bridg_per_km2 = NUMBRIDGES / areakm2,
+    trlight_per_km2 = NUMTTFLIGH / areakm2,
+    numrbp_per_km2 = NUMRBP/areakm2,
+    numrt_per_km2 = NUMRT/areakm2,
+    longrbp_per_km2 = LONGRBP / areakm2,
+    longrt_per_km2 = LONGRT / areakm2,
+    bus_length_log = case_when(longrbp_per_km2 > 0 ~ log(longrbp_per_km2),
+                               .default = longrbp_per_km2),
+    brt_length_log = case_when(longrt_per_km2 > 0 ~ log(longrt_per_km2),
+                               .default = longrt_per_km2)
+  ) 
+
 # for shiny -----------------------------------------------------------
 ## sf object version
 zat_indicator_list <- georef_zat_xtr %>% 
@@ -51,28 +80,21 @@ save(zat_indicator_list, file = "R/zat_indicator_list.rda")
 save(georef_zat_xtr, file = "R/georef_zat_xtr.rda")
   
 ## df version with standardization
-zat_std <- zat_data %>%
-  mutate(
-    road_length_log = case_when(LRDENS >0 ~ log(LRDENS),
-      .default = LRDENS),
-    st_4ln_length_log = case_when(LONGMV > 0 ~log(LONGMV),
-      .default = LONGMV),
-    tree_per_km2 = NUMSTTREES / areakm2,
-    bridg_per_km2 = NUMBRIDGES / areakm2,
-    trlight_per_int = NUMTTFLIGH / NUMINT,
-    bus_length_log = case_when(LONGRBP > 0 ~ log(LONGRBP),
-      .default = LONGRBP),
-    brt_length_log = case_when(LONGRT > 0 ~ log(LONGRT),
-      .default = LONGRT)
-  ) 
-#with NAs in dervied columns
-
 zat_indicator_list <- zat_std %>% 
   select(-ZAT) %>% 
   colnames()
 
 save(zat_indicator_list, file = "../analysis/shiny-zat/R/zat_indicator_list.rda")
 save(zat_std, file = "../analysis/shiny-zat/R/zat_std.rda")
+
+
+# select value per km2, length in log
+zat_std2 <- zat_std %>% 
+  select(ZAT, BUSTOPDENS, road_length_log, st_4ln_length_log, bikelane_m_log, 
+         sttree_per_km2, bridg_per_km2, trlight_per_km2, numrbp_per_km2,
+         numrt_per_km2, bus_length_log, brt_length_log)
+
+saveRDS(zat_std2, file = "../clean_data/ZAT/zat_std2.rds")
 
 # correlation ---------------------------------------------------
 
@@ -83,6 +105,9 @@ cor_matrix <- cor(zat_var)
 
 cor_matrix[upper.tri(cor_matrix, diag = TRUE)] <- NA
 # >0.6 only those with related variables
+
+
+
 
 # FMM ------------------------------------------------------------
 library(flexmix)
