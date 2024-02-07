@@ -154,6 +154,8 @@ elbow_bic(all_mix, 1:7, title = "Elbow Plot for BIC Values (all variables)")
 
 ![](images/elbow_all_var.png){width="556"}
 
+Note that the modeling result and their BIC values could vary each time we run the `stepFlexmix()`, because the Expectation-Maximization (EM) algorithm involves random initialization of parameters.
+
 ## Neighborhood profiles
 
 After determining the cluster numbers, we could visualize the ZAT-level built environment profiles across different variables.
@@ -168,15 +170,15 @@ plot_profile(zat_fmm, all_mix, all, title = "Neighborhood Profiles: All Indicato
 
 -   **Street design domain**:
 
-![](images/street_profile.png){width="653"}
+![](images/street_profile.png){width="676"}
 
 -   **Transportation domain**:
 
-![](images/transp_profile.png){width="655"}
+![](images/transp_profile.png){width="696"}
 
 -   **All variables**:
 
-![](images/all_profile.png){width="657"}
+![](images/all_profile.png){width="683"}
 
 ## Posterior probabilities
 
