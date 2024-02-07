@@ -1,8 +1,8 @@
 ---
-title: "Street Profiles for Bogotá Neighborhoods (ZAT)"
-subtitle: "Finite Mixture Modeling with `flexmix`"
+title: "Neighborhood Built Environment Profiles in Bogotá"
+subtitle: "Finite mixture modeling with ZAT-level data"
 author: "Heli Xu"
-date: 1/31/24
+date: 2/7/24
 format: 
   html:
     code-fold: true
@@ -22,7 +22,8 @@ library(purrr)
 library(tibble)
 library(flexmix)
 library(ggbeeswarm)
-
+library(reactable)
+library(crosstalk)
 ```
 
 ## Data preparation
@@ -57,29 +58,48 @@ zat_std <- zat_raw_data %>%
   ) 
 ```
 
-The histograms of the distribution of the original variables, standardized variables and their mean/variance can be viewed on this interactive [shiny dashboard](https://heli-xu.shinyapps.io/zat-indicator/).
-
-We'll select the standardized variables for modeling.
+The histograms of the distribution of the original variables, standardized variables and their mean/variance can be viewed on this interactive [shiny dashboard](https://heli-xu.shinyapps.io/zat-indicator/). For downstream modeling, we'll only include the standardized variables.
 
 ```{r, eval=FALSE}
 zat_std2 <- zat_std %>% 
   select(ZAT, BUSTOPDENS, road_length_log, st_4ln_length_log, bikelane_m_log, 
          sttree_per_km2, bridg_per_km2, trlight_per_km2, numrbp_per_km2,
-         numrt_per_km2, bus_length_log, brt_length_log)
+         numrt_per_km2, bus_length_log, brt_length_log) 
 ```
 
 ## Correlation among variables
 
-first explore the correlation among these variables.
+First we'll explore the correlation among these variables.
+
+```{r, echo=FALSE}
+zat_std2 <- readRDS("../../../../clean_data/ZAT/zat_std2.rds")
+```
 
 ```{r}
-zat_std2 <- readRDS("../../../../clean_data/ZAT/zat_std2.rds")
-
 zat_cor <- zat_std2 %>% select(-ZAT) %>% cor()
 
 zat_cor[lower.tri(zat_cor, diag = FALSE)] <- NA
 # >0.6 related variables
-zat_cor %>% as_tibble()
+
+cor_react <- zat_cor %>% as.data.frame() %>% 
+  rownames_to_column(var = "var")
+
+cor_react2 <- SharedData$new(cor_react)
+
+reactable(cor_react2, 
+    columns = list(Manufacturer = colDef(
+      sticky = "left",
+      # Add a right border style to visually distinguish the sticky column
+      style = list(borderRight = "1px solid #eee"),
+      headerStyle = list(borderRight = "1px solid #eee")
+    )),
+    defaultColDef = colDef(minWidth = 150),
+    defaultPageSize = 11,
+    striped = TRUE,
+    highlight = TRUE,
+    bordered = TRUE,
+    resizable = TRUE
+  )
 ```
 
 The variables that show strong correlation are:
@@ -88,10 +108,18 @@ The variables that show strong correlation are:
 as.data.frame(zat_cor) %>%
   rownames_to_column("var1") %>% 
   pivot_longer(cols = -var1, names_to = "var2", values_to = "cor") %>% 
-  filter(cor >0.6 & cor != 1)
+  filter(cor >0.6 & cor != 1) %>% 
+  print()
 ```
 
 The length of toad network is shown to be correlated with both the length of streets with 4 or more lanes and the length of bus routes. Although the number of BRT routes are expectedly correlated with the length of the BRT routes, that's not the case for bus routes. Based on this, we'll exclude `road_length_log` and `numrt_per_km2` in our modeling.
+
+## Model-based clustering
+
+Since the clean and standardized data are all continuous data, despite some of them being zero-inflated, it would still be reasonable to choose a Gaussian model for clustering. We'll also make an attempt to categorize the variables into two domains and fit the model for each domain and both domains together.
+
+-   **Street design domain**: `st_4ln_length_log`, `bikelane_m_log`, `trlight_per_km2`, `sttree_per_km2`, `bridg_per_km2`;
+-   **Transportation domain**: `BUSTOPDENS`, `bus_length_log`, `brt_length_log`, `numrbp_per_km2`.
 
 ```{r, message=FALSE}
 
@@ -108,92 +136,59 @@ transportation <- zat_fmm %>%
 all <- zat_fmm %>% 
   select(-ZAT) %>% 
   colnames()
+```
 
+Using the `flexmix` R package, we'll fit the model using a range of component numbers, from 1 to 7, and use Bayesian Information Criteria (BIC) values to select the optimal number of clusters (usually at smallest BIC value or when the BIC decrease \< 1.5%). For example, the BIC values for all variables (both domains) look like this with k (component number) going from 1 to 7 (in this case k=3 is selected as the optimal number of clusters):
+
+```{r, eval=FALSE}
 #normal
-fmm_normal <- function(domain, k){
-  var_to_model <- zat_fmm %>% select(-ZAT, all_of(domain))
-  
-  mix <- stepFlexmix(as.matrix(var_to_model) ~ 1, data = zat_fmm, 
-  model = FLXMCmvnorm(diagonal = FALSE), k = k, 
-  nrep = 3)
-  
-  return(mix)
-}
+source("../../../../functions/fmm_normal.R")
 
-street_mix<- fmm_normal(street, 1:7)
-transp_mix <- fmm_normal(transportation, 1:7)
-all_mix <- fmm_normal(all, 1:7)
+street_mix<- fmm_normal(zat_fmm, street, 1:7)
+transp_mix <- fmm_normal(zat_fmm,transportation, 1:7)
+all_mix <- fmm_normal(zat_fmm, all, 1:7)
 
-elbow_bic <- function(mix, k){
-  bic <- BIC(mix)
-  results <- data.frame(Clusters = k, BIC = bic)
-  
-  ggplot(results, aes(x = Clusters, y = BIC)) +
-  geom_line(color = "blue", ) +
-  geom_point() +
-  theme_minimal() +
-  labs(title = "Elbow Plot for BIC Values",
-    x = "Number of Clusters",
-    y = "BIC")
-}
+source("../../../../functions/elbow_bic.R")
+elbow_bic(all_mix, 1:7, title = "Elbow Plot for BIC Values (all variables)")
+```
 
-elbow_bic(street_mix, 1:7)
-elbow_bic(transp_mix, 1:7)
+![](images/elbow_all_var.png){width="556"}
 
+## Neighborhood profiles
+
+After determining the cluster numbers, we could visualize the ZAT-level built environment profiles across different variables.
+
+```{r, eval=FALSE}
 #beeswarm
-mix_best <- getModel(street_mix, "BIC")
-mix_best2 <- getModel(transp_mix, "BIC")
-
-plot_profile <- function(mix, domain){
-  mix_best <- getModel(mix, "BIC")
-  data <- zat_fmm %>% select(ZAT, all_of(domain)) %>% 
-    mutate(cluster = clusters(mix_best)) %>% 
-    pivot_longer(-c(ZAT, cluster), names_to = "indicator")
-  
-  data %>% 
-    ggplot(aes(x = value, y= indicator, color = factor(cluster)))+
-  geom_beeswarm()+
-  facet_wrap(~indicator, scales = "free", ncol = 1)+
-    theme(
-      strip.text = element_blank()
-    )
-}
-
-plot_profile(street_mix, street)
-plot_profile(transp_mix, transportation)
-plot_profile(all_mix, all)
-
-
+source("../../../../functions/plot_profile.R")
+plot_profile(zat_fmm, street_mix, street, title = "Neighborhood Profiles: Street Desgin")
+plot_profile(zat_fmm, transp_mix, transportation, title = "Neighborhood Profiles: Transportation")
+plot_profile(zat_fmm, all_mix, all, title = "Neighborhood Profiles: All Indicators")
 ```
 
-```{r}
-#poisson
-fmm_poisson <- function(domain, k){
-  var_to_model <- zat_std3 %>% select(-ZAT, all_of(domain))
-  
-  mix <- stepFlexmix(as.matrix(var_to_model) ~ 1, data = zat_std3, 
-  model = FLXMCmvpois(), k = k, 
-  nrep = 3)
-  
-  return(mix)
-}
+-   **Street design domain**:
 
-street_pmix <- fmm_poisson(street, 1:7)
-transp_pmix <- fmm_poisson(transportation, 1:7)
-all_pmix <- fmm_poisson(all, 1:7)
+![](images/street_profile.png){width="653"}
 
-mix_best <- getModel(street_mix, "BIC")
+-   **Transportation domain**:
 
-plot_profile(street_pmix, street)
-plot_profile(transp_pmix, transportation)
-plot_profile(all_pmix, all)
-```
+![](images/transp_profile.png){width="655"}
 
-```{r}
+-   **All variables**:
+
+![](images/all_profile.png){width="657"}
+
+## Posterior probabilities
+
+From the fitted models, we can also extract the posterior probabilities of cluster assignment for each ZAT unit. For example, in the model where all the variables are included, the posterior probabilities for each ZAT unit can be visualized in the plot below:
+
+```{r, eval=FALSE}
+mix_best <- getModel(all_mix, "BIC")
+
 post_p <- posterior(mix_best) %>% as.data.frame() %>% 
   rownames_to_column(var = "ZAT") %>% 
-  mutate(order = V1-V2) %>% 
-  pivot_longer(c(V1, V2), names_to = "cluster", values_to = "prob")
+  mutate(order = V1-V3) %>% 
+  pivot_longer(c(V1, V2, V3), names_to = "cluster", values_to = "prob")
 
 ggplot(post_p, aes(x = reorder(ZAT, order), y = prob, fill = cluster)) +
   geom_bar(stat = "identity", position = "fill", width = 1) +  # Adjust the width to fill the space
@@ -204,5 +199,10 @@ ggplot(post_p, aes(x = reorder(ZAT, order), y = prob, fill = cluster)) +
   theme(axis.text.y = element_blank(),
         axis.line.y = element_blank(),
         title = element_text(face = "bold", size = 13),
-        axis.title.x = element_text(size = 13))
+        axis.title.x = element_text(size = 12),
+        axis.text = element_text(size = 10),
+        legend.text = element_text(size = 10))
+
 ```
+
+![](images/pprob_all.png){width="670"}
