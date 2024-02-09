@@ -2,6 +2,7 @@
 title: "Neighborhood Built Environment Profiles in Bogotá"
 subtitle: "Finite mixture modeling with ZAT-level data"
 author: "Heli Xu"
+image: thumbnail_profile.jpg
 date: 2/7/24
 format: 
   html:
