@@ -88,12 +88,14 @@ cor_react <- zat_cor %>% as.data.frame() %>%
 cor_react2 <- SharedData$new(cor_react)
 
 reactable(cor_react2, 
-    columns = list(Manufacturer = colDef(
-      sticky = "left",
+    columns = list(
+      var = colDef(
+        sticky = "left",
       # Add a right border style to visually distinguish the sticky column
-      style = list(borderRight = "1px solid #eee"),
-      headerStyle = list(borderRight = "1px solid #eee")
+        style = list(borderRight = "1px solid #eee"),
+        headerStyle = list(borderRight = "1px solid #eee")
     )),
+  theme = reactableTheme(color = "#002b36"),
     defaultColDef = colDef(minWidth = 150),
     defaultPageSize = 11,
     striped = TRUE,

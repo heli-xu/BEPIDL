@@ -27,7 +27,7 @@ At ZAT level, two files (folders) are included (along with the codebook).
 
 To begin with, I looked at the ZAT folder, which contains shapefiles that define boundaries of each ZAT zone.
 
-```{r, warning=FALSE, message=FALSE}
+```{r setup, warning=FALSE, message=FALSE}
 library(readxl)
 library(dplyr)
 library(tidyr)
@@ -35,6 +35,8 @@ library(ggplot2)
 library(readr)
 library(sf)
 library(leaflet)
+library(reactable)
+library(crosstalk)
 
 zat <- st_read("../../../../data/ZAT/ZAT_geo/ZAT.shp")
 
@@ -132,15 +134,29 @@ calles_100 %>%
 Apart from the geometry information, there are many variables included in the table, and the variable names do not seem to be in codebook. Skimming the full table:
 
 ```{r, message=FALSE}
-library(reactable)
-
 skim_calles <- read_csv("../../../../clean_data/calles/skim_calles.csv") %>% 
   select(-1) %>% 
   rename(col_type = skim_type,
-         col_names = skim_variable)
+         col_names = skim_variable) %>% 
+  relocate(col_names)
          
+calles <- SharedData$new(skim_calles)
 
-reactable(skim_calles) 
+reactable(calles,
+  columns = list(
+      col_names = colDef(
+        sticky = "left",
+      # Add a right border style to visually distinguish the sticky column
+        style = list(borderRight = "1px solid #eee"),
+        headerStyle = list(borderRight = "1px solid #eee")
+    )),
+  theme = reactableTheme(color = "#002b36"),
+    defaultColDef = colDef(minWidth = 150),
+    defaultPageSize = 12,
+    striped = TRUE,
+    highlight = TRUE,
+    bordered = TRUE,
+    resizable = TRUE) 
 ```
 
 In the initial skimming report above, the types of all 67 columns, mean/sd and distribution (for numeric columns) are shown. While the completion rate of the columns seem high, some of the columns have many zeros, with 75% percentile =0.
