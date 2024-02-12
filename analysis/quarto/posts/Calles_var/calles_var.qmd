@@ -13,7 +13,7 @@ format:
 editor: visual
 ---
 
-From the [first look](../EDA1_1st_look_var/EDA1_1st_look_var.qmd#Street%20level), the street-level variables names in `Calles_datos/` seemed a bit confusing, but after cross-referencing the codebook with `CRUCES_DATOS.xlsx` and variables in `siniestros/`, we have gained a much better understanding of what they mean. The column names in `Calles_datos/`and their corresponding description from the codebook are organized into `codebook_calles-var.xlsx` for future reference (there're also a few uncertain variables to be confirmed/better defined).
+From the [first look](../EDA1_1st_look_var/EDA1_1st_look_var.qmd), the street-level variables names in `Calles_datos/` seemed a bit confusing, but after cross-referencing the codebook with `CRUCES_DATOS.xlsx` and variables in `siniestros/`, we have gained a much better understanding of what they mean. The column names in `Calles_datos/`and their corresponding description from the codebook are organized into `codebook_calles-var.xlsx` for future reference (there're also a few uncertain variables to be confirmed/better defined).
 
 In this post, we'll describe the data cleaning process and explore the distributions of the variables related to road infrastructure at the street level.
 
