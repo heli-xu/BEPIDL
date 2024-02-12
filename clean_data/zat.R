@@ -111,75 +111,47 @@ cor_matrix[upper.tri(cor_matrix, diag = TRUE)] <- NA
 
 # FMM ------------------------------------------------------------
 library(flexmix)
-# note the zeros whenever you do standardize
-zat_std <- zat_data %>%
-  mutate(
-    road_length_log = case_when(LRDENS >0 ~ log(LRDENS),
-                                .default = LRDENS),
-    st_4ln_length_log = case_when(LONGMV > 0 ~log(LONGMV),
-                                .default = LONGMV),
-    tree_per_km2 = NUMTTREES / areakm2,
-    bridg_per_km2 = NUMBRIDGES / areakm2,
-    trlight_per_int = NUMTTFLIGH / NUMINT,
-    bus_length_log = case_when(LONGRBP > 0 ~ log(LONGRBP),
-                                  .default = LONGRBP),
-    brt_length_log = case_when(LONGRT > 0 ~ log(LONGRT),
-                                .default = LONGRT)
-  ) %>% 
-  select(ZAT, BUSTOPDENS, road_length_log, st_4ln_length_log, BPRDRATE,
-        NUMINT, INTDENS, tree_per_km2, bridg_per_km2, trlight_per_int,
-    NUMRBP, bus_length_log, NUMRT, brt_length_log)
+library(leaflet)
 
-trlight_int_na <- zat_std %>% filter(is.na(trlight_per_int))
+zat_std2 <- readRDS("clean_data/ZAT/zat_std2.rds")
 
-zat_std2 <- zat_std %>% drop_na()
+##see ZAT_profile.qmd
+# zat_fmm <- zat_std2 %>% select(-road_length_log, -numrt_per_km2)
+# 
+# street <- zat_fmm %>% 
+#   select(st_4ln_length_log, bikelane_m_log, trlight_per_km2, sttree_per_km2, bridg_per_km2) %>% 
+#   colnames()
+# 
+# transportation <- zat_fmm %>% 
+#   select(BUSTOPDENS, bus_length_log, brt_length_log, numrbp_per_km2) %>% 
+#   colnames()
+# 
+# all <- zat_fmm %>% 
+#   select(-ZAT) %>% 
+#   colnames()
+# 
+# source("../../../../functions/fmm_normal.R")
+# 
+# street_mix<- fmm_normal(zat_fmm, street, 1:7)
+# transp_mix <- fmm_normal(zat_fmm,transportation, 1:7)
+# all_mix <- fmm_normal(zat_fmm, all, 1:7)
 
-saveRDS(zat_std2, file = "clean_data/zat_std2.rds")
+all_mix <- readRDS("clean_data/quarto_zat_profile/all_mix.rds")
+street_mix <- readRDS("clean_data/quarto_zat_profile/street_mix.rds")
+transp_mix <- readRDS("clean_data/quarto_zat_profile/transp_mix.rds")
 
-## log doesn't seem to model well
-zat_std3 <- zat_data %>%
-  mutate(
-    tree_per_km2 = NUMSTTREES / areakm2,
-    bridg_per_km2 = NUMBRIDGES / areakm2,
-    trlight_per_int = NUMTTFLIGH / NUMINT
-  ) %>% 
-  select(ZAT, BUSTOPDENS, LRDENS, LONGMV, BPRDRATE,
-    NUMINT, INTDENS, tree_per_km2, bridg_per_km2, trlight_per_int,
-    NUMRBP, LONGRBP, NUMRT, LONGRT) %>% 
-  drop_na()
+all_mix_c <- getModel(all_mix, "BIC")
+st_mix_c <- getModel(street_mix, "BIC")
+tp_mix_c <- getModel(transp_mix, "BIC")
 
-saveRDS(zat_std3, file = "../clean_data/zat_std3.rds")
-
-#var_to_model
-var_to_model <- zat_std2 %>% select(-ZAT)
-
-fit_model <- function(k){
-mix <- flexmix(as.matrix(var_to_model) ~ 1, data = var_to_model, 
-  model = FLXMCmvnorm(family = "poisson"), k =3)
-return(BIC(mix))
-}
-
-# Apply the function for different values of k
-k_values <- 1:10  # You can adjust the range based on your needs
-
-bic_values <- map_dbl(k_values, fit_model) 
-
-results <- data.frame(Clusters = k_values, BIC = bic_values)
-
-# elbow plot
-ggplot(results, aes(x = Clusters, y = BIC)) +
-  geom_line(color = "blue", ) +
-  geom_point() +
-  theme_minimal() +
-  labs(title = "Elbow Plot for BIC Values",
-    x = "Number of Clusters",
-    y = "BIC")
-
-
-mix2 <- stepFlexmix(as.matrix(var_to_model) ~ 1, data = var_to_model, model = FLXMCmvpois(), k = 1:7, 
-  nrep = 3)
-
-var_to_model <- column_to_rownames(zat_std2, var = "ZAT") %>% drop_na() %>% as.matrix()
+zat_cluster <- zat_std2 %>% 
+  select(ZAT) %>% 
+  mutate(all = clusters(all_mix_c),
+         street = clusters(st_mix_c),
+         transp = clusters(tp_mix_c)) %>% 
+  left_join(zat, by = "ZAT") %>% 
+  select(ZAT, all, street, transp, geometry) %>% 
+  st_as_sf()
 
 
 
