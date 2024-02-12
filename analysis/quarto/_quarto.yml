@@ -16,7 +16,9 @@ website:
         href: https://twitter.com
 format:
   html:
-    theme: solar
+    theme: 
+    - solar
+    - custom.scss
     css: styles.css
 
 execute: 
