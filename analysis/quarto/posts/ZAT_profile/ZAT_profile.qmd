@@ -190,9 +190,11 @@ From the fitted models, we can also extract the posterior probabilities of clust
 ```{r, eval=FALSE}
 mix_best <- getModel(all_mix, "BIC")
 
+zat_id <- zat_std2 %>% pull(ZAT)
+
 post_p <- posterior(mix_best) %>% as.data.frame() %>% 
-  rownames_to_column(var = "ZAT") %>% 
-  mutate(order = V1-V3) %>% 
+  mutate(ZAT= zat_id,
+    order = V1-V3) %>% 
   pivot_longer(c(V1, V2, V3), names_to = "cluster", values_to = "prob")
 
 ggplot(post_p, aes(x = reorder(ZAT, order), y = prob, fill = cluster)) +
