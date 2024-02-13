@@ -112,6 +112,7 @@ cor_matrix[upper.tri(cor_matrix, diag = TRUE)] <- NA
 # FMM ------------------------------------------------------------
 library(flexmix)
 library(leaflet)
+library(tmap)
 
 zat_std2 <- readRDS("clean_data/ZAT/zat_std2.rds")
 
@@ -153,5 +154,69 @@ zat_cluster <- zat_std2 %>%
   select(ZAT, all, street, transp, geometry) %>% 
   st_as_sf()
 
+
+street <- zat_cluster %>%
+  select(ZAT, geometry, street) %>%
+  drop_na() %>%
+  #using NAD83 in tmap
+  tm_shape(projection = sf::st_crs(26915))+
+  tm_polygons("street",
+    palette = "YlGn",
+    style = "cat",
+    title = "cluster")+
+  tm_layout(panel.show = TRUE,
+    panel.labels = "Street Design Profiles",
+    panel.label.fontface = "bold",
+    title.position = c("left", "TOP"),
+    legend.position = c("RIGHT", "bottom"),
+    legend.title.size = 0.9,
+    legend.width = 2)
+
+transp <- 
+  zat_cluster %>%
+  select(ZAT, geometry, transp) %>%
+  drop_na() %>%
+  #using NAD83 in tmap
+  tm_shape(projection = sf::st_crs(26915))+
+  tm_polygons("transp",
+    palette = "YlGn", 
+    style = "cat",
+    title = "cluster")+
+  tm_layout(panel.show = TRUE,
+    panel.labels = "Transportation Profiles",
+    panel.label.fontface = "bold",
+    title.position = c("left", "TOP"),
+    legend.position = c("RIGHT", "bottom"),
+    legend.title.size = 0.9,
+    legend.width = 2)
+
+all_ind <-
+  zat_cluster %>%
+  select(ZAT, geometry, all) %>%
+  drop_na() %>%
+  #using NAD83 in tmap
+  tm_shape(projection = sf::st_crs(26915))+
+  tm_polygons("all",
+    palette = "YlGn", 
+    style = "cat",
+    title = "cluster")+
+  tm_layout(panel.show = TRUE,
+    panel.labels = "All-Indicator Profiles",
+    panel.label.fontface = "bold",
+    title.position = c("left", "TOP"),
+    legend.position = c("RIGHT", "bottom"),
+    legend.title.size = 0.9,
+    legend.width = 2)
+
+plots <- list(street, transp, all_ind)
+  
+current.mode <- tmap_mode("plot")
+
+tmap_arrange(
+    plots,
+    nrow = 1,
+    width = c(0.34, 0.33, 0.33)
+  )
+  
 
 
