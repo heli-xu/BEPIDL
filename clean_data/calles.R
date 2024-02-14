@@ -139,3 +139,109 @@ calle_clean_df %>%
 sini <- c("sini_total","sini_herid","sini_muert","sini_solod",  "si_act_Tot","si_act_pea", "si_act_cic","sin_veh_to","si_veh_bic")
 
 tfine <- c("Administra","not_resp_p", "under_infl", "Mobile_pho",  "NO_DATA", "traffic_si",  "Not_Stoppi",  "safety_dev","Parking_Vi",  "Pedest_Bic", "driving_be","Smoking_dr", "Speeding","tehcnical")
+
+# aggregate to ZAT level ---------------------------------------------
+library(leaflet)
+
+calle_geo <- calle_clean %>% select(CodigoCL, geometry)
+
+zat_geo <- zat_cluster %>% select(ZAT, geometry)
+
+sf_use_s2(FALSE) 
+#to avoid error in joining: 
+# "Loop 5 is not valid: Edge 2 has duplicate vertex with edge 5"
+
+st_crs(calle_geo)
+st_crs(zat_geo)
+
+calle_zat <- calle_geo %>% 
+  st_transform(crs = st_crs(zat_geo)) %>% # due to unmatched crs error
+  st_join(zat_geo,join= st_within)
+# can only show one geometry for one observation!
+# this is showing the zat number with calle geometry
+
+calle_zat %>% filter(is.na(ZAT)) %>% 
+#a bit too many, 14878 NA in ZAT
+  st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>% 
+    st_zm() %>% 
+    leaflet() %>% 
+    addTiles() %>% 
+    addPolygons(weight = 3, fillColor = 'purple', color = 'purple')
+#so many!
+
+calle_zat2 <- calle_geo %>% 
+  st_transform(crs = st_crs(zat_geo)) %>% # due to unmatched crs error
+  st_join(zat_geo,join= st_intersects)
+#returns more obs, likely one st matching to 2 zats or more
+
+calle_zat2 %>% filter(is.na(ZAT)) %>% 
+  st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>% 
+  st_zm() %>% 
+  leaflet() %>% 
+  addTiles() %>% 
+  addPolygons(weight = 3, fillColor = 'purple', color = 'purple')
+# 16 NA, better
+
+mult_match <- calle_zat2 %>% as.data.frame() %>% group_by(CodigoCL) %>% count() %>% 
+  filter(n >= 2) %>% 
+  pull(CodigoCL)
+
+calle_zat2 %>% 
+  filter(CodigoCL%in%mult_match)
+  
+
+sub <- calle_zat[1:1000,] %>% 
+  #drop_na() %>% 
+  st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>% 
+  st_zm()
+
+
+
+
+saveRDS(sub, "clean_data/calle_subset.rds")
+
+sub_zat_geo <- zat_geo %>% 
+  right_join(sub %>% 
+               as.data.frame() %>% 
+               select(-geometry), 
+             by = "ZAT") %>% 
+  select(-CodigoCL) %>% 
+  distinct() %>% 
+  st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>% 
+  st_zm()
+
+save(sub_zat_geo, file = "clean_data/sub_zatgeo.rds")
+
+leaflet() %>% 
+  addTiles() %>% 
+  addPolygons(data=sub, weight = 3, fillColor = 'purple', color = 'purple') %>%
+  addPolygons(data=sub_zat_geo, weight = 3, fillColor = 'blue', color = 'blue')
+
+calle_zat_sub %>%
+  #st_zm() %>%
+  st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>%
+  leaflet() %>%
+  addProviderTiles(providers$CartoDB.Voyager)  %>%
+  addPolygons(color = "white", 
+              weight = 0.5,
+              smoothFactor = 0.5,
+              opacity = 1,
+              fillColor = ~pal2(INTDENS),
+              fillOpacity = 0.8,
+              highlightOptions = highlightOptions(
+                weight = 5,
+                color = "#666",
+                fillOpacity = 0.8,
+                bringToFront = TRUE),
+              label = zat_label2,
+              labelOptions = labelOptions(
+                style = list(
+                  "font-family" = "Fira Sans, sans-serif",
+                  "font-size" = "1.2em"
+                ))
+  ) %>% 
+  addLegend("bottomleft",
+            pal = pal2,
+            values = ~INTDENS,
+            title = "Intersection Density in Bogotá</br>(ZAT-level)",
+            opacity = 1)

@@ -109,10 +109,6 @@ library(tmap)
 
 ## clustering (mix.rds)-----------------------------
 ##see ZAT_profile.qmd and .rds in clean_data/quarto_zat_profile/
-
-## mapping (zat_cluster.rds)------------------------
-zat_std2 <- readRDS("ZAT/zat_std2.rds")
-
 # zat_fmm <- zat_std2 %>% select(-road_length_log, -numrt_per_km2)
 # 
 # street <- zat_fmm %>% 
@@ -132,6 +128,9 @@ zat_std2 <- readRDS("ZAT/zat_std2.rds")
 # street_mix<- fmm_normal(zat_fmm, street, 1:7)
 # transp_mix <- fmm_normal(zat_fmm,transportation, 1:7)
 # all_mix <- fmm_normal(zat_fmm, all, 1:7)
+
+## mapping (zat_cluster.rds)------------------------
+zat_std2 <- readRDS("clean_data/ZAT/zat_std2.rds")
 
 all_mix <- readRDS("../clean_data/quarto_zat_profile/all_mix.rds")
 street_mix <- readRDS("../clean_data/quarto_zat_profile/street_mix.rds")
@@ -218,17 +217,17 @@ tmap_arrange(
 ## variable impact ------------------------------
 library(ggplot2)
 
-zat_cluster <- readRDS("zat_cluster.rds")
+zat_cluster <- readRDS("clean_data/zat_cluster.rds")
 
 zat_cluster_var <- zat_cluster %>%
   as.data.frame() %>% 
   select(-geometry) %>% 
   left_join(zat_std2, by = "ZAT")
 
-street <- c("st_4ln_length_log", "bikelane_m_log", "trlight_per_km2", 
-  "sttree_per_km2", "bridg_per_km2") 
-
-transportation <- c("BUSTOPDENS", "bus_length_log", "brt_length_log", "numrbp_per_km2") 
+# street <- c("st_4ln_length_log", "bikelane_m_log", "trlight_per_km2", 
+#   "sttree_per_km2", "bridg_per_km2") 
+# 
+# transportation <- c("BUSTOPDENS", "bus_length_log", "brt_length_log", "numrbp_per_km2") 
 
 st_var <- zat_cluster_var %>% 
   select(-ZAT, -transp, -all) %>% 
@@ -245,5 +244,25 @@ ggplot(st_var, aes(x= factor(street), y = value, fill = factor(street)))+
   theme_minimal() + # Use a minimal theme
   labs(title = "Box Plot by Category", 
     x = "Category", 
-    y = "Value") +
+    y = "Value",
+    fill = "cluster") +
   facet_wrap(~indicator, scales = "free", nrow = 1)
+
+transp_var <- zat_cluster_var %>% 
+  select(-ZAT, -street, -all) %>% 
+  pivot_longer(-transp, names_to ="indicator") %>% 
+  filter(indicator%in%c("BUSTOPDENS", "bus_length_log", "brt_length_log", "numrbp_per_km2")) %>% 
+  group_by(transp, indicator) %>% 
+  mutate(mean = mean(value),
+         sd = sd(value))
+
+ggplot(transp_var, aes(x= factor(transp), y = value, fill = factor(transp)))+
+  geom_boxplot() +
+  scale_fill_brewer(palette = "YlGn") + # Change fill colors
+  theme_minimal() + # Use a minimal theme
+  labs(title = "Box Plot by Category", 
+       x = "Category", 
+       y = "Value",
+       fill = "cluster") +
+  facet_wrap(~indicator, scales = "free", nrow = 1)
+
