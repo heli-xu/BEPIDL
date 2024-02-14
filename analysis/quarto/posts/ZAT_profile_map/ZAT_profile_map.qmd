@@ -1,0 +1,110 @@
+---
+title: "Neighborhood Built Environment Profiles in Bogotá"
+subtitle: "Spatial visualization"
+author: "Heli Xu"
+image: thumbnail_profile.jpg
+date: 2/7/24
+format: 
+  html:
+    code-fold: true
+    toc: true
+    toc-depth: 4
+    self-contained: true
+editor: visual
+---
+
+After using finite mixture modeling to [cluster the neighborhoods (ZATs)](../ZAT_profile/ZAT_profile.qmd) across all the ZAT-level indicators on road infrastructures, we'll visualize the resulting neighborhood profiles on maps.
+
+```{r setup, warning=FALSE, message=FALSE}
+library(dplyr)
+library(sf)
+library(tmap)
+```
+
+## Data preparation
+
+As mentioned in the previous post, all ZAT-level indicators were categorized into two domains, street design and transportation, and the neighborhood profiles are generated for each ZAT unit from the Gaussian mixture model-based clustering across the variables in each domain, as well as in both domains together. From the modeling results, we could extract the domain-specific and overall cluster information of all ZATs with `clusters()`, and join the data with the ZAT-level shapefiles in `ZAT folder` to get the geometry.
+
+```{r, eval=FALSE}
+zat_cluster <- zat_std2 %>% 
+  select(ZAT) %>% 
+  mutate(all = clusters(all_mix_c),
+         street = clusters(st_mix_c),
+         transp = clusters(tp_mix_c)) %>% 
+  left_join(zat, by = "ZAT") %>% 
+  select(ZAT, all, street, transp, geometry) %>% 
+  st_as_sf()
+```
+
+```{r, echo=FALSE}
+zat_cluster <- readRDS("../../../../clean_data/zat_cluster.rds")
+```
+
+## Mapping the profiles
+
+To spatially visualize the neighborhood profiles, we'll create 3 maps to plot the cluster assignment of each ZAT unit for street design domain, transportation domain and both domains together.
+
+```{r, warning=FALSE}
+street <- zat_cluster %>%
+  select(ZAT, geometry, street) %>%
+  drop_na() %>%
+  #using NAD83 in tmap
+  tm_shape(projection = sf::st_crs(26915))+
+  tm_polygons("street",
+    palette = "YlGn",
+    style = "cat",
+    title = "cluster")+
+  tm_layout(panel.show = TRUE,
+    panel.labels = "Street Design Profiles",
+    panel.label.fontface = "bold",
+    title.position = c("left", "TOP"),
+    legend.position = c("RIGHT", "bottom"),
+    legend.title.size = 0.9,
+    legend.width = 2)
+
+transp <- zat_cluster %>%
+  select(ZAT, geometry, transp) %>%
+  drop_na() %>%
+  #using NAD83 in tmap
+  tm_shape(projection = sf::st_crs(26915))+
+  tm_polygons("transp",
+    palette = "YlGn", 
+    style = "cat",
+    title = "cluster")+
+  tm_layout(panel.show = TRUE,
+    panel.labels = "Transportation Profiles",
+    panel.label.fontface = "bold",
+    title.position = c("left", "TOP"),
+    legend.position = c("RIGHT", "bottom"),
+    legend.title.size = 0.9,
+    legend.width = 2)
+
+all_ind <- zat_cluster %>%
+  select(ZAT, geometry, all) %>%
+  drop_na() %>%
+  #using NAD83 in tmap
+  tm_shape(projection = sf::st_crs(26915))+
+  tm_polygons("all",
+    palette = "YlGn", 
+    style = "cat",
+    title = "cluster")+
+  tm_layout(panel.show = TRUE,
+    panel.labels = "All-Indicator Profiles",
+    panel.label.fontface = "bold",
+    title.position = c("left", "TOP"),
+    legend.position = c("RIGHT", "bottom"),
+    legend.title.size = 0.9,
+    legend.width = 2)
+
+plots <- list(street, transp, all_ind)
+  
+current.mode <- tmap_mode("plot")
+
+tmap_arrange(
+    plots,
+    nrow = 1,
+    width = c(0.34, 0.33, 0.33)
+  )
+```
+
+We can see that the clustering by street design and/or transportation domain(s) yielded a relatively consistent pattern of neighborhood profiles in Bogotá.

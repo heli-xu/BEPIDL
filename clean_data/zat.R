@@ -5,19 +5,10 @@ library(tidyverse)
 
 # ZAT raw data ------------------------------------------------------------
 
-zat <- st_read("data/ZAT/ZAT_geo/ZAT.shp")
+zat <- st_read("../data/ZAT/ZAT_geo/ZAT.shp")
 
 zat_data <- read_xlsx("../data/ZAT/ZAT_INDICADORES.xlsx")
 
-# zat_data_xtr.rds --------------------------------------------------------
-
-zat_data_xtr <- zat_data %>% 
-  mutate(STTREESPROAD = NUMSTTREES/LONGMV,
-         NUMBRIDGESAREA = NUMBRIDGES/areakm2,
-         PEDLIGHTTRAFLIGHT = NUMPTFLIGH/NUMTTFLIGH,
-         TRAFLIGHTINTS = NUMPTFLIGH/NUMINT) 
-
-saveRDS(zat_data_xtr, file = "clean_data/ZAT/zat_data_xtr.rds")
 
 # georef_zat.rds ----------------------------------------------------------
 ## geo-referenced ZAT indicators 
@@ -39,9 +30,9 @@ georef_zat_xtr <- georef_zat %>%
          TRAFLIGHTINTS = NUMPTFLIGH/NUMINT,
          .before = geometry) 
 
-# Cleaning and Standardizing ---------------------------------------------------
+# Process (zat_std2.rds) ---------------------------------------------------
+# clean and standardize
 ## note the zeros whenever you do standardize
-
 zat_clean <- zat_data %>% 
   filter(LRDENS > 0, 
          NUMINT >0)
@@ -68,6 +59,14 @@ zat_std <- zat_clean %>%
                                .default = longrt_per_km2)
   ) 
 
+# select value per km2, length in log
+zat_std2 <- zat_std %>% 
+  select(ZAT, BUSTOPDENS, road_length_log, st_4ln_length_log, bikelane_m_log, 
+    sttree_per_km2, bridg_per_km2, trlight_per_km2, numrbp_per_km2,
+    numrt_per_km2, bus_length_log, brt_length_log)
+
+saveRDS(zat_std2, file = "../clean_data/ZAT/zat_std2.rds")
+
 # for shiny -----------------------------------------------------------
 ## sf object version
 zat_indicator_list <- georef_zat_xtr %>% 
@@ -88,13 +87,7 @@ save(zat_indicator_list, file = "../analysis/shiny-zat/R/zat_indicator_list.rda"
 save(zat_std, file = "../analysis/shiny-zat/R/zat_std.rda")
 
 
-# select value per km2, length in log
-zat_std2 <- zat_std %>% 
-  select(ZAT, BUSTOPDENS, road_length_log, st_4ln_length_log, bikelane_m_log, 
-         sttree_per_km2, bridg_per_km2, trlight_per_km2, numrbp_per_km2,
-         numrt_per_km2, bus_length_log, brt_length_log)
 
-saveRDS(zat_std2, file = "../clean_data/ZAT/zat_std2.rds")
 
 # correlation ---------------------------------------------------
 
@@ -114,9 +107,12 @@ library(flexmix)
 library(leaflet)
 library(tmap)
 
-zat_std2 <- readRDS("clean_data/ZAT/zat_std2.rds")
+## clustering (mix.rds)-----------------------------
+##see ZAT_profile.qmd and .rds in clean_data/quarto_zat_profile/
 
-##see ZAT_profile.qmd
+## mapping (zat_cluster.rds)------------------------
+zat_std2 <- readRDS("ZAT/zat_std2.rds")
+
 # zat_fmm <- zat_std2 %>% select(-road_length_log, -numrt_per_km2)
 # 
 # street <- zat_fmm %>% 
@@ -137,9 +133,9 @@ zat_std2 <- readRDS("clean_data/ZAT/zat_std2.rds")
 # transp_mix <- fmm_normal(zat_fmm,transportation, 1:7)
 # all_mix <- fmm_normal(zat_fmm, all, 1:7)
 
-all_mix <- readRDS("clean_data/quarto_zat_profile/all_mix.rds")
-street_mix <- readRDS("clean_data/quarto_zat_profile/street_mix.rds")
-transp_mix <- readRDS("clean_data/quarto_zat_profile/transp_mix.rds")
+all_mix <- readRDS("../clean_data/quarto_zat_profile/all_mix.rds")
+street_mix <- readRDS("../clean_data/quarto_zat_profile/street_mix.rds")
+transp_mix <- readRDS("../clean_data/quarto_zat_profile/transp_mix.rds")
 
 all_mix_c <- getModel(all_mix, "BIC")
 st_mix_c <- getModel(street_mix, "BIC")
@@ -154,8 +150,10 @@ zat_cluster <- zat_std2 %>%
   select(ZAT, all, street, transp, geometry) %>% 
   st_as_sf()
 
+saveRDS(zat_cluster, file = "zat_cluster.rds")
 
-street <- zat_cluster %>%
+## in ZAT_profile_map.qmd  
+{street <- zat_cluster %>%
   select(ZAT, geometry, street) %>%
   drop_na() %>%
   #using NAD83 in tmap
@@ -172,8 +170,7 @@ street <- zat_cluster %>%
     legend.title.size = 0.9,
     legend.width = 2)
 
-transp <- 
-  zat_cluster %>%
+transp <- zat_cluster %>%
   select(ZAT, geometry, transp) %>%
   drop_na() %>%
   #using NAD83 in tmap
@@ -190,8 +187,7 @@ transp <-
     legend.title.size = 0.9,
     legend.width = 2)
 
-all_ind <-
-  zat_cluster %>%
+all_ind <- zat_cluster %>%
   select(ZAT, geometry, all) %>%
   drop_na() %>%
   #using NAD83 in tmap
@@ -217,6 +213,37 @@ tmap_arrange(
     nrow = 1,
     width = c(0.34, 0.33, 0.33)
   )
-  
+}
 
+## variable impact ------------------------------
+library(ggplot2)
 
+zat_cluster <- readRDS("zat_cluster.rds")
+
+zat_cluster_var <- zat_cluster %>%
+  as.data.frame() %>% 
+  select(-geometry) %>% 
+  left_join(zat_std2, by = "ZAT")
+
+street <- c("st_4ln_length_log", "bikelane_m_log", "trlight_per_km2", 
+  "sttree_per_km2", "bridg_per_km2") 
+
+transportation <- c("BUSTOPDENS", "bus_length_log", "brt_length_log", "numrbp_per_km2") 
+
+st_var <- zat_cluster_var %>% 
+  select(-ZAT, -transp, -all) %>% 
+  pivot_longer(-street, names_to = "indicator") %>% 
+  filter(indicator%in%c("st_4ln_length_log", "bikelane_m_log", "trlight_per_km2", 
+    "sttree_per_km2", "bridg_per_km2")) %>% 
+  group_by(street, indicator) %>% 
+  mutate(mean = mean(value),
+    sd = sd(value))
+
+ggplot(st_var, aes(x= factor(street), y = value, fill = factor(street)))+
+  geom_boxplot() +
+  scale_fill_brewer(palette = "YlGn") + # Change fill colors
+  theme_minimal() + # Use a minimal theme
+  labs(title = "Box Plot by Category", 
+    x = "Category", 
+    y = "Value") +
+  facet_wrap(~indicator, scales = "free", nrow = 1)
