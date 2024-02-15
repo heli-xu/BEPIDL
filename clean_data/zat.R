@@ -266,3 +266,11 @@ ggplot(transp_var, aes(x= factor(transp), y = value, fill = factor(transp)))+
        fill = "cluster") +
   facet_wrap(~indicator, scales = "free", nrow = 1)
 
+zat_imp_geo <- zat %>% 
+  select(ZAT, geometry) %>% 
+  left_join(zat_std2 %>% 
+      select(ZAT, st_4ln_length_log, trlight_per_km2, bus_length_log),
+    by = "ZAT") %>% 
+  drop_na()
+
+saveRDS(zat_imp_geo, "../clean_data/zat_imp_geo.rds")

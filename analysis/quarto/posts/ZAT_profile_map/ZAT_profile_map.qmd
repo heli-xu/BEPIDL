@@ -1,7 +1,8 @@
 ---
 title: "Neighborhood Built Environment Profiles in Bogotá"
-subtitle: "Spatial visualization"
+subtitle: "Spatial visualization | Assess variable influence"
 author: "Heli Xu"
+image: thumbnail.jpg
 date: 2/12/24
 format: 
   html:
@@ -19,6 +20,9 @@ library(dplyr)
 library(sf)
 library(tmap)
 library(ggplot2)
+library(tidyr)
+library(leaflet)
+library(glue)
 ```
 
 ## Data preparation
@@ -113,11 +117,18 @@ We can see that the clustering by street design and/or transportation domain(s) 
 
 Since these profiles are modeled across the variables (in each domain), we'll now explore further which variables may be more influential in the clustering result, which will also be important in our interpretation of the different profiles/clusters.
 
-One way to do that is to visualize each variable by the ZAT unit and see which variables have a better cluster separation (as in the previous post). In addition, we can examine the mean and variance of each variable see which ones are significantly different across clusters.
+One way to do that is to visualize each variable by the ZAT unit and see which variables have a better cluster separation (as in the previous post).
+
+In addition, we can examine the mean and variance of each variable see which ones are significantly different across clusters.
 
 ### Street Design Domain
 
 ```{r}
+#| fig-height: 5
+#| fig-width: 8
+
+zat_std2 <- readRDS("../../../../clean_data/ZAT/zat_std2.rds")
+
 zat_cluster_var <- zat_cluster %>%
   as.data.frame() %>% 
   select(-geometry) %>% 
@@ -136,8 +147,14 @@ st_var <- zat_cluster_var %>%
   mutate(mean = mean(value),
     sd = sd(value))
 
-ggplot(st_var, aes(x= factor(street), y = value, fill = factor(street)))+
-  geom_boxplot() +
+MinMeanSDMax <- function(x) {
+  v <- c(mean(x)-3*sd(x), mean(x) - sd(x), mean(x), mean(x) + sd(x), mean(x)+3*sd(x))
+  names(v) <- c("ymin", "lower", "middle", "upper", "ymax")
+  v
+}
+
+ggplot(st_var, aes(x= factor(street), y =value, fill = factor(street)))+
+  stat_summary(fun.data=MinMeanSDMax, geom="boxplot") +
   scale_fill_brewer(palette = "YlGn") + # Change fill colors
   theme_minimal() + # Use a minimal theme
   labs(title = "Street Design Indicators by Neighborhood Profiles", 
@@ -147,9 +164,89 @@ ggplot(st_var, aes(x= factor(street), y = value, fill = factor(street)))+
   facet_wrap(~indicator, scales = "free", nrow = 1)
 ```
 
-It looks like the ... has the most separation between clusters and therefore is the most influential variable in this model-based clustering result. For this variable, the map looks like this,
+It looks like the street length (st_4ln_length_log), traffic lights (trlight_per_km2) and pedestrian bridge have the most separation between clusters and therefore are the more influential variables in this model-based clustering result. For street length:
 
-and it looks like the cluster 1 neighborhoods is corresponding to the neighborhoods that have more/less street.
+```{r}
+zat_imp_geo <- readRDS("../../../../clean_data/zat_imp_geo.rds")
+
+pal <- colorNumeric(
+  palette = "Blues",
+  domain = zat_imp_geo$st_4ln_length_log
+)
+
+zat_label <- glue("ZAT{zat_imp_geo$ZAT} Street length (log): {zat_imp_geo$st_4ln_length_log}")
+
+zat_imp_geo %>% 
+  select(ZAT, st_4ln_length_log) %>% 
+  st_zm() %>%
+  st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>%
+  leaflet() %>%
+  addProviderTiles(providers$CartoDB.Voyager)  %>%
+  addPolygons(color = "white", 
+              weight = 0.5,
+              smoothFactor = 0.5,
+              opacity = 1,
+              fillColor = ~pal(st_4ln_length_log),
+              fillOpacity = 0.8,
+              highlightOptions = highlightOptions(
+                weight = 5,
+                color = "#666",
+                fillOpacity = 0.8,
+                bringToFront = TRUE),
+              label = zat_label,
+              labelOptions = labelOptions(
+                style = list(
+                  "font-family" = "Fira Sans, sans-serif",
+                  "font-size" = "1.2em"
+                ))
+              )%>% 
+  addLegend("bottomleft",
+            pal = pal,
+            values = ~st_4ln_length_log,
+            title = "Street length (log) in Bogotá</br>(ZAT-level)",
+            opacity = 1)
+```
+
+```{r}
+pal2 <- colorNumeric(
+  palette = "viridis",
+  domain = zat_imp_geo$trlight_per_km2
+)
+
+zat_label2 <- glue("ZAT{zat_imp_geo$ZAT} Traffic light/km2: {zat_imp_geo$trlight_per_km2}")
+
+zat_imp_geo %>% 
+  select(ZAT, trlight_per_km2) %>% 
+  st_zm() %>%
+  st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>%
+  leaflet() %>%
+  addProviderTiles(providers$CartoDB.Voyager)  %>%
+  addPolygons(color = "white", 
+              weight = 0.5,
+              smoothFactor = 0.5,
+              opacity = 1,
+              fillColor = ~pal2(trlight_per_km2),
+              fillOpacity = 0.8,
+              highlightOptions = highlightOptions(
+                weight = 5,
+                color = "#666",
+                fillOpacity = 0.8,
+                bringToFront = TRUE),
+              label = zat_label2,
+              labelOptions = labelOptions(
+                style = list(
+                  "font-family" = "Fira Sans, sans-serif",
+                  "font-size" = "1.2em"
+                ))
+              )%>% 
+  addLegend("bottomleft",
+            pal = pal2,
+            values = ~trlight_per_km2,
+            title = "Traffic light per km2 in Bogotá</br>(ZAT-level)",
+            opacity = 1)
+```
+
+Indeed it looks like the cluster 1 (light yellow in the profile map) is corresponding to the neighborhoods that have longer streets (with 4 or more lanes). Although it's hard to tell on the map due to the zeros, based on the boxplot, these neighborhoods also have a slightly lower pedestrian bridge count and traffic light per km2.
 
 ### Transportation Domain
 
@@ -163,7 +260,7 @@ transp_var <- zat_cluster_var %>%
          sd = sd(value))
 
 ggplot(transp_var, aes(x= factor(transp), y = value, fill = factor(transp)))+
-  geom_boxplot() +
+  stat_summary(fun.data=MinMeanSDMax, geom="boxplot") +
   scale_fill_brewer(palette = "YlGn") + # Change fill colors
   theme_minimal() + # Use a minimal theme
   labs(title = "Transportation Indicators by Neighborhood Profiles", 
@@ -173,6 +270,47 @@ ggplot(transp_var, aes(x= factor(transp), y = value, fill = factor(transp)))+
   facet_wrap(~indicator, scales = "free", nrow = 1)
 ```
 
-It looks like bus-related variables are more influential than the BRT ones in the modeling. For example, this look like this in the map:
+While the general pattern of these variables are relatively consistent (despite the large variance), it looks like bus-related variables are more influential than the BRT one (hmm) in the modeling, especially the bus route length (bus_length_log). Looking at the bus route length on a map:
 
-Suggesting that cluster 1 is corresponding to neighborhoods with more bus routes and density.
+```{r}
+pal3 <- colorNumeric(
+  palette = "magma",
+  domain = zat_imp_geo$bus_length_log
+)
+
+zat_label3 <- glue("ZAT{zat_imp_geo$ZAT} Bus routes length (log): {zat_imp_geo$bus_length_log}")
+
+zat_imp_geo %>% 
+  select(ZAT, bus_length_log) %>% 
+  st_zm() %>%
+  st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>%
+  leaflet() %>%
+  addProviderTiles(providers$CartoDB.Voyager)  %>%
+  addPolygons(color = "white", 
+              weight = 0.5,
+              smoothFactor = 0.5,
+              opacity = 1,
+              fillColor = ~pal3(bus_length_log),
+              fillOpacity = 0.8,
+              highlightOptions = highlightOptions(
+                weight = 5,
+                color = "#666",
+                fillOpacity = 0.8,
+                bringToFront = TRUE),
+              label = zat_label3,
+              labelOptions = labelOptions(
+                style = list(
+                  "font-family" = "Fira Sans, sans-serif",
+                  "font-size" = "1.2em"
+                ))
+              )%>% 
+  addLegend("bottomleft",
+            pal = pal3,
+            values = ~bus_length_log,
+            title = "Bus routes length (log) in Bogotá</br>(ZAT-level)",
+            opacity = 1)
+```
+
+From the map and boxplots, cluster 3 (darker green) seem to be corresponding to neighborhoods with few bus routes, whereas cluster 1 and 2 seem to have longer bus routes. It is a little surprising to me that some of the neighborhoods with long bus routes do not have many traffic lights.
+
+After we have more variables perhaps aggregated from street level, we can also use logistic regression model to test the influence of each variable, and try including/excluding different variables to compare the entropy from the model-based clustering.
