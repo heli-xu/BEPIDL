@@ -2,8 +2,7 @@
 title: "Neighborhood Built Environment Profiles in Bogotá"
 subtitle: "Spatial visualization"
 author: "Heli Xu"
-image: thumbnail_profile.jpg
-date: 2/7/24
+date: 2/12/24
 format: 
   html:
     code-fold: true
@@ -19,6 +18,7 @@ After using finite mixture modeling to [cluster the neighborhoods (ZATs)](../ZAT
 library(dplyr)
 library(sf)
 library(tmap)
+library(ggplot2)
 ```
 
 ## Data preparation
@@ -108,3 +108,71 @@ tmap_arrange(
 ```
 
 We can see that the clustering by street design and/or transportation domain(s) yielded a relatively consistent pattern of neighborhood profiles in Bogotá.
+
+## Assess variable influence
+
+Since these profiles are modeled across the variables (in each domain), we'll now explore further which variables may be more influential in the clustering result, which will also be important in our interpretation of the different profiles/clusters.
+
+One way to do that is to visualize each variable by the ZAT unit and see which variables have a better cluster separation (as in the previous post). In addition, we can examine the mean and variance of each variable see which ones are significantly different across clusters.
+
+### Street Design Domain
+
+```{r}
+zat_cluster_var <- zat_cluster %>%
+  as.data.frame() %>% 
+  select(-geometry) %>% 
+  left_join(zat_std2, by = "ZAT")
+
+street_dm <- c("st_4ln_length_log", "bikelane_m_log", "trlight_per_km2", 
+            "sttree_per_km2", "bridg_per_km2")
+
+transportation_dm <- c("BUSTOPDENS", "bus_length_log", "brt_length_log", "numrbp_per_km2")
+
+st_var <- zat_cluster_var %>% 
+  select(-ZAT, -transp, -all) %>% 
+  pivot_longer(-street, names_to = "indicator") %>% 
+  filter(indicator %in% street_dm) %>% 
+  group_by(street, indicator) %>% 
+  mutate(mean = mean(value),
+    sd = sd(value))
+
+ggplot(st_var, aes(x= factor(street), y = value, fill = factor(street)))+
+  geom_boxplot() +
+  scale_fill_brewer(palette = "YlGn") + # Change fill colors
+  theme_minimal() + # Use a minimal theme
+  labs(title = "Street Design Indicators by Neighborhood Profiles", 
+    x = "Cluster", 
+    y = "Value",
+    fill = "cluster") +
+  facet_wrap(~indicator, scales = "free", nrow = 1)
+```
+
+It looks like the ... has the most separation between clusters and therefore is the most influential variable in this model-based clustering result. For this variable, the map looks like this,
+
+and it looks like the cluster 1 neighborhoods is corresponding to the neighborhoods that have more/less street.
+
+### Transportation Domain
+
+```{r}
+transp_var <- zat_cluster_var %>% 
+  select(-ZAT, -street, -all) %>% 
+  pivot_longer(-transp, names_to ="indicator") %>% 
+  filter(indicator %in% transportation_dm) %>% 
+  group_by(transp, indicator) %>% 
+  mutate(mean = mean(value),
+         sd = sd(value))
+
+ggplot(transp_var, aes(x= factor(transp), y = value, fill = factor(transp)))+
+  geom_boxplot() +
+  scale_fill_brewer(palette = "YlGn") + # Change fill colors
+  theme_minimal() + # Use a minimal theme
+  labs(title = "Transportation Indicators by Neighborhood Profiles", 
+       x = "Cluster", 
+       y = "Value",
+       fill = "cluster") +
+  facet_wrap(~indicator, scales = "free", nrow = 1)
+```
+
+It looks like bus-related variables are more influential than the BRT ones in the modeling. For example, this look like this in the map:
+
+Suggesting that cluster 1 is corresponding to neighborhoods with more bus routes and density.
