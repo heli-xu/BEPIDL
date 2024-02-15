@@ -1,27 +1,31 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://heli-xu.github.io/BEPIDL/posts/ZAT_profile/ZAT_profile.html</loc>
-    <lastmod>2024-02-12T17:33:17.239Z</lastmod>
+    <loc>https://heli-xu.github.io/BEPIDL/posts/ZAT_profile_map/ZAT_profile_map.html</loc>
+    <lastmod>2024-02-15T04:20:46.937Z</lastmod>
   </url>
   <url>
-    <loc>https://heli-xu.github.io/BEPIDL/posts/EDA1_1st_look_var/EDA1_1st_look_var.html</loc>
-    <lastmod>2024-02-12T17:42:54.822Z</lastmod>
+    <loc>https://heli-xu.github.io/BEPIDL/posts/EDA2_georef_ZAT/EDA2_georef_ZAT.html</loc>
+    <lastmod>2024-01-26T18:17:59.058Z</lastmod>
   </url>
   <url>
-    <loc>https://heli-xu.github.io/BEPIDL/index.html</loc>
-    <lastmod>2024-01-26T17:50:45.473Z</lastmod>
+    <loc>https://heli-xu.github.io/BEPIDL/posts/Calles_var/calles_var.html</loc>
+    <lastmod>2024-02-12T20:30:02.121Z</lastmod>
   </url>
   <url>
     <loc>https://heli-xu.github.io/BEPIDL/about.html</loc>
     <lastmod>2024-01-26T17:50:45.473Z</lastmod>
   </url>
   <url>
-    <loc>https://heli-xu.github.io/BEPIDL/posts/Calles_var/calles_var.html</loc>
-    <lastmod>2024-02-01T01:46:34.112Z</lastmod>
+    <loc>https://heli-xu.github.io/BEPIDL/index.html</loc>
+    <lastmod>2024-01-26T17:50:45.473Z</lastmod>
   </url>
   <url>
-    <loc>https://heli-xu.github.io/BEPIDL/posts/EDA2_georef_ZAT/EDA2_georef_ZAT.html</loc>
-    <lastmod>2024-01-26T18:17:59.058Z</lastmod>
+    <loc>https://heli-xu.github.io/BEPIDL/posts/EDA1_1st_look_var/EDA1_1st_look_var.html</loc>
+    <lastmod>2024-02-12T17:42:54.822Z</lastmod>
+  </url>
+  <url>
+    <loc>https://heli-xu.github.io/BEPIDL/posts/ZAT_profile/ZAT_profile.html</loc>
+    <lastmod>2024-02-13T16:33:40.519Z</lastmod>
   </url>
 </urlset>
