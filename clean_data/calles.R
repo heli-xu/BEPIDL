@@ -186,9 +186,20 @@ mult_match <- calle_zat2 %>% as.data.frame() %>% group_by(CodigoCL) %>% count() 
   filter(n >= 2) %>% 
   pull(CodigoCL)
 
-calle_zat2 %>% 
-  filter(CodigoCL%in%mult_match)
-  
+calle_multi_leaf <- calle_zat2 %>% 
+  filter(CodigoCL%in%mult_match) %>% 
+  st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>% 
+  st_zm() 
+
+zat_leaf <- zat_geo %>% 
+  st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>% 
+  st_zm() 
+
+
+leaflet() %>% 
+  addTiles() %>% 
+  addPolygons(data = calle_multi_leaf, weight = 3, fillColor = 'purple', color = 'purple') %>% 
+  addPolygons(data = zat_leaf, weight = 3, fillColor = 'blue', color = 'blue') 
 
 sub <- calle_zat[1:1000,] %>% 
   #drop_na() %>% 
