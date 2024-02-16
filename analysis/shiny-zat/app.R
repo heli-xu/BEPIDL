@@ -31,12 +31,17 @@ tags$head(includeCSS("CSS/styles.css")),
               selectInput("indicator",
                           "ZAT-level indicator:",
                           choices = zat_indicator_list,
-                          selected = "BUSTOPDENS")
+                          selected = "BUSTOPDENS"),
+              
+              textOutput("description")
           ),
+          
 
           # Show a plot of the generated distribution
           mainPanel(
-             plotOutput("distPlot")
+            width = 9,
+            column(6, plotOutput("distPlot")),
+            column(6, plotOutput("map"))
           )
       )
 )

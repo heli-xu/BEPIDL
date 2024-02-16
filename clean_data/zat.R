@@ -68,16 +68,6 @@ zat_std2 <- zat_std %>%
 saveRDS(zat_std2, file = "../clean_data/ZAT/zat_std2.rds")
 
 # for shiny -----------------------------------------------------------
-## sf object version
-zat_indicator_list <- georef_zat_xtr %>% 
-  as.data.frame() %>% 
-  select(-(1:3), -geometry, -c(MUNCod, NOMMun, UTAM, Area)) %>% 
-  colnames()
-
-save(zat_indicator_list, file = "R/zat_indicator_list.rda")
-
-save(georef_zat_xtr, file = "R/georef_zat_xtr.rda")
-  
 ## df version with standardization
 zat_indicator_list <- zat_std %>% 
   select(-ZAT) %>% 
@@ -86,6 +76,36 @@ zat_indicator_list <- zat_std %>%
 save(zat_indicator_list, file = "../analysis/shiny-zat/R/zat_indicator_list.rda")
 save(zat_std, file = "../analysis/shiny-zat/R/zat_std.rda")
 
+## sf object with std with variable descriptioin
+library(readr)
+
+zat_codebook <- read_csv("/reading/Codebook Final/zat_codebook.csv")
+
+zat_std_geo <- zat_std %>% 
+  left_join(zat, by = "ZAT") %>% 
+  st_as_sf()
+
+save(zat_std_geo, file = "../analysis/shiny-zat/R/zat_std_geo.rda")
+
+xtr_var <- c('road_length_log', 'st_4ln_length_log', 'bikelane_m_log', 
+             'sttree_per_km2', 'bridg_per_km2', 'trlight_per_km2', 'numrbp_per_km2',
+             'numrt_per_km2', 'bus_length_log', 'brt_length_log')
+
+descript <- c(
+  'Natural logarithm of road network length (LRDENS)',
+  'Natural logarithm of the length of streets with 4 or more lanes (LONGMV)',
+  'Bikelane length in meters per square kilometer, calculated as the product of BPRDRATE and LRDENS',
+  'Natural logarithm of bikelane length per square kilometer (bikelane_per_km2) if value > 0, otherwise keep the value as 0',
+  'Street tree per square kilometer (NUMSTTREES / areakm2)',
+  'Pedestrian bridge per square kilometer (NUMBRIDGES / areakm2)',
+  'Total traffic light per square kilometer (NUMTTFLIGH / areakm2)',
+  'Number of bus routes per square kilometer (NUMRBP / areakm2)',
+  'Number of rail transit routes per square kilometer (NUMRT / areakm2)',
+  'Length of bus routes per square kilometer (LONGRBP / areakm2), keeping the value as 0 if length is zero ',
+  'Length of rail transit stops per square kilometer, with a default value if length is zero (LONGRT / areakm2)', 
+  'Natural logarithm of length of bus routes per square kilometer, calculated as the logarithm of longrbp_per_km2, keeping the value as 0 if length is zero',
+  'Natural logarithm of length of rail transit routes per square kilometer, calculated as the logarithm of longrt_per_km2, keeping the value as 0 if length is zero'
+)
 
 
 

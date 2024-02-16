@@ -195,19 +195,18 @@ zat_leaf <- zat_geo %>%
   st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>% 
   st_zm() 
 
-
+## st_intersects ----------------------------------
+## all zats, multiple match calles
 leaflet() %>% 
   addTiles() %>% 
   addPolygons(data = calle_multi_leaf, weight = 3, fillColor = 'purple', color = 'purple') %>% 
   addPolygons(data = zat_leaf, weight = 3, fillColor = 'blue', color = 'blue') 
 
+## st_covered_by/within subset proof of concept-------------------------------------------
 sub <- calle_zat[1:1000,] %>% 
   #drop_na() %>% 
   st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>% 
   st_zm()
-
-
-
 
 saveRDS(sub, "clean_data/calle_subset.rds")
 
@@ -228,31 +227,3 @@ leaflet() %>%
   addPolygons(data=sub, weight = 3, fillColor = 'purple', color = 'purple') %>%
   addPolygons(data=sub_zat_geo, weight = 3, fillColor = 'blue', color = 'blue')
 
-calle_zat_sub %>%
-  #st_zm() %>%
-  st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>%
-  leaflet() %>%
-  addProviderTiles(providers$CartoDB.Voyager)  %>%
-  addPolygons(color = "white", 
-              weight = 0.5,
-              smoothFactor = 0.5,
-              opacity = 1,
-              fillColor = ~pal2(INTDENS),
-              fillOpacity = 0.8,
-              highlightOptions = highlightOptions(
-                weight = 5,
-                color = "#666",
-                fillOpacity = 0.8,
-                bringToFront = TRUE),
-              label = zat_label2,
-              labelOptions = labelOptions(
-                style = list(
-                  "font-family" = "Fira Sans, sans-serif",
-                  "font-size" = "1.2em"
-                ))
-  ) %>% 
-  addLegend("bottomleft",
-            pal = pal2,
-            values = ~INTDENS,
-            title = "Intersection Density in Bogotá</br>(ZAT-level)",
-            opacity = 1)
