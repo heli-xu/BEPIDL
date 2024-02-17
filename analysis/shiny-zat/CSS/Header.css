@@ -1,6 +1,6 @@
 /* Learn More */
 .BCHC_top_row {
-  padding: 5px;
+  padding: 10px;
   display: grid;
   grid-template-columns: 100px 1fr 200px;
   align-items: center;
@@ -8,7 +8,7 @@
 }
 .BCHC_top_row img {
   grid-column: 1/2;
-  height: 50px;
+  height: 70px;
 }
 .BCHC_learn_more {
   grid-column: 3/4;
@@ -29,5 +29,5 @@
 /* Util */
 
 .salurbal_hr {
-  border-top: 1px dashed #9d2235;
+  border-top: 1px dashed #002f6c;
 }
