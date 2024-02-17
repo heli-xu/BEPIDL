@@ -79,7 +79,7 @@ save(zat_std, file = "../analysis/shiny-zat/R/zat_std.rda")
 ## sf object with std with variable descriptioin
 library(readr)
 
-zat_codebook <- read_csv("/reading/Codebook Final/zat_codebook.csv")
+zat_codebook <- read_csv("../reading/Codebook Final/zat_codebook.csv")
 
 zat_std_geo <- zat_std %>% 
   left_join(zat, by = "ZAT") %>% 
@@ -87,9 +87,10 @@ zat_std_geo <- zat_std %>%
 
 save(zat_std_geo, file = "../analysis/shiny-zat/R/zat_std_geo.rda")
 
-xtr_var <- c('road_length_log', 'st_4ln_length_log', 'bikelane_m_log', 
+## can use gpt to generate string
+xtr_var <- c('road_length_log', 'st_4ln_length_log', 'bikelane_per_km2', 'bikelane_m_log', 
              'sttree_per_km2', 'bridg_per_km2', 'trlight_per_km2', 'numrbp_per_km2',
-             'numrt_per_km2', 'bus_length_log', 'brt_length_log')
+             'numrt_per_km2', 'longrbp_per_km2', 'longrt_per_km2', 'bus_length_log', 'brt_length_log')
 
 descript <- c(
   'Natural logarithm of road network length (LRDENS)',
@@ -103,11 +104,19 @@ descript <- c(
   'Number of rail transit routes per square kilometer (NUMRT / areakm2)',
   'Length of bus routes per square kilometer (LONGRBP / areakm2), keeping the value as 0 if length is zero ',
   'Length of rail transit stops per square kilometer, with a default value if length is zero (LONGRT / areakm2)', 
-  'Natural logarithm of length of bus routes per square kilometer, calculated as the logarithm of longrbp_per_km2, keeping the value as 0 if length is zero',
-  'Natural logarithm of length of rail transit routes per square kilometer, calculated as the logarithm of longrt_per_km2, keeping the value as 0 if length is zero'
+  'Natural logarithm of length of bus routes per square kilometer (logarithm of longrbp_per_km2), keeping the value as 0 if length is zero',
+  'Natural logarithm of length of rail transit routes per square kilometer (calculated as the logarithm of longrt_per_km2), keeping the value as 0 if length is zero'
 )
 
+extra <- data.frame(var = xtr_var, description = descript)
 
+zat_codebook2 <- zat_codebook %>% 
+  select(var = zat_old, description) %>% 
+  rbind(extra)
+
+save(zat_codebook2, file = "../analysis/shiny-zat/R/zat_indicator_table.rda")
+#incorrect, obj name gotta match the rda name!
+#it's now matched in file 
 
 # correlation ---------------------------------------------------
 
