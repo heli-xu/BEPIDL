@@ -20,6 +20,7 @@
   font-size: 11px;
 }
 .BCHC_learn_more_link {
+  display: block;
   color: var(--uhcBlue);
   font-size: 14px;
   font-weight: 900;
