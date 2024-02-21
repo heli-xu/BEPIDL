@@ -1,0 +1,291 @@
+---
+title: "Traffic Sign Data Cleaning"
+subtitle: "Grouping by individual types of traffic signs"
+author: "Heli Xu"
+image: thumbnail.jpg
+date: 2/21/24
+format: 
+  html:
+    code-fold: true
+    toc: true
+    toc-depth: 4
+    self-contained: true
+editor: visual
+---
+
+```         
+::: {.callout-tip}
+Check out the updated shiny dashboard of [ZAT-level indicators](https://heli-xu.shinyapps.io/zat-indicator/)!
+```
+
+In this post, the goal is to clean the traffic sign raw data and count individual types of signs at the street level.
+
+```{r setup, warning=FALSE, message=FALSE}
+library(dplyr)
+library(sf)
+library(tidyr)
+library(leaflet)
+library(glue)
+library(reactable)
+library(crosstalk)
+```
+
+## Data Preparation
+
+### Import
+
+Raw data is `UNI_ANDES 2/Punto 4/Inventario.gdb`, a geodatabase with multiple layers, and from the layer "SEN_VERTICAL" we can find each type of traffic signs with their status and coordinates (with geometry being points). For example, the first ten rows of the raw data looks like this (last column `SHAPE` is for geometries):
+
+```{r, eval=FALSE}
+raw <- st_read("../data/traffic_sign/Inventario.gdb/", layer = "SEN_VERTICAL")
+```
+
+```{r, echo=FALSE}
+example_raw <- readRDS("../../../../clean_data/traffic_sign/example_raw.rds")
+
+example <- SharedData$new(example_raw)
+
+reactable(example, 
+    columns = list(
+      ID = colDef(
+        sticky = "left",
+      # Add a right border style to visually distinguish the sticky column
+        style = list(borderRight = "1px solid #eee"),
+        headerStyle = list(borderRight = "1px solid #eee")
+    )),
+  theme = reactableTheme(color = "#002b36"),
+    defaultColDef = colDef(minWidth = 150),
+    defaultPageSize = 11,
+    striped = TRUE,
+    highlight = TRUE,
+    bordered = TRUE,
+    resizable = TRUE
+  )
+```
+
+In the column names:
+
+`TIPO_SENAL` is the type of signs. `FASE` refers to its current state. `ACCION` refers to what needs to happen to the sign. `FECHA_FASE` is the date of that state. `ESTADO` is the condition of the sign. 
+
+`FASE` categories:
+
+-   Implementación = they need to be installed
+
+-   Programación = they need to schedule the action 
+
+-   Inventario = part of the existing inventory, no action
+
+`ACCION` categories:
+
+-   Instalación - installation (not sure if it means to be I stalled or was installed on the date)
+
+-   Retirar - remove
+
+-   Inventario - no action
+
+-   Reemplazar - replace 
+
+-   Mantenimiento- maintenance 
+
+`ESTADO`:
+
+-   Bueno - good
+
+-   Regular - fair
+
+-   Malo - poor
+
+### Cleaning and grouping
+
+Since we need to group the traffic sign data to the street level, we'll perform a spatial join to identify which street (polygon) each sign (point) is in (no point unassigned). Next, we're removing the rows with missing `TIPO_SENAL` to clean the data, and grouping the data by type of traffic signs and their status (FASE and ACCION) to count a street-level sum.
+
+```{r, eval=FALSE}
+calle <- st_read("../data/Calles/Calles_datos/Calles_datos.shp")
+
+sign_st <- calle %>% 
+  select(CodigoCL, geometry) %>% 
+  st_transform(crs = st_crs(raw)) %>% 
+  st_join(raw, left = TRUE, join = st_contains) %>% 
+  as.data.frame()
+
+clean_sign <- sign_st %>% 
+  select(-geometry) %>% 
+  drop_na(TIPO_SENAL) %>% 
+  group_by(CodigoCL, TIPO_SENAL, FASE, ACCION) %>% 
+  summarise(n = n(), .groups = "drop") 
+```
+
+For pedestrian crossing sign, we're including SP-46, SI-24 and SR-19. For parking sign, we're including SI-07. The resulting tables with each type of traffic signs and their status are stored in `pedx_calle.csv` and `parking_calle.csv`.
+
+```{r, eval=FALSE}
+# ped crossing: SP-46, SI-24, SR-19 ---------------------------------
+pedx <- clean_sign %>% 
+  filter(str_detect(TIPO_SENAL, pattern = "SP-46|SI-24|SR-19")) 
+  #ungroup()
+
+write_csv(pedx, file = "../../../../clean_data/pedx_calle.csv")
+
+# parking: SI-07, SI-07A -----------------------------------------------
+parking <- clean_sign %>% 
+  filter(str_detect(TIPO_SENAL, pattern = "SI-07"))
+
+write_csv(parking, file = "../../../../clean_data/parking_calle.csv")
+```
+
+## Spatial Visualization
+
+For exploratory purposes, we'll plot the pedestrian crossing signs and parking signs on the map, without taking into consideration the status of the signs.
+
+### Pedestrian Crossing
+
+```{r}
+pedx_pa_geo_sm <- readRDS("../../../../clean_data/traffic_sign/pedx_pa_geo_sm.rds")
+
+pedx <- pedx_pa_geo_sm %>% 
+  filter(str_detect(sign, "SP46|SI24|SR19"))
+
+pal <- colorNumeric(
+  palette = "Blues",
+  domain = pedx$n
+)
+
+zat_label <- glue("CodigoCL{pedx$CodigoCL} Pedestrian crossing sign count: {pedx$n}")
+
+pedx %>% 
+  select(CodigoCL, st_4ln_length_log) %>% 
+  st_zm() %>%
+  st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>%
+  leaflet() %>%
+  addProviderTiles(providers$CartoDB.Voyager)  %>%
+  addPolygons(color = "white", 
+              weight = 0.5,
+              smoothFactor = 0.5,
+              opacity = 1,
+              fillColor = ~pal(st_4ln_length_log),
+              fillOpacity = 0.8,
+              highlightOptions = highlightOptions(
+                weight = 5,
+                color = "#666",
+                fillOpacity = 0.8,
+                bringToFront = TRUE),
+              label = zat_label,
+              labelOptions = labelOptions(
+                style = list(
+                  "font-family" = "Fira Sans, sans-serif",
+                  "font-size" = "1.2em"
+                ))
+              )%>% 
+  addLegend("bottomleft",
+            pal = pal,
+            values = ~st_4ln_length_log,
+            title = "Street length (log) in Bogotá</br>(ZAT-level)",
+            opacity = 1)
+```
+
+```{r}
+pal2 <- colorNumeric(
+  palette = "viridis",
+  domain = zat_imp_geo$trlight_per_km2
+)
+
+zat_label2 <- glue("ZAT{zat_imp_geo$ZAT} Traffic light/km2: {zat_imp_geo$trlight_per_km2}")
+
+zat_imp_geo %>% 
+  select(ZAT, trlight_per_km2) %>% 
+  st_zm() %>%
+  st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>%
+  leaflet() %>%
+  addProviderTiles(providers$CartoDB.Voyager)  %>%
+  addPolygons(color = "white", 
+              weight = 0.5,
+              smoothFactor = 0.5,
+              opacity = 1,
+              fillColor = ~pal2(trlight_per_km2),
+              fillOpacity = 0.8,
+              highlightOptions = highlightOptions(
+                weight = 5,
+                color = "#666",
+                fillOpacity = 0.8,
+                bringToFront = TRUE),
+              label = zat_label2,
+              labelOptions = labelOptions(
+                style = list(
+                  "font-family" = "Fira Sans, sans-serif",
+                  "font-size" = "1.2em"
+                ))
+              )%>% 
+  addLegend("bottomleft",
+            pal = pal2,
+            values = ~trlight_per_km2,
+            title = "Traffic light per km2 in Bogotá</br>(ZAT-level)",
+            opacity = 1)
+```
+
+Indeed it looks like the cluster 1 (light yellow in the profile map) is corresponding to the neighborhoods that have longer streets (with 4 or more lanes). Although it's hard to tell on the map due to the zeros, based on the boxplot, these neighborhoods also have a slightly lower pedestrian bridge count and traffic light per km2.
+
+### Transportation Domain
+
+```{r}
+transp_var <- zat_cluster_var %>% 
+  select(-ZAT, -street, -all) %>% 
+  pivot_longer(-transp, names_to ="indicator") %>% 
+  filter(indicator %in% transportation_dm) %>% 
+  group_by(transp, indicator) %>% 
+  mutate(mean = mean(value),
+         sd = sd(value))
+
+ggplot(transp_var, aes(x= factor(transp), y = value, fill = factor(transp)))+
+  stat_summary(fun.data=MinMeanSDMax, geom="boxplot") +
+  scale_fill_brewer(palette = "YlGn") + # Change fill colors
+  theme_minimal() + # Use a minimal theme
+  labs(title = "Transportation Indicators by Neighborhood Profiles", 
+       x = "Cluster", 
+       y = "Value",
+       fill = "cluster") +
+  facet_wrap(~indicator, scales = "free", nrow = 1)
+```
+
+While the general pattern of these variables are relatively consistent (despite the large variance), it looks like bus-related variables are more influential than the BRT one (hmm) in the modeling, especially the bus route length (bus_length_log). Looking at the bus route length on a map:
+
+```{r}
+pal3 <- colorNumeric(
+  palette = "magma",
+  domain = zat_imp_geo$bus_length_log
+)
+
+zat_label3 <- glue("ZAT{zat_imp_geo$ZAT} Bus routes length (log): {zat_imp_geo$bus_length_log}")
+
+zat_imp_geo %>% 
+  select(ZAT, bus_length_log) %>% 
+  st_zm() %>%
+  st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>%
+  leaflet() %>%
+  addProviderTiles(providers$CartoDB.Voyager)  %>%
+  addPolygons(color = "white", 
+              weight = 0.5,
+              smoothFactor = 0.5,
+              opacity = 1,
+              fillColor = ~pal3(bus_length_log),
+              fillOpacity = 0.8,
+              highlightOptions = highlightOptions(
+                weight = 5,
+                color = "#666",
+                fillOpacity = 0.8,
+                bringToFront = TRUE),
+              label = zat_label3,
+              labelOptions = labelOptions(
+                style = list(
+                  "font-family" = "Fira Sans, sans-serif",
+                  "font-size" = "1.2em"
+                ))
+              )%>% 
+  addLegend("bottomleft",
+            pal = pal3,
+            values = ~bus_length_log,
+            title = "Bus routes length (log) in Bogotá</br>(ZAT-level)",
+            opacity = 1)
+```
+
+From the map and boxplots, cluster 3 (darker green) seem to be corresponding to neighborhoods with few bus routes, whereas cluster 1 and 2 seem to have longer bus routes. It is a little surprising to me that some of the neighborhoods with long bus routes do not have many traffic lights.
+
+After we have more variables perhaps aggregated from street level, we can also use logistic regression model to test the influence of each variable, and try including/excluding different variables to compare the entropy from the model-based clustering.

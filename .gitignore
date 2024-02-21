@@ -54,3 +54,4 @@ reading/
 *_files/
 clean_data/calles/calle_clean.rds
 clean_data/quarto_zat_profile/
+clean_data/traffic_sign/pedx_park_geo.rds
