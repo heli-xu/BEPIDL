@@ -13,10 +13,11 @@ format:
 editor: visual
 ---
 
-```         
 ::: {.callout-tip}
+## update
 Check out the updated shiny dashboard of [ZAT-level indicators](https://heli-xu.shinyapps.io/zat-indicator/)!
-```
+:::
+
 
 In this post, the goal is to clean the traffic sign raw data and count individual types of signs at the street level.
 
