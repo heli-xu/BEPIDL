@@ -23,7 +23,7 @@ In this post, the goal is to clean the traffic sign raw data and count individua
 ```{r setup, warning=FALSE, message=FALSE}
 library(dplyr)
 library(sf)
-library(tidyr)
+library(stringr)
 library(leaflet)
 library(glue)
 library(reactable)
@@ -145,14 +145,13 @@ pedx <- pedx_pa_geo_sm %>%
   filter(str_detect(sign, "SP46|SI24|SR19"))
 
 pal <- colorNumeric(
-  palette = "Blues",
+  palette = "plasma",
   domain = pedx$n
 )
 
-zat_label <- glue("CodigoCL{pedx$CodigoCL} Pedestrian crossing sign count: {pedx$n}")
+zat_label <- glue("CodigoCL{pedx$CodigoCL} Traffic sign {pedx$sign} count: {pedx$n}")
 
 pedx %>% 
-  select(CodigoCL, st_4ln_length_log) %>% 
   st_zm() %>%
   st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>%
   leaflet() %>%
@@ -161,7 +160,7 @@ pedx %>%
               weight = 0.5,
               smoothFactor = 0.5,
               opacity = 1,
-              fillColor = ~pal(st_4ln_length_log),
+              fillColor = ~pal(n),
               fillOpacity = 0.8,
               highlightOptions = highlightOptions(
                 weight = 5,
@@ -177,21 +176,27 @@ pedx %>%
               )%>% 
   addLegend("bottomleft",
             pal = pal,
-            values = ~st_4ln_length_log,
-            title = "Street length (log) in Bogotá</br>(ZAT-level)",
+            values = ~n,
+            title = "Pedestrian Crossing Sign <br/> (Street-level)",
             opacity = 1)
 ```
 
+In total there are 4536 streets that have pedestrian crossing signs in Bogotá. Pedestrian crossing signs are present throughout many neighborhoods, despite the often small number of crossing signs per street.
+
+### Parking
+
 ```{r}
+parking <- pedx_pa_geo_sm %>% 
+  filter(str_detect(sign, pattern = "SI07"))
+
 pal2 <- colorNumeric(
-  palette = "viridis",
-  domain = zat_imp_geo$trlight_per_km2
+  palette = "plasma",
+  domain = parking$n
 )
 
-zat_label2 <- glue("ZAT{zat_imp_geo$ZAT} Traffic light/km2: {zat_imp_geo$trlight_per_km2}")
+zat_label2 <- glue("CodigoCL{parking$CodigoCL} Traffic sign {parking$sign} count: {parking$n}")
 
-zat_imp_geo %>% 
-  select(ZAT, trlight_per_km2) %>% 
+parking %>% 
   st_zm() %>%
   st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>%
   leaflet() %>%
@@ -200,7 +205,7 @@ zat_imp_geo %>%
               weight = 0.5,
               smoothFactor = 0.5,
               opacity = 1,
-              fillColor = ~pal2(trlight_per_km2),
+              fillColor = ~pal2(n),
               fillOpacity = 0.8,
               highlightOptions = highlightOptions(
                 weight = 5,
@@ -216,76 +221,9 @@ zat_imp_geo %>%
               )%>% 
   addLegend("bottomleft",
             pal = pal2,
-            values = ~trlight_per_km2,
-            title = "Traffic light per km2 in Bogotá</br>(ZAT-level)",
+            values = ~n,
+            title = "Parking Sign </br> (Street-level)",
             opacity = 1)
 ```
 
-Indeed it looks like the cluster 1 (light yellow in the profile map) is corresponding to the neighborhoods that have longer streets (with 4 or more lanes). Although it's hard to tell on the map due to the zeros, based on the boxplot, these neighborhoods also have a slightly lower pedestrian bridge count and traffic light per km2.
-
-### Transportation Domain
-
-```{r}
-transp_var <- zat_cluster_var %>% 
-  select(-ZAT, -street, -all) %>% 
-  pivot_longer(-transp, names_to ="indicator") %>% 
-  filter(indicator %in% transportation_dm) %>% 
-  group_by(transp, indicator) %>% 
-  mutate(mean = mean(value),
-         sd = sd(value))
-
-ggplot(transp_var, aes(x= factor(transp), y = value, fill = factor(transp)))+
-  stat_summary(fun.data=MinMeanSDMax, geom="boxplot") +
-  scale_fill_brewer(palette = "YlGn") + # Change fill colors
-  theme_minimal() + # Use a minimal theme
-  labs(title = "Transportation Indicators by Neighborhood Profiles", 
-       x = "Cluster", 
-       y = "Value",
-       fill = "cluster") +
-  facet_wrap(~indicator, scales = "free", nrow = 1)
-```
-
-While the general pattern of these variables are relatively consistent (despite the large variance), it looks like bus-related variables are more influential than the BRT one (hmm) in the modeling, especially the bus route length (bus_length_log). Looking at the bus route length on a map:
-
-```{r}
-pal3 <- colorNumeric(
-  palette = "magma",
-  domain = zat_imp_geo$bus_length_log
-)
-
-zat_label3 <- glue("ZAT{zat_imp_geo$ZAT} Bus routes length (log): {zat_imp_geo$bus_length_log}")
-
-zat_imp_geo %>% 
-  select(ZAT, bus_length_log) %>% 
-  st_zm() %>%
-  st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>%
-  leaflet() %>%
-  addProviderTiles(providers$CartoDB.Voyager)  %>%
-  addPolygons(color = "white", 
-              weight = 0.5,
-              smoothFactor = 0.5,
-              opacity = 1,
-              fillColor = ~pal3(bus_length_log),
-              fillOpacity = 0.8,
-              highlightOptions = highlightOptions(
-                weight = 5,
-                color = "#666",
-                fillOpacity = 0.8,
-                bringToFront = TRUE),
-              label = zat_label3,
-              labelOptions = labelOptions(
-                style = list(
-                  "font-family" = "Fira Sans, sans-serif",
-                  "font-size" = "1.2em"
-                ))
-              )%>% 
-  addLegend("bottomleft",
-            pal = pal3,
-            values = ~bus_length_log,
-            title = "Bus routes length (log) in Bogotá</br>(ZAT-level)",
-            opacity = 1)
-```
-
-From the map and boxplots, cluster 3 (darker green) seem to be corresponding to neighborhoods with few bus routes, whereas cluster 1 and 2 seem to have longer bus routes. It is a little surprising to me that some of the neighborhoods with long bus routes do not have many traffic lights.
-
-After we have more variables perhaps aggregated from street level, we can also use logistic regression model to test the influence of each variable, and try including/excluding different variables to compare the entropy from the model-based clustering.
+In total there are 524 streets that have parking signs in Bogotá, and they seem to have the highest density near the area "Localidad Chapinero".
