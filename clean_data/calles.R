@@ -142,6 +142,9 @@ tfine <- c("Administra","not_resp_p", "under_infl", "Mobile_pho",  "NO_DATA", "t
 
 # aggregate to ZAT level ---------------------------------------------
 library(leaflet)
+calle_clean <- readRDS("calles/calle_clean.rds")
+
+zat_cluster <- readRDS("zat_cluster.rds")
 
 calle_geo <- calle_clean %>% select(CodigoCL, geometry)
 
@@ -154,6 +157,7 @@ sf_use_s2(FALSE)
 st_crs(calle_geo)
 st_crs(zat_geo)
 
+## st_within -> NAs! ---------------------------
 calle_zat <- calle_geo %>% 
   st_transform(crs = st_crs(zat_geo)) %>% # due to unmatched crs error
   st_join(zat_geo,join= st_within)
@@ -168,6 +172,35 @@ calle_zat %>% filter(is.na(ZAT)) %>%
     addTiles() %>% 
     addPolygons(weight = 3, fillColor = 'purple', color = 'purple')
 #so many!
+
+
+## st_covered_by/within subset proof of concept
+sub <- calle_zat[1:1000,] %>% 
+  #drop_na() %>% 
+  st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>% 
+  st_zm()
+
+saveRDS(sub, "clean_data/calle_subset.rds")
+
+sub_zat_geo <- zat_geo %>% 
+  right_join(sub %>% 
+               as.data.frame() %>% 
+               select(-geometry), 
+             by = "ZAT") %>% 
+  select(-CodigoCL) %>% 
+  distinct() %>% 
+  st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>% 
+  st_zm()
+
+save(sub_zat_geo, file = "clean_data/sub_zatgeo.rds")
+
+leaflet() %>% 
+  addTiles() %>% 
+  addPolygons(data=sub, weight = 3, fillColor = 'purple', color = 'purple') %>%
+  addPolygons(data=sub_zat_geo, weight = 3, fillColor = 'blue', color = 'blue')
+
+
+## st_intersects ----------------------------------
 
 calle_zat2 <- calle_geo %>% 
   st_transform(crs = st_crs(zat_geo)) %>% # due to unmatched crs error
@@ -195,35 +228,19 @@ zat_leaf <- zat_geo %>%
   st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>% 
   st_zm() 
 
-## st_intersects ----------------------------------
+
 ## all zats, multiple match calles
 leaflet() %>% 
   addTiles() %>% 
   addPolygons(data = calle_multi_leaf, weight = 3, fillColor = 'purple', color = 'purple') %>% 
   addPolygons(data = zat_leaf, weight = 3, fillColor = 'blue', color = 'blue') 
 
-## st_covered_by/within subset proof of concept-------------------------------------------
-sub <- calle_zat[1:1000,] %>% 
-  #drop_na() %>% 
-  st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>% 
-  st_zm()
+## st_intersect divided -----------------------------------------------------
+calle_zat_xwalk <- calle_zat2 %>% as.data.frame() %>%
+  select(-geometry) %>% 
+  add_count(CodigoCL, name = "match_n") 
 
-saveRDS(sub, "clean_data/calle_subset.rds")
+calle2zat <- calle_clean %>% left_join(calle_zat_xwalk %>% select(-ZAT) %>% distinct(), by = "CodigoCL")
 
-sub_zat_geo <- zat_geo %>% 
-  right_join(sub %>% 
-               as.data.frame() %>% 
-               select(-geometry), 
-             by = "ZAT") %>% 
-  select(-CodigoCL) %>% 
-  distinct() %>% 
-  st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>% 
-  st_zm()
-
-save(sub_zat_geo, file = "clean_data/sub_zatgeo.rds")
-
-leaflet() %>% 
-  addTiles() %>% 
-  addPolygons(data=sub, weight = 3, fillColor = 'purple', color = 'purple') %>%
-  addPolygons(data=sub_zat_geo, weight = 3, fillColor = 'blue', color = 'blue')
-
+calle2zat_divide <- calle2zat %>% 
+  mutate(across(c(A_Calzada, AVE_pendie), ~.x/match_n, .names = "{.col}"))
