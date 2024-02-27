@@ -240,7 +240,47 @@ calle_zat_xwalk <- calle_zat2 %>% as.data.frame() %>%
   select(-geometry) %>% 
   add_count(CodigoCL, name = "match_n") 
 
-calle2zat <- calle_clean %>% left_join(calle_zat_xwalk %>% select(-ZAT) %>% distinct(), by = "CodigoCL")
+calle_match_n <- calle_clean %>% 
+  as.data.frame() %>% 
+  select(-geometry) %>% 
+  left_join(calle_zat_xwalk %>% select(-ZAT) %>% distinct(), by = "CodigoCL")
 
-calle2zat_divide <- calle2zat %>% 
-  mutate(across(c(A_Calzada, AVE_pendie), ~.x/match_n, .names = "{.col}"))
+calle_n_divide <- calle_match_n %>% 
+  select(-puente_vh, -Puente_PT) %>% 
+  mutate(
+    across(-c(CodigoCL,area, match_n), ~.x/match_n, .names = "{.col}")
+    ) # remember the "match_n"
+
+checkCL <- c("CL1000", "CL4462")
+
+calle_match_n %>% filter(CodigoCL %in% checkCL) %>% 
+  select(CodigoCL, area, match_n, AVE_pendie, A_Calzada, arboles)
+
+calle_n_divide %>% filter(CodigoCL %in% checkCL) %>% 
+  select(CodigoCL, area, match_n, AVE_pendie, A_Calzada, arboles)
+
+## distribute divided value into zats ------------------------
+
+## test out the summarising
+x <- calle2zat[1:10, 1:10]
+
+y <- x %>% 
+  group_by(ZAT) %>% 
+  summarise(
+    across(c(AVE_pendie, P_Ancho_Cl), ~mean(.x, ), .names = "mean_{.col}"),
+    across(-c(CodigoCL, AVE_pendie, P_Ancho_Cl), ~sum(.x), .names = "sum_{.col}")
+  ). 
+#note that the newly generated columns from the first across() will be accounted by the second across()
+
+calle2zat <- calle_zat_xwalk %>% 
+  select(-match_n) %>% 
+  left_join(calle_n_divide, by = "CodigoCL") %>% 
+  group_by(ZAT) %>% 
+  summarise(
+    across(c(AVE_pendie, P_Ancho_Cl, sent_vial), ~weighted.mean(.x, w=area), .names = "{.col}"),
+    across(-c(CodigoCL, AVE_pendie, P_Ancho_Cl, sent_vial), ~sum(.x), .names = "{.col}")
+  )
+# zat unit count 864, some zat didn't match any street
+zat_calle_count <- calle_zat_xwalk %>% count(ZAT)
+
+
