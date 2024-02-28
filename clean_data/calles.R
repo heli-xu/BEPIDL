@@ -175,15 +175,13 @@ calle_zat %>% filter(is.na(ZAT)) %>%
 
 
 ## st_covered_by/within subset proof of concept
-sub <- calle_zat[1:1000,] %>% 
+calle_subset <- calle_zat[1:1000,] %>% 
   #drop_na() %>% 
   st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>% 
   st_zm()
 
-saveRDS(sub, "clean_data/calle_subset.rds")
-
-sub_zat_geo <- zat_geo %>% 
-  right_join(sub %>% 
+sub_zatgeo <- zat_geo %>% 
+  right_join(calle_subset %>% 
                as.data.frame() %>% 
                select(-geometry), 
              by = "ZAT") %>% 
@@ -192,11 +190,9 @@ sub_zat_geo <- zat_geo %>%
   st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>% 
   st_zm()
 
-save(sub_zat_geo, file = "clean_data/sub_zatgeo.rds")
-
 leaflet() %>% 
   addTiles() %>% 
-  addPolygons(data=sub, weight = 3, fillColor = 'purple', color = 'purple') %>%
+  addPolygons(data=calle_subset, weight = 3, fillColor = 'purple', color = 'purple') %>%
   addPolygons(data=sub_zat_geo, weight = 3, fillColor = 'blue', color = 'blue')
 
 
@@ -215,31 +211,49 @@ calle_zat2 %>% filter(is.na(ZAT)) %>%
   addPolygons(weight = 3, fillColor = 'purple', color = 'purple')
 # 16 NA, better
 
+## st_intersects multi-matching **proof of concept** 
 mult_match <- calle_zat2 %>% as.data.frame() %>% group_by(CodigoCL) %>% count() %>% 
   filter(n >= 2) %>% 
   pull(CodigoCL)
 
 calle_multi_leaf <- calle_zat2 %>% 
+  select(-ZAT) %>% 
+  distinct() %>% 
   filter(CodigoCL%in%mult_match) %>% 
+  head(100) %>% #subset to put in quarto 
   st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>% 
   st_zm() 
+
+saveRDS(calle_multi_leaf, file = "calle_multi_sub_leaf.rds")
+
+mult_zat <- calle_zat2 %>% 
+  as.data.frame() %>% 
+  filter(CodigoCL%in%calle_multi_leaf$CodigoCL) %>% 
+  select(ZAT) %>% 
+  distinct() %>% 
+  pull()
 
 zat_leaf <- zat_geo %>% 
+  filter(ZAT %in% mult_zat) %>% 
   st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>% 
-  st_zm() 
+  st_zm()
 
+saveRDS(zat_leaf, file = "zat_sub_leaf.rds")
 
-## all zats, multiple match calles
+## calles with multi match and their ZATs
 leaflet() %>% 
   addTiles() %>% 
   addPolygons(data = calle_multi_leaf, weight = 3, fillColor = 'purple', color = 'purple') %>% 
   addPolygons(data = zat_leaf, weight = 3, fillColor = 'blue', color = 'blue') 
 
-## st_intersect divided -----------------------------------------------------
+### calle_zat_xwalk.rds ------------------------------------------------------
 calle_zat_xwalk <- calle_zat2 %>% as.data.frame() %>%
   select(-geometry) %>% 
   add_count(CodigoCL, name = "match_n") 
 
+saveRDS(calle_zat_xwalk, file = "calle_zat_xwalk.rds")
+
+## st_intersect divided 
 calle_match_n <- calle_clean %>% 
   as.data.frame() %>% 
   select(-geometry) %>% 
@@ -253,12 +267,14 @@ calle_n_divide <- calle_match_n %>%
 
 checkCL <- c("CL1000", "CL4462")
 
-calle_match_n %>% filter(CodigoCL %in% checkCL) %>% 
+check_raw <- calle_match_n %>% filter(CodigoCL %in% checkCL) %>% 
   select(CodigoCL, area, match_n, AVE_pendie, A_Calzada, arboles)
 
-calle_n_divide %>% filter(CodigoCL %in% checkCL) %>% 
-  select(CodigoCL, area, match_n, AVE_pendie, A_Calzada, arboles)
+saveRDS(check_raw, file = "calle2zat_aggr/check_raw.rds")
 
+check_divided <- calle_n_divide %>% filter(CodigoCL %in% checkCL) %>% 
+  select(CodigoCL, area, match_n, AVE_pendie, A_Calzada, arboles)
+saveRDS(check_divided, file = "calle2zat_aggr/check_divided.rds")
 ## distribute divided value into zats ------------------------
 
 ## test out the summarising
@@ -272,15 +288,17 @@ y <- x %>%
   ). 
 #note that the newly generated columns from the first across() will be accounted by the second across()
 
-calle2zat <- calle_zat_xwalk %>% 
+### calle2zat_df.rds ---------------------------------------------------------
+### calle_datos aggregated into zats (mean/sum), no geometry
+calle2zat_df <- calle_zat_xwalk %>% 
   select(-match_n) %>% 
   left_join(calle_n_divide, by = "CodigoCL") %>% 
   group_by(ZAT) %>% 
   summarise(
-    across(c(AVE_pendie, P_Ancho_Cl, sent_vial), ~weighted.mean(.x, w=area), .names = "{.col}"),
-    across(-c(CodigoCL, AVE_pendie, P_Ancho_Cl, sent_vial), ~sum(.x), .names = "{.col}")
+    across(c(AVE_pendie, P_Ancho_Cl, sent_vial, velcidad), ~weighted.mean(.x, w=area), .names = "{.col}"),
+    across(-c(CodigoCL, AVE_pendie, P_Ancho_Cl, sent_vial, velcidad), ~sum(.x), .names = "{.col}")
   )
 # zat unit count 864, some zat didn't match any street
 zat_calle_count <- calle_zat_xwalk %>% count(ZAT)
 
-
+saveRDS(calle2zat_df, file = "calles/calles2zat_df.rds")
