@@ -1,8 +1,8 @@
 ---
-title: "Expanding Neighborhood-Level Database"
+title: "Expanding the Neighborhood-Level Database"
 subtitle: "Aggregating street-level data to neighborhood (ZAT) level"
 author: "Heli Xu"
-image: thumbnail.jpg
+image: thumbnail-multimatch.jpg
 date: 2/28/24
 format: 
   html:
@@ -18,24 +18,23 @@ To include more indicators at the ZAT level for our neighborhood built environme
 ```{r setup, warning=FALSE, message=FALSE}
 library(dplyr)
 library(sf)
-library(ggplot2)
-library(tidyr)
 library(leaflet)
 library(glue)
+library(knitr)
 ```
 
-## Caveat in spatial join
+## Caveat in Street-ZAT Spatial Join
 
-Both the street-level and ZAT-level geometries are polygons, and the street-level ones are not always nested in the ZAT-level ones. This can pose a problem in spatial joining: while setting the criteria as one within another (`st_contains`, `st_within`, `st_covers`) leaves many streets (\~15% of total streets) unmatched to any ZAT unit, setting the criteria as one has any point in common with another (`st_intersects`) results in many streets matching to multiple ZAT units. For example, below is the map of randomly selected 100 streets with which multiple ZAT units are matched (purple is the border of street, blue is the border of ZAT).
+Both the street-level and ZAT-level geometries are polygons, and the street-level ones are not always nested in the ZAT-level ones. This can pose a problem in spatial joining: while setting the criteria as one within another (`st_contains`, `st_within`, `st_covers`) leaves many streets unmatched to any ZAT unit, setting the criteria as one has any point in common with another (`st_intersects`) results in many streets matching to multiple ZAT units. For example, below is the map of randomly selected 100 streets with which multiple ZAT units are matched (purple is the border of street, blue is the border of ZAT).
 
 ```{r}
-calle_multi_sub_leaf <- readRDS("../../../../clean_data/calle_multi_sub_leaf.rds")
-zat_sub_leaf <- readRDS("../../../../clean_data/zat_sub_leaf.rds")
+calle_multi_sub_leaf <- readRDS("../../../../clean_data/calle2zat_aggr/calle_multi_sub_leaf.rds")
+zat_sub_leaf <- readRDS("../../../../clean_data/calle2zat_aggr/zat_sub_leaf.rds")
 
 leaflet() %>% 
   addTiles() %>% 
-  addPolygons(data = calle_multi_leaf, weight = 3, fillColor = 'purple', color = 'purple') %>% 
-  addPolygons(data = zat_leaf, weight = 3, fillColor = 'blue', color = 'blue') 
+  addPolygons(data = calle_multi_sub_leaf, weight = 3, fillColor = 'purple', color = 'purple') %>% 
+  addPolygons(data = zat_sub_leaf, weight = 3, fillColor = 'blue', color = 'blue') 
 
 ```
 
@@ -43,9 +42,9 @@ As we can see from zooming in the map, many of the major roads are in fact the b
 
 Of note, by `st_within`, there are 14878 (\~15%) street units with unmatched ZAT units (shown below), whereas by `st_intersect`, there were 16 unmatched streets.
 
-![](thumbnail-multimatch.jpg){width="410"}
+![](thumbnail-multimatch.jpg){fig-align="center" width="318"}
 
-## Divide and distribute
+## Divide and Distribute
 
 Potential approaches to address the caveat are:
 
@@ -57,7 +56,7 @@ Potential approaches to address the caveat are:
 
 Here, we'll use the third option, dividing and distributing.
 
-We first create a column indicating the number of ZATs that each street is matched to (`match_n`), append that column to the street data (`calle_clean`), then divide the value for each variable of each street by `match_n`. After this "correcting" process, we use the resulting values for the
+We first create a column indicating the number of ZATs that each street is matched to (`match_n`), append that column to the street data (`calle_clean`), then divide the value for each variable of each street by `match_n`. We'll select two streets that we know are matched to multiple ZATs (CL1000 and CL4462), and show the values of a few variables before (top) and after (bottom) the dividing process.
 
 ```{r, eval=FALSE}
 calle_clean <- readRDS("calles/calle_clean.rds")
@@ -86,73 +85,54 @@ calle_n_divide %>% filter(CodigoCL %in% checkCL) %>%
   select(CodigoCL, area, match_n, AVE_pendie, A_Calzada, arboles)
 ```
 
-We can see that the clustering by street design and/or transportation domain(s) yielded a relatively consistent pattern of neighborhood profiles in Bogotá.
+```{r, echo=FALSE}
+check_raw <- readRDS("../../../../clean_data/calle2zat_aggr/check_raw.rds")
+check_divided <- readRDS("../../../../clean_data/calle2zat_aggr/check_divided.rds")
 
-## Assess variable influence
-
-Since these profiles are modeled across the variables (in each domain), we'll now explore further which variables may be more influential in the clustering result, which will also be important in our interpretation of the different profiles/clusters.
-
-One way to do that is to visualize each variable by the ZAT unit and see which variables have a better cluster separation (as in the previous post).
-
-In addition, we can examine the mean and variance of each variable see which ones are significantly different across clusters.
-
-### Street Design Domain
-
-```{r}
-#| fig-height: 5
-#| fig-width: 8
-
-zat_std2 <- readRDS("../../../../clean_data/ZAT/zat_std2.rds")
-
-zat_cluster_var <- zat_cluster %>%
-  as.data.frame() %>% 
-  select(-geometry) %>% 
-  left_join(zat_std2, by = "ZAT")
-
-street_dm <- c("st_4ln_length_log", "bikelane_m_log", "trlight_per_km2", 
-            "sttree_per_km2", "bridg_per_km2")
-
-transportation_dm <- c("BUSTOPDENS", "bus_length_log", "brt_length_log", "numrbp_per_km2")
-
-st_var <- zat_cluster_var %>% 
-  select(-ZAT, -transp, -all) %>% 
-  pivot_longer(-street, names_to = "indicator") %>% 
-  filter(indicator %in% street_dm) %>% 
-  group_by(street, indicator) %>% 
-  mutate(mean = mean(value),
-    sd = sd(value))
-
-MinMeanSDMax <- function(x) {
-  v <- c(mean(x)-3*sd(x), mean(x) - sd(x), mean(x), mean(x) + sd(x), mean(x)+3*sd(x))
-  names(v) <- c("ymin", "lower", "middle", "upper", "ymax")
-  v
-}
-
-ggplot(st_var, aes(x= factor(street), y =value, fill = factor(street)))+
-  stat_summary(fun.data=MinMeanSDMax, geom="boxplot") +
-  scale_fill_brewer(palette = "YlGn") + # Change fill colors
-  theme_minimal() + # Use a minimal theme
-  labs(title = "Street Design Indicators by Neighborhood Profiles", 
-    x = "Cluster", 
-    y = "Value",
-    fill = "cluster") +
-  facet_wrap(~indicator, scales = "free", nrow = 1)
+check_raw %>% kable()
+check_divided %>% kable()
 ```
 
-It looks like the street length (st_4ln_length_log), traffic lights (trlight_per_km2) and pedestrian bridge have the most separation between clusters and therefore are the more influential variables in this model-based clustering result. For street length:
+After this "adjusting" process, we use the resulting values for aggregation, either by taking the weighted mean or the sum.
+
+::: callout-tip
+## Note
+
+Bridge counts (`puente_vh`, `puente_PT`) were excluded because they're character values, and we can consider recoding them into 1 or 0. For aggregation, while the sum is taken for most of the street-level variables, area-weighted mean is taken for `AVE_pendie`, `P_Ancho_Cl`, `sent_vial`, `velcidad`.
+:::
+
+```{r, eval=FALSE}
+calle2zat_df <- calle_zat_xwalk %>% 
+  select(-match_n) %>% 
+  left_join(calle_n_divide, by = "CodigoCL") %>% 
+  group_by(ZAT) %>% 
+  summarise(
+    across(c(AVE_pendie, P_Ancho_Cl, sent_vial, velcidad), ~weighted.mean(.x, w=area), .names = "{.col}"),
+    across(-c(CodigoCL, AVE_pendie, P_Ancho_Cl, sent_vial, velcidad), ~sum(.x), .names = "{.col}")
+  )
+
+```
+
+After aggregation, we can join the data with ZAT-level geometry (code not included here, refer to initial look post) to create a geo-referenced database for downstream modeling.
+
+## Visualize the Aggregated Data
+
+We still need to normalize the aggregated values by area, and perhaps take natural logs for some variables. But here, as an example, we'll map the aggregated average road width (`P_Ancho_Cl`) and area of sidewalks (`A_andenes`) at the ZAT level.
+
+### Average Road Width
 
 ```{r}
-zat_imp_geo <- readRDS("../../../../clean_data/zat_imp_geo.rds")
+calle2zat <- readRDS("../../../../clean_data/calle2zat_aggr/calle2zat.rds")
 
 pal <- colorNumeric(
-  palette = "Blues",
-  domain = zat_imp_geo$st_4ln_length_log
+  palette = "BrBG",
+  domain = calle2zat$P_Ancho_Cl
 )
 
-zat_label <- glue("ZAT{zat_imp_geo$ZAT} Street length (log): {zat_imp_geo$st_4ln_length_log}")
+zat_label <- glue("ZAT{calle2zat$ZAT} Road width: {calle2zat$P_Ancho_Cl}")
 
-zat_imp_geo %>% 
-  select(ZAT, st_4ln_length_log) %>% 
+calle2zat %>% 
+  select(ZAT, P_Ancho_Cl) %>% 
   st_zm() %>%
   st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>%
   leaflet() %>%
@@ -161,7 +141,7 @@ zat_imp_geo %>%
               weight = 0.5,
               smoothFactor = 0.5,
               opacity = 1,
-              fillColor = ~pal(st_4ln_length_log),
+              fillColor = ~pal(P_Ancho_Cl),
               fillOpacity = 0.8,
               highlightOptions = highlightOptions(
                 weight = 5,
@@ -177,30 +157,32 @@ zat_imp_geo %>%
               )%>% 
   addLegend("bottomleft",
             pal = pal,
-            values = ~st_4ln_length_log,
-            title = "Street length (log) in Bogotá</br>(ZAT-level)",
+            values = ~P_Ancho_Cl,
+            title = "Average Road Width in Bogotá</br>(ZAT-level)",
             opacity = 1)
 ```
 
+### Sidewalk Areas
+
 ```{r}
 pal2 <- colorNumeric(
-  palette = "viridis",
-  domain = zat_imp_geo$trlight_per_km2
+  palette = "YlGnBu",
+  domain = calle2zat$A_andenes
 )
 
-zat_label2 <- glue("ZAT{zat_imp_geo$ZAT} Traffic light/km2: {zat_imp_geo$trlight_per_km2}")
+zat_label2 <- glue("ZAT{calle2zat$ZAT} Sidewalk area: {calle2zat$A_andenes}")
 
-zat_imp_geo %>% 
-  select(ZAT, trlight_per_km2) %>% 
+calle2zat %>% 
+  select(ZAT, A_andenes) %>% 
   st_zm() %>%
   st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>%
   leaflet() %>%
   addProviderTiles(providers$CartoDB.Voyager)  %>%
-  addPolygons(color = "white", 
-              weight = 0.5,
+  addPolygons(color = "grey", 
+              weight = 0.3,
               smoothFactor = 0.5,
               opacity = 1,
-              fillColor = ~pal2(trlight_per_km2),
+              fillColor = ~pal2(A_andenes),
               fillOpacity = 0.8,
               highlightOptions = highlightOptions(
                 weight = 5,
@@ -216,76 +198,9 @@ zat_imp_geo %>%
               )%>% 
   addLegend("bottomleft",
             pal = pal2,
-            values = ~trlight_per_km2,
-            title = "Traffic light per km2 in Bogotá</br>(ZAT-level)",
+            values = ~A_andenes,
+            title = "Sidewalk Areas in Bogotá</br>(ZAT-level)",
             opacity = 1)
 ```
 
-Indeed it looks like the cluster 1 (light yellow in the profile map) is corresponding to the neighborhoods that have longer streets (with 4 or more lanes). Although it's hard to tell on the map due to the zeros, based on the boxplot, these neighborhoods also have a slightly lower pedestrian bridge count and traffic light per km2.
-
-### Transportation Domain
-
-```{r}
-transp_var <- zat_cluster_var %>% 
-  select(-ZAT, -street, -all) %>% 
-  pivot_longer(-transp, names_to ="indicator") %>% 
-  filter(indicator %in% transportation_dm) %>% 
-  group_by(transp, indicator) %>% 
-  mutate(mean = mean(value),
-         sd = sd(value))
-
-ggplot(transp_var, aes(x= factor(transp), y = value, fill = factor(transp)))+
-  stat_summary(fun.data=MinMeanSDMax, geom="boxplot") +
-  scale_fill_brewer(palette = "YlGn") + # Change fill colors
-  theme_minimal() + # Use a minimal theme
-  labs(title = "Transportation Indicators by Neighborhood Profiles", 
-       x = "Cluster", 
-       y = "Value",
-       fill = "cluster") +
-  facet_wrap(~indicator, scales = "free", nrow = 1)
-```
-
-While the general pattern of these variables are relatively consistent (despite the large variance), it looks like bus-related variables are more influential than the BRT one (hmm) in the modeling, especially the bus route length (bus_length_log). Looking at the bus route length on a map:
-
-```{r}
-pal3 <- colorNumeric(
-  palette = "magma",
-  domain = zat_imp_geo$bus_length_log
-)
-
-zat_label3 <- glue("ZAT{zat_imp_geo$ZAT} Bus routes length (log): {zat_imp_geo$bus_length_log}")
-
-zat_imp_geo %>% 
-  select(ZAT, bus_length_log) %>% 
-  st_zm() %>%
-  st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>%
-  leaflet() %>%
-  addProviderTiles(providers$CartoDB.Voyager)  %>%
-  addPolygons(color = "white", 
-              weight = 0.5,
-              smoothFactor = 0.5,
-              opacity = 1,
-              fillColor = ~pal3(bus_length_log),
-              fillOpacity = 0.8,
-              highlightOptions = highlightOptions(
-                weight = 5,
-                color = "#666",
-                fillOpacity = 0.8,
-                bringToFront = TRUE),
-              label = zat_label3,
-              labelOptions = labelOptions(
-                style = list(
-                  "font-family" = "Fira Sans, sans-serif",
-                  "font-size" = "1.2em"
-                ))
-              )%>% 
-  addLegend("bottomleft",
-            pal = pal3,
-            values = ~bus_length_log,
-            title = "Bus routes length (log) in Bogotá</br>(ZAT-level)",
-            opacity = 1)
-```
-
-From the map and boxplots, cluster 3 (darker green) seem to be corresponding to neighborhoods with few bus routes, whereas cluster 1 and 2 seem to have longer bus routes. It is a little surprising to me that some of the neighborhoods with long bus routes do not have many traffic lights.
-
-After we have more variables perhaps aggregated from street level, we can also use logistic regression model to test the influence of each variable, and try including/excluding different variables to compare the entropy from the model-based clustering.
+### 
