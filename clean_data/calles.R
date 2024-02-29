@@ -265,6 +265,7 @@ calle_n_divide <- calle_match_n %>%
     across(-c(CodigoCL,area, match_n), ~.x/match_n, .names = "{.col}")
     ) # remember the "match_n"
 
+#check divided worked (no need to run)
 checkCL <- c("CL1000", "CL4462")
 
 check_raw <- calle_match_n %>% filter(CodigoCL %in% checkCL) %>% 
@@ -275,6 +276,7 @@ saveRDS(check_raw, file = "calle2zat_aggr/check_raw.rds")
 check_divided <- calle_n_divide %>% filter(CodigoCL %in% checkCL) %>% 
   select(CodigoCL, area, match_n, AVE_pendie, A_Calzada, arboles)
 saveRDS(check_divided, file = "calle2zat_aggr/check_divided.rds")
+
 ## distribute divided value into zats ------------------------
 
 ## test out the summarising
@@ -301,4 +303,18 @@ calle2zat_df <- calle_zat_xwalk %>%
 # zat unit count 864, some zat didn't match any street
 zat_calle_count <- calle_zat_xwalk %>% count(ZAT)
 
-saveRDS(calle2zat_df, file = "calles/calles2zat_df.rds")
+saveRDS(calle2zat_df, file = "calle2zat_aggr/calle2zat_df.rds")
+
+### calles2zat.rds --------------------------------------------------------------
+calle2zat <- calle2zat_df %>% 
+  left_join(zat_geo, by = "ZAT") %>% 
+  st_as_sf() #geometry col exist, but left_join keep the class of the left obj (df)
+
+saveRDS(calle2zat, file = "calle2zat_aggr/calle2zat.rds")
+
+## taking a subset for quarto post -- not really making much difference
+# calle2zat_sub <- calle2zat %>% 
+#   select(ZAT, P_Ancho_Cl, A_andenes) 
+# # only sf can have sticky geometry
+# 
+# saveRDS(calle2zat_sub, file = "calle2zat_aggr/calle2zat_sub.rds")
