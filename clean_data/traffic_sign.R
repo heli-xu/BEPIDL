@@ -137,3 +137,22 @@ write_csv(parking_stat, file = "../clean_data/traffic_sign/parking_stat.csv")
 #   drop_na(sign)
 # 
 # saveRDS(pedx_pa_geo_sm, file = "../clean_data/pedx_pa_geo_sm.rds")
+
+# coordinates for weird status SP46 sign----------------------
+pedx_SP46_check <- raw %>% 
+  as.data.frame() %>% 
+  filter(str_detect(TIPO_SENAL, pattern = "SP-46")) %>% 
+  select(ID, TIPO_SENAL, FASE, ACCION) 
+
+pedx_SP46_coord <- raw %>% 
+  filter(str_detect(TIPO_SENAL, pattern = "SP-46")) %>% 
+  select(ID, TIPO_SENAL, FASE, ACCION) %>% 
+  st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>% 
+  st_coordinates() %>% 
+  as.data.frame() %>% 
+  cbind(pedx_park_check) %>% 
+  group_by(FASE, ACCION) %>% 
+  add_count() 
+
+write_csv(pedx_SP46_coord, file = "traffic_sign/pedx_SP46_coord.csv")
+  
