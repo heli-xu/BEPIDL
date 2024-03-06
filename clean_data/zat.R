@@ -303,3 +303,18 @@ zat_imp_geo <- zat %>%
   drop_na()
 
 saveRDS(zat_imp_geo, "../clean_data/zat_imp_geo.rds")
+
+# Hierarchical clustering ------
+dist(zat_std2)
+
+hc <- hclust(dist(zat_std2), "ward.D2")
+memb <- cutree(hc, k = 10)
+cent <- NULL
+for(k in 1:10){
+  cent <- rbind(cent, colMeans(USArrests[memb == k, , drop = FALSE]))
+}
+hc1 <- hclust(dist(cent)^2, method = "cen", members = table(memb))
+opar <- par(mfrow = c(1, 2))
+plot(hc,  labels = FALSE, hang = -1, main = "Original Tree")
+plot(hc1, labels = FALSE, hang = -1, main = "Re-start from 10 clusters")
+par(opar)
