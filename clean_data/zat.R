@@ -305,16 +305,67 @@ zat_imp_geo <- zat %>%
 saveRDS(zat_imp_geo, "../clean_data/zat_imp_geo.rds")
 
 # Hierarchical clustering ------
+## hclust ------------------------
 dist(zat_std2)
 
 hc <- hclust(dist(zat_std2), "ward.D2")
-memb <- cutree(hc, k = 10)
-cent <- NULL
-for(k in 1:10){
-  cent <- rbind(cent, colMeans(USArrests[memb == k, , drop = FALSE]))
-}
-hc1 <- hclust(dist(cent)^2, method = "cen", members = table(memb))
-opar <- par(mfrow = c(1, 2))
-plot(hc,  labels = FALSE, hang = -1, main = "Original Tree")
-plot(hc1, labels = FALSE, hang = -1, main = "Re-start from 10 clusters")
-par(opar)
+
+zat_cluster2 <- zat_cluster %>% 
+  mutate(ward_D2 = cutree(hc, k =3))
+
+#map
+pal <- colorFactor(
+  palette = "YlGn",
+  domain = zat_cluster2$ward_D2
+)
+
+zat_label <- glue("ZAT{zat_cluster2$ZAT} FMM cluster: {zat_cluster2$all}")
+
+zat_cluster2 %>% 
+  select(ZAT, ward_D2) %>% 
+  st_zm() %>%
+  st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>%
+  leaflet() %>%
+  addProviderTiles(providers$CartoDB.Voyager)  %>%
+  addPolygons(color = "white", 
+              weight = 0.5,
+              smoothFactor = 0.5,
+              opacity = 1,
+              fillColor = ~pal(ward_D2),
+              fillOpacity = 0.8,
+              highlightOptions = highlightOptions(
+                weight = 5,
+                color = "#666",
+                fillOpacity = 0.8,
+                bringToFront = TRUE),
+              label = zat_label,
+              labelOptions = labelOptions(
+                style = list(
+                  "font-family" = "Fira Sans, sans-serif",
+                  "font-size" = "1.2em"
+                ))
+  )%>% 
+  addLegend("bottomleft",
+            pal = pal,
+            values = ~ward_D2,
+            title = "Hierarchical Clustering",
+            opacity = 1)
+
+## SKATER (spatial constrained) -------------------
+library(spdep)
+zat_std2_sf <- zat_std2 %>% 
+  left_join(zat_cluster, by = "ZAT") %>% 
+  select(-all, -street, -transp) %>% 
+  st_as_sf() %>% 
+  st_zm() #sp doesnot support polygon z dimenstion
+
+#scale
+zat_scaled <- zat_std2 %>% 
+  mutate(across(-ZAT, ~scale(.x)))
+
+zat_nb <- poly2nb(as_Spatial(zat_std2_sf))
+
+plot(as_Spatial(zat_std2_sf), main = "With queen")
+plot(zat_nb, coords = coordinates(as_Spatial(zat_nb)), col="blue", add = TRUE)
+
+costs <- nbcosts(zat_nb, data = zat_scaled[,-1])
