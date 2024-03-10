@@ -306,6 +306,8 @@ saveRDS(zat_imp_geo, "../clean_data/zat_imp_geo.rds")
 
 # Hierarchical clustering ------
 ## hclust ------------------------
+library(leaflet)
+library(glue)
 dist(zat_std2)
 
 hc <- hclust(dist(zat_std2), "ward.D2")
@@ -353,6 +355,8 @@ zat_cluster2 %>%
 
 ## SKATER (spatial constrained) -------------------
 library(spdep)
+sf_use_s2(FALSE) 
+
 zat_std2_sf <- zat_std2 %>% 
   left_join(zat_cluster, by = "ZAT") %>% 
   select(-all, -street, -transp) %>% 
@@ -361,11 +365,80 @@ zat_std2_sf <- zat_std2 %>%
 
 #scale
 zat_scaled <- zat_std2 %>% 
-  mutate(across(-ZAT, ~scale(.x)))
+  column_to_rownames(var = "ZAT") %>% 
+  select(1:11) %>% 
+  scale() %>% 
+  as.data.frame()
 
-zat_nb <- poly2nb(as_Spatial(zat_std2_sf))
+zat_nb <- poly2nb(zat_std2_sf) 
 
-plot(as_Spatial(zat_std2_sf), main = "With queen")
-plot(zat_nb, coords = coordinates(as_Spatial(zat_nb)), col="blue", add = TRUE)
+plot(as_Spatial(zat_std2_sf), main = "no snap")
+plot(zat_nb, coords = coordinates(as_Spatial(zat_std2_sf)), col="blue", add = TRUE)
 
-costs <- nbcosts(zat_nb, data = zat_scaled[,-1])
+#summary(zat_nb)
+#some zat with no links with cause error in costs
+no_link <- c(24, 113, 124, 143, 184, 399, 538, 613, 754, 755, 758, 766, 767, 774, 775, 778, 820, 893)
+
+# to find out what are the no-linked ZAT 
+#--> they don't look that "isolated"! -- adjust the `snap` argument
+# no_link_zat <- zat_std2_sf %>% 
+#   filter(ZAT %in% no_link) %>% 
+#   st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) 
+# 
+# link_zat <- zat_std2_sf %>% 
+#   filter(!ZAT %in% no_link) %>% 
+#   st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) 
+# 
+# leaflet() %>% 
+#   addTiles() %>% 
+#   addPolygons(data=link_zat, weight = 3, fillColor = 'purple', color = 'white', fillOpacity = 1) %>%
+#   addPolygons(data=no_link_zat, weight = 3, fillColor = 'blue', color = 'blue') 
+
+
+zat_nb2 <- poly2nb(zat_std2_sf, snap = 0.005) 
+#tried 0.001 --> 2 disjoint connected subgraphs (not sure why)
+summary(zat_nb2)
+
+plot(as_Spatial(zat_std2_sf), main = "snap0.005")
+plot(zat_nb2, coords = coordinates(as_Spatial(zat_std2_sf)), col="blue", add = TRUE)
+
+costs <- nbcosts(zat_nb2, data = zat_scaled)
+
+weights <- nb2listw(zat_nb2, costs, style = "B")
+
+#minimal spanning tree
+zat_mst <- mstree(weights)
+
+clust4 <- skater(edges = zat_mst[,1:2], data = zat_scaled, ncuts=3)
+
+plot((zat_std2_sf %>% mutate(clus = clust4$groups))['clus'], main = "4 cluster example")
+
+# Soft spatial constrain -----------------------
+library(ClustGeo)
+## partition with no constraint
+D0 <- dist(zat_std2)
+tree <- hclustgeo(D0)
+plot(tree, hang = -1, label = FALSE,
+    xlab = "", sub = "",
+    main = "Ward dendrogram with D0 only")
+# The height corresponds to the increase in the total within-cluster variance
+# after merging two clusters.
+
+# k =4 is chosen
+rect.hclust(tree, k = 4, border = 1:4)
+legend("topright", legend = paste("cluster", 1:4),
+  fill = 1:4, bty = "n", border = "white")
+# partition
+p4 <- cutree(tree, 4)
+plot(zat_std2_sf$geometry, border = "grey", col = p4,
+    main = "Partition p4 obtained from D0 only")
+
+# 
+# ggplot()+
+#   geom_sf(data = zat_std2_sf$geometry, aes(fill= p4))+
+#   scale_color_viridis_d(option = "magma")
+
+#c("#7e549e","#c2549d","#fc8370","#fecb3e")
+
+## consider geographic constraint
+dist_zat <- st_distance(zat_cluster)
