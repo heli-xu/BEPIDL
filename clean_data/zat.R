@@ -445,11 +445,12 @@ zat <- zat_cluster %>%
   select(ZAT, geometry)  
 #remember to get rid of attributes, otherwise it takes forever 
 dist_zat <- st_distance(zat)
+# ~45s
 
 D1 <- as.dist(dist_zat)
 
 ## choosing alpha mixing param.
-range.alpha <- seq(0,1, 0.1)
+range.alpha <- seq(0,1, 0.05)
 k <- 4
 
 cr <- choicealpha(D0, D1, range.alpha, k, graph = FALSE)
@@ -459,11 +460,11 @@ cr$Q
 plot(cr)
 # alpha = 0.3
 
-tree <- hclustgeo(D0, D1, alpha = 0.3)
+tree <- hclustgeo(D0, D1, alpha = 0.35)
 p4_geo <- cutree(tree, 4)
 
 plot(zat$geometry, border = "grey", col = p4_geo, 
-  main = "Partition p4_geo obtained with alpha=0.3 
+  main = "Partition p4_geo obtained with alpha=0.35 
          and geographical distances")
 
 ## neighborhood constraint ---------------
@@ -489,6 +490,63 @@ plot(cr2, norm = TRUE)
 tree <- hclustgeo(D0, D1, alpha = 0.2)
 p4_nb <- cutree(tree, 4)
 
-plot(zat$geometry, border = "grey", col = p4_nb, 
+
+plot(zat$geometry, border = "grey", col  = p4_nb,
   main = "Partition p4_nb obtained with
          alpha=0.2 and neighborhood dissimilarities")
+
+## cluster_profile -------
+library(patchwork)
+library(ggplot2)
+
+# zat_clustgeo <- zat_std2 %>% 
+#   mutate(hclust = p4,
+#          clustgeo = p4_geo,
+#          clustnb = p4_nb)
+
+
+get_cluster <- function(data, clus_list){
+  data %>% 
+    mutate(clus = clus_list) %>% 
+    group_by(clus) %>% 
+    summarise(across(-1, ~mean(.x),.names = "mean_{.col}"), .groups = "drop") %>%
+  #remember not to 'exclude' the group var
+    mutate(across(-clus, ~scale(.x)[, 1])) %>% 
+    pivot_longer(-clus, names_to = "indicator", values_to = "scaled")
+}
+
+zat_hclust <- get_cluster(zat_std2, p4)
+zat_clustgeo <- get_cluster(zat_std2, p4_geo)
+zat_clustnb <- get_cluster(zat_std2, p4_nb)
+
+
+pal <- c("#225ea8","#41b6c4","#a1dab4","#fecb3e") 
+  
+cluster_plot <- function(cluster_data) {
+  cluster_data %>% 
+     ggplot() +
+     geom_col(aes(x = factor(indicator), y = scaled), fill = pal[cluster_data$clus]) +
+     coord_flip() + 
+    geom_hline(yintercept = 0, linetype = "dotted")+
+     theme_minimal() +
+     labs(y = "Relatively less    more           Relatively less  more",
+          x = "") +
+     theme(panel.grid = element_blank(),
+           axis.text.x = element_blank(),
+           axis.text.y = element_text(),
+           axis.line.x = element_line(arrow = grid::arrow(length = unit(0.3, "cm"), 
+                                                          ends = "both")),
+           plot.margin=grid::unit(c(0,0,0,0), "mm")) +
+    facet_wrap(~clus)
+}
+
+cluster_plot(zat_hclust)
+
+hclust_geo <- zat %>% 
+  mutate(clus = p4) %>% 
+  st_zm() #seriously...
+
+map <- ggplot()+
+  geom_sf(data = hclust_geo, fill = pal[hclust_geo$clus])
+
+cluster_plot(zat_hclust) | map
