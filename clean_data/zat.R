@@ -353,7 +353,7 @@ zat_cluster2 %>%
             title = "Hierarchical Clustering",
             opacity = 1)
 
-## SKATER (spatial constrained) -------------------
+# SKATER (spatial constrained) -------------------
 library(spdep)
 sf_use_s2(FALSE) 
 
@@ -440,5 +440,55 @@ plot(zat_std2_sf$geometry, border = "grey", col = p4,
 
 #c("#7e549e","#c2549d","#fc8370","#fecb3e")
 
-## consider geographic constraint
-dist_zat <- st_distance(zat_cluster)
+## distance constraint ------------------
+zat <- zat_cluster %>% 
+  select(ZAT, geometry)  
+#remember to get rid of attributes, otherwise it takes forever 
+dist_zat <- st_distance(zat)
+
+D1 <- as.dist(dist_zat)
+
+## choosing alpha mixing param.
+range.alpha <- seq(0,1, 0.1)
+k <- 4
+
+cr <- choicealpha(D0, D1, range.alpha, k, graph = FALSE)
+
+cr$Q
+
+plot(cr)
+# alpha = 0.3
+
+tree <- hclustgeo(D0, D1, alpha = 0.3)
+p4_geo <- cutree(tree, 4)
+
+plot(zat$geometry, border = "grey", col = p4_geo, 
+  main = "Partition p4_geo obtained with alpha=0.3 
+         and geographical distances")
+
+## neighborhood constraint ---------------
+library(spdep)
+zat_nb <- poly2nb(zat %>% st_zm(), snap = 0.005)
+
+A <- nb2mat(zat_nb, style = "B")
+
+diag(A) <- 1
+
+colnames(A) <- zat$ZAT
+rownames(A) <- zat$ZAT
+A[1:5,1:5]
+
+#dissimilarity matrix D1=1-A
+D1 <- as.dist(1-A)
+
+cr2 <- choicealpha(D0, D1, range.alpha, k, graph = FALSE)
+plot(cr2) #one much smaller than antoher, so need normalization
+
+plot(cr2, norm = TRUE)
+# alpha =0.2
+tree <- hclustgeo(D0, D1, alpha = 0.2)
+p4_nb <- cutree(tree, 4)
+
+plot(zat$geometry, border = "grey", col = p4_nb, 
+  main = "Partition p4_nb obtained with
+         alpha=0.2 and neighborhood dissimilarities")
