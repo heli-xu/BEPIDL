@@ -1,0 +1,28 @@
+---
+title: "Neighborhood Built Environment Profiles in Bogotá"
+subtitle: "Spatial visualization | Assess variable influence"
+author: "Heli Xu"
+image: thumbnail.jpg
+date: 2/12/24
+format: 
+  html:
+    code-fold: true
+    toc: true
+    toc-depth: 4
+    self-contained: true
+editor: visual
+---
+
+After using finite mixture modeling to [cluster the neighborhoods (ZATs)](../ZAT_profile/ZAT_profile.qmd) across all the ZAT-level indicators on road infrastructures, we'll visualize the resulting neighborhood profiles on maps.
+
+```{r setup, warning=FALSE, message=FALSE}
+library(dplyr)
+library(sf)
+library(tmap)
+library(ggplot2)
+library(tidyr)
+library(leaflet)
+library(glue)
+```
+
+## 
