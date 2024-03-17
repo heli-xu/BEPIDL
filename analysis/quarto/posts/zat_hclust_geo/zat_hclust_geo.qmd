@@ -1,9 +1,9 @@
 ---
-title: "Neighborhood Built Environment Profiles in Bogotá"
-subtitle: "Spatial visualization | Assess variable influence"
+title: "Hierarchical Clustering with Spatial Constraint"
+subtitle: "with ZAT indicators in Bogotá"
 author: "Heli Xu"
-image: thumbnail.jpg
-date: 2/12/24
+image: thumbnail.png
+date: 3/14/24
 format: 
   html:
     code-fold: true
@@ -13,16 +13,170 @@ format:
 editor: visual
 ---
 
-After using finite mixture modeling to [cluster the neighborhoods (ZATs)](../ZAT_profile/ZAT_profile.qmd) across all the ZAT-level indicators on road infrastructures, we'll visualize the resulting neighborhood profiles on maps.
+Previously we have used finite mixture modeling to [cluster the neighborhoods (ZATs)](../ZAT_profile/ZAT_profile.qmd) across all the ZAT-level indicators on road infrastructures. In this post, we'll explore another clustering approach, hierarchical clustering, taking into account the spatial relationships of the ZAT units (in addition to the indicators).
 
 ```{r setup, warning=FALSE, message=FALSE}
 library(dplyr)
 library(sf)
-library(tmap)
+library(ClustGeo)
 library(ggplot2)
 library(tidyr)
-library(leaflet)
-library(glue)
+library(patchwork)
 ```
 
-## 
+## Hierarchical Clustering without Constraint
+
+First, we'll look at the hierarchical clustering output with the indicators only. We can use a dissimilarity matrix `D0` calculated with the indicators.
+
+```{r}
+zat_std2 <- readRDS("../../../../clean_data/ZAT/zat_std2.rds")
+
+D0 <- dist(zat_std2)
+tree <- hclustgeo(D0)
+plot(tree, hang = -1, label = FALSE,
+    xlab = "", sub = "",
+    main = "Ward dendrogram with D0 only")
+
+rect.hclust(tree, k = 4, border = 1:4)
+legend("topright", legend = paste("cluster", 1:4),
+  fill = 1:4, bty = "n", border = "white")
+```
+
+We can use this dendrogram to illustrate the arrangement of the clusters produced by hierarchical clustering, and the height at which any two clusters are joined together represents the distance or dissimilarity between those clusters. Depending on the linkage method, the dissimilarity is measured differently:
+
+-   **Single Linkage (Nearest Point)**: The height indicates the shortest distance between any member of one cluster and any member of another cluster.
+-   **Complete Linkage (Farthest Point)**: The height shows the longest distance between any member of one cluster and any member of another cluster.
+-   **Average Linkage**: The height represents the average distance between all members of one cluster and all members of the other cluster.
+-   ***Ward's Method***: The height corresponds to the increase in the total within-cluster variance after merging two clusters.
+
+For this post, we'll be using **Ward's Method.** And from the dendrogram, we are choosing k = 4 as the component number, as shown above in the different colored rectangles. And the resulting partition looks like this:
+
+```{r, eval=FALSE}
+p4 <- cutree(tree, 4)
+source("../../../../functions/get_cluster.R")
+
+zat_hclust <- get_cluster(zat_std2, p4)
+
+hclust_geo <- zat %>% 
+  mutate(clus = p4) %>% 
+  st_zm()
+```
+
+```{r, echo=FALSE}
+zat_hclust <- readRDS("../../../../clean_data/hclust_geo/zat_hclust.rds")
+zat_clustgeo <- readRDS("../../../../clean_data/hclust_geo/zat_clustgeo.rds")
+zat_clustnb <- readRDS("../../../../clean_data/hclust_geo/zat_clustnb.rds")
+
+hclust_geo <- readRDS("../../../../clean_data/hclust_geo/hclust_geo.rds")
+clustgeo_geo <-  readRDS("../../../../clean_data/hclust_geo/clustgeo_geo.rds")
+clustnb_geo <-  readRDS("../../../../clean_data/hclust_geo/clustnb_geo.rds")
+```
+
+```{r}
+pal <- c("#225ea8","#41b6c4","#a1dab4","#fecb3e")
+source("../../../../functions/cluster_plot.R")
+
+map <- ggplot()+
+  geom_sf(data = hclust_geo, fill = pal[hclust_geo$clus])
+
+(cluster_plot(zat_hclust) | map ) + 
+  plot_annotation('Hierarchical Clustering with Indicators only', 
+    subtitle = 'ZAT level, Bogotá',
+    theme=theme(plot.title=element_text(size=14, face = "bold", hjust=0.5),
+                plot.subtitle = element_text(size = 10, face = "bold", hjust = 0.5))) +
+  plot_layout(width = c(1, 1.5), height = unit(15, "cm"))
+   
+```
+
+## Hierarchical Clustering with Spatial Constraint
+
+### Geographical distances
+
+The first way to include the spatial constraint is through the geographic distances. We can do that by including another matrix `D1` with the information of the distances between ZAT units, and setting a mixing parameter `alpha` in \[0, 1\] to set the importance of `D0` and `D1`.
+
+```{r, eval=FALSE}
+dist_zat <- st_distance(zat) #zat being the ZAT-level shapefiles
+D1 <- as.dist(dist_zat)
+```
+
+When `alpha`=0 the `D1` is not taken into account, and when `alpha`=1 `D0` is not taken into account. To choose an appropriate `alpha`, we can plot the homogeneity (proportion of explained inertia) of each matrix (`Q0` and `Q1`) using a range of different values of `alpha` and a given number of cluster (in this case k=4).
+
+![](images/geo.png){width="524"}
+
+We are choosing `alpha`=0.35 here where `Q0` and `Q1` both have relatively high homogeneity. Then we can perform the clustering with geographic distances constraint:
+
+```{r, eval=FALSE}
+tree <- hclustgeo(D0, D1, alpha = 0.35)
+p4_geo <- cutree(tree, 4)
+
+zat_clustgeo <- get_cluster(zat_std2, p4_geo)
+
+clustgeo_geo <- zat %>% 
+  mutate(clus = p4_geo) %>% 
+  st_zm()
+```
+
+As a result, we have a slightly different clustering output:
+
+```{r}
+
+map2 <- ggplot()+
+  geom_sf(data = clustgeo_geo, fill = pal[clustgeo_geo$clus])
+
+(cluster_plot(zat_clustgeo) | map2 ) + 
+  plot_annotation(
+    'Hierarchical Clustering with Indicators and Spatial Constraint', 
+    subtitle = 'ZAT level, Bogotá',
+    theme=theme(
+     plot.title=element_text(size=14, face = "bold", hjust=0.5),
+     plot.subtitle = element_text(size = 10, face = "bold", hjust = 0.5)))+
+  plot_layout(width = c(1, 1.5), height = unit(15, "cm"))
+
+```
+
+### Neighborhood
+
+Another way to consider spatial constraint is through the neighboring ZAT units. We can do that by generating another dissimilarity matrix `D1` that reflects whether two ZAT units have contiguous boundaries (sharing one or more boundary point).
+
+```{r, eval=FALSE}
+#determin neighborhoods
+zat_nb <- poly2nb(zat %>% st_zm(), snap = 0.005)
+#generate matrix of neighborhoods (binary)
+A <- nb2mat(zat_nb, style = "B")
+#set diagonal value
+diag(A) <- 1
+D1 <- as.dist(1-A)
+```
+
+We can use a similar strategy to determine the mixing parameter `alpha`.
+
+![](images/nb.png){width="451"}
+
+In this case, `alpha` = 0.2 is chosen for the clustering process.
+
+```{r, eval=FALSE}
+tree <- hclustgeo(D0, D1, alpha = 0.2)
+p4_nb <- cutree(tree, 4)
+
+zat_clustnb <- get_cluster(zat_std2, p4_nb)
+
+clustnb_geo <- zat %>% 
+  mutate(clus = p4_nb) %>% 
+  st_zm()
+```
+
+Here is how the results look like:
+
+```{r}
+map3 <- ggplot()+
+  geom_sf(data = clustnb_geo, fill = pal[clustnb_geo$clus])
+
+(cluster_plot(zat_clustnb) | map3 ) + 
+  plot_annotation(
+    'Hierarchical Clustering with Indicators and Neighborhood Constraint', 
+    subtitle = 'ZAT level, Bogotá',
+    theme=theme(plot.title=element_text(size=14, face = "bold", hjust=0.5),
+      plot.subtitle = element_text(size = 10, face = "bold", hjust = 0.5))) +
+  plot_layout(width = c(1, 1.5), height = unit(15, "cm"))
+
+```

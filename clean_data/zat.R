@@ -441,11 +441,22 @@ plot(zat_std2_sf$geometry, border = "grey", col = p4,
 #c("#7e549e","#c2549d","#fc8370","#fecb3e")
 
 ## distance constraint ------------------
+library(sfdep)
 zat <- zat_cluster %>% 
   select(ZAT, geometry)  
 #remember to get rid of attributes, otherwise it takes forever 
-dist_zat <- st_distance(zat)
+dist_zat <- st_distance(zat_shapefile)
 # ~45s
+
+zat_nb <- poly2nb(zat_shapefile %>% st_zm(), snap = 0.005)
+
+centroid <- zat_shapefile %>% 
+  st_zm() %>% 
+  st_centroid()
+
+nb <- st_contiguity(zat_shapefile %>% st_zm(), snap = 0.005)
+dist_nb <- st_nb_dists(centroid, nb)
+#has to be point
 
 D1 <- as.dist(dist_zat)
 
