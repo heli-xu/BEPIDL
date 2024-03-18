@@ -66,13 +66,18 @@ hclust_geo <- zat %>%
 zat_hclust <- readRDS("../../../../clean_data/hclust_geo/zat_hclust.rds")
 zat_clustgeo <- readRDS("../../../../clean_data/hclust_geo/zat_clustgeo.rds")
 zat_clustnb <- readRDS("../../../../clean_data/hclust_geo/zat_clustnb.rds")
+zat_clustnbdist <- readRDS("../../../../clean_data/hclust_geo/zat_clustnbdist.rds")
 
 hclust_geo <- readRDS("../../../../clean_data/hclust_geo/hclust_geo.rds")
 clustgeo_geo <-  readRDS("../../../../clean_data/hclust_geo/clustgeo_geo.rds")
 clustnb_geo <-  readRDS("../../../../clean_data/hclust_geo/clustnb_geo.rds")
+clustnbdist_geo <- readRDS("../../../../clean_data/hclust_geo/clustnbdist_geo.rds")
 ```
 
 ```{r}
+#| fig-height: 9
+
+
 pal <- c("#225ea8","#41b6c4","#a1dab4","#fecb3e")
 source("../../../../functions/cluster_plot.R")
 
@@ -92,7 +97,13 @@ map <- ggplot()+
 
 ### Geographical distances
 
-The first way to include the spatial constraint is through the geographic distances. We can do that by including another matrix `D1` with the information of the distances between ZAT units, and setting a mixing parameter `alpha` in \[0, 1\] to set the importance of `D0` and `D1`.
+The first way to include the spatial constraint is through the geographic distances.
+
+::: callout-note
+Distance here is calculated between polygons by `st_distances`, which is determined by the minimum distance between any two points on the boundary of non-overlapping polygons. For overlapping polygons, the distance is 0.
+:::
+
+We can do that by including another matrix `D1` with the information of the distances between ZAT units, and setting a mixing parameter `alpha` in \[0, 1\] to set the importance of `D0` and `D1`.
 
 ```{r, eval=FALSE}
 dist_zat <- st_distance(zat) #zat being the ZAT-level shapefiles
@@ -119,6 +130,7 @@ clustgeo_geo <- zat %>%
 As a result, we have a slightly different clustering output:
 
 ```{r}
+#| fig-height: 9
 
 map2 <- ggplot()+
   geom_sf(data = clustgeo_geo, fill = pal[clustgeo_geo$clus])
@@ -134,7 +146,7 @@ map2 <- ggplot()+
 
 ```
 
-### Neighborhood
+### Neighboring status
 
 Another way to consider spatial constraint is through the neighboring ZAT units. We can do that by generating another dissimilarity matrix `D1` that reflects whether two ZAT units have contiguous boundaries (sharing one or more boundary point).
 
@@ -155,6 +167,9 @@ We can use a similar strategy to determine the mixing parameter `alpha`.
 In this case, `alpha` = 0.2 is chosen for the clustering process.
 
 ```{r, eval=FALSE}
+library(spdep)
+library(sp)
+
 tree <- hclustgeo(D0, D1, alpha = 0.2)
 p4_nb <- cutree(tree, 4)
 
@@ -168,6 +183,8 @@ clustnb_geo <- zat %>%
 Here is how the results look like:
 
 ```{r}
+#| fig-height: 9
+
 map3 <- ggplot()+
   geom_sf(data = clustnb_geo, fill = pal[clustnb_geo$clus])
 
@@ -179,4 +196,82 @@ map3 <- ggplot()+
       plot.subtitle = element_text(size = 10, face = "bold", hjust = 0.5))) +
   plot_layout(width = c(1, 1.5), height = unit(15, "cm"))
 
+```
+
+### Neighborhood distances
+
+In contrast to geographical distances, neighborhood distances take into account the network between the ZAT units and better reflects the actual distances between neighborhoods (especially when there's large water body or mountain separating some ZAT units – e.g. Boston).
+
+We can first generate the neighborhoods (similar to previous section on neighboring status), and the neighborhood distances we need are the line(s) connecting the neighborhoods, as shown below (queen contiguity):
+
+```{r, eval=FALSE}
+centroid <- zat %>% 
+  st_zm() %>% 
+  st_centroid()
+
+zat_nb <- poly2nb(zat %>% st_zm(), snap = 0.005)
+dist_nb <- nbdists(zat_nb, centroid)
+
+plot(as_Spatial(zat %>% st_zm()), main = "Neighborhood Network")
+plot(nb, coords = coordinates(as_Spatial(centroid)), col="blue", add = TRUE)
+```
+
+![](images/nb_network.png){fig-align="center" width="398"}
+
+Next, we'll construct a data frame for the network with columns representing the origin (from), destination (to) and the corresponding distances to create a matrix of distances by the network for the clustering process (`D1`).
+
+Similarly, we need to determine a mixing parameter `alpha` by the homogeneity plot:
+
+```{r, eval=FALSE}
+library(cppRouting)
+library(data.table)
+
+# data frame
+n = length(dist_nb)
+res = data.table(from = integer(), to = integer(), dist = numeric())
+for(i in seq_len(n)){
+  res = rbind(res, data.table(from = i, to = nb[[i]], dist = dist_nb[[i]]))
+}
+
+graph  <-  makegraph(res, directed = F)
+
+# distance matrix
+dist_link <- get_distance_matrix(Graph=graph, 
+  from = unique(res$from), 
+  to = unique(res$to))
+
+# clustering
+D1 <- as.dist(dist_link)
+
+```
+
+![](images/nb_dist_cr.png)
+
+We'll choose `alpha` = 0.45 in this case for clustering.
+
+```{r, eval=FALSE}
+tree <- hclustgeo(D0, D1, alpha = 0.45)
+p4_nbdist <- cutree(tree, 4)
+
+zat_clustnbdist <- get_cluster(zat_std2, p4_nbdist)
+
+clustnbdist_geo <- zat %>% 
+  mutate(clus = p4_nbdist) %>% 
+  st_zm()
+```
+
+As a result, we have the following neighborhood profiles:
+
+```{r}
+#| fig-height: 9
+
+map4 <- ggplot()+
+  geom_sf(data = clustnbdist_geo, fill = pal[clustnbdist_geo$clus])
+
+(cluster_plot(zat_clustnbdist) | map4 ) + 
+  plot_annotation('Hierarchical Clustering with Indicators and Neighborhood Distances Constraint', 
+                  subtitle = 'ZAT level, Bogotá',
+    theme=theme(plot.title=element_text(size=13, face = "bold", hjust=0.5),
+      plot.subtitle = element_text(size = 10, face = "bold", hjust = 0.5)))+
+  plot_layout(widths = c(1,1.5), heights = unit(15, units = "cm"))
 ```

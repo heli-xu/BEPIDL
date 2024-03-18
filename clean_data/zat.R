@@ -461,8 +461,6 @@ zat_shapefile <- readRDS("ZAT/zat_shapefile.rds")
 dist_zat <- st_distance(zat_shapefile)
 # ~45s
 
-
-
 D1 <- as.dist(dist_zat)
 
 ## choosing alpha mixing param.
@@ -512,6 +510,7 @@ plot(zat$geometry, border = "grey", col  = p4_nb,
          alpha=0.2 and neighborhood dissimilarities")
 
 ## neighborhood distance (by network)-----------------------------
+library(ClustGeo)
 library(sfdep)
 library(sf)
 library(spdep)
@@ -536,7 +535,7 @@ check <- st_distance(st_geometry(centroid)[1],st_geometry(centroid)[2])
 #in meters, 1438, same as st_nb_dist()--unit in km
 
 library(sp)
-plot(as_Spatial(zat_shapefile %>% st_zm()), main = "snap0.005")
+plot(as_Spatial(zat_shapefile %>% st_zm()), main = "Neighborhood Network")
 plot(nb, coords = coordinates(as_Spatial(centroid)), col="blue", add = TRUE)
 
 
@@ -573,6 +572,8 @@ graph  <-  makegraph(res, directed = F)
 dist_link <- get_distance_matrix(Graph=graph, 
   from = unique(res$from), 
   to = unique(res$to))
+
+saveRDS(dist_link, file = "hclust_geo/dist_link.rds")
 
 # clustering
 D1 <- as.dist(dist_link)
