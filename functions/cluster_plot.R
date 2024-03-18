@@ -1,4 +1,26 @@
-## cluster_data is a ClustGeo object from get_clus
+#' Create Clustered Bar Plot
+#'
+#' Generates a bar plot for cluster analysis, displaying scaled values for various indicators within each cluster. The plot is flipped for better visualization of indicators, with bars colored by cluster. This function is tailored for visualizing standardized indicator values across different clusters.
+#'
+#' @param cluster_data a ClustGeo object from `get_cluster()`, containing the variables: `indicator`, `scaled`, and `clus`. 
+#'   \describe{
+#'     \item{indicator}{a factor indicating the type of metric}
+#'     \item{scaled}{the scaled value of that metric (averaged value by cluster)}
+#'     \item{clus}{the cluster assignment}
+#'   }
+#'
+#' @return A ggplot object representing the clustered bar plot. This plot includes a horizontal line at y=0 (indicating no change or baseline), with bars for each indicator scaled around this line. The plot is facetted by cluster, with each cluster's indicators displayed in its own panel.
+#'
+#' @examples
+#' # Assuming you have a dataframe `df` with columns `indicator`, `scaled`, and `clus`
+#' cluster_plot(df)
+#'
+#' @import ggplot2
+#' @importFrom dplyr %>%
+#' @importFrom ggplot2 ggplot geom_col coord_flip geom_hline theme_minimal labs scale_x_discrete theme facet_wrap
+#' @export
+#'
+
 cluster_plot <- function(cluster_data) {
   cluster_data %>% 
     ggplot() +

@@ -2,6 +2,7 @@ library(sf)
 library(skimr)
 library(readxl)
 library(tidyverse)
+library(tidyr)
 
 # ZAT raw data ------------------------------------------------------------
 
@@ -355,7 +356,7 @@ zat_cluster2 %>%
 
 # SKATER (spatial constrained) -------------------
 library(spdep)
-sf_use_s2(FALSE) 
+sf_use_s2(FALSE) #TRUE- sperical geometry
 
 zat_std2_sf <- zat_std2 %>% 
   left_join(zat_cluster, by = "ZAT") %>% 
@@ -416,6 +417,7 @@ plot((zat_std2_sf %>% mutate(clus = clust4$groups))['clus'], main = "4 cluster e
 # Soft spatial constrain -----------------------
 library(ClustGeo)
 ## partition with no constraint
+zat_std2 <- readRDS("ZAT/zat_std2.rds")
 D0 <- dist(zat_std2)
 tree <- hclustgeo(D0)
 plot(tree, hang = -1, label = FALSE,
@@ -442,21 +444,24 @@ plot(zat_std2_sf$geometry, border = "grey", col = p4,
 
 ## distance constraint ------------------
 library(sfdep)
-zat <- zat_cluster %>% 
-  select(ZAT, geometry)  
+library(sf)
+library(spdep)
+library(tidyverse)
+library(data.table)
+library(cppRouting)
+
+sf_use_s2(FALSE)
+# zat <- zat_cluster %>% 
+#   select(ZAT, geometry)  
 #remember to get rid of attributes, otherwise it takes forever 
+
+zat_shapefile <- readRDS("ZAT/zat_shapefile.rds")
+
+## min dist btw polygons
 dist_zat <- st_distance(zat_shapefile)
 # ~45s
 
-zat_nb <- poly2nb(zat_shapefile %>% st_zm(), snap = 0.005)
 
-centroid <- zat_shapefile %>% 
-  st_zm() %>% 
-  st_centroid()
-
-nb <- st_contiguity(zat_shapefile %>% st_zm(), snap = 0.005)
-dist_nb <- st_nb_dists(centroid, nb)
-#has to be point
 
 D1 <- as.dist(dist_zat)
 
@@ -469,12 +474,12 @@ cr <- choicealpha(D0, D1, range.alpha, k, graph = FALSE)
 cr$Q
 
 plot(cr)
-# alpha = 0.3
+# alpha = 0.35
 
 tree <- hclustgeo(D0, D1, alpha = 0.35)
 p4_geo <- cutree(tree, 4)
 
-plot(zat$geometry, border = "grey", col = p4_geo, 
+plot(zat_shapefile$geometry, border = "grey", col = p4_geo, 
   main = "Partition p4_geo obtained with alpha=0.35 
          and geographical distances")
 
@@ -506,6 +511,90 @@ plot(zat$geometry, border = "grey", col  = p4_nb,
   main = "Partition p4_nb obtained with
          alpha=0.2 and neighborhood dissimilarities")
 
+## neighborhood distance (by network)-----------------------------
+library(sfdep)
+library(sf)
+library(spdep)
+library(tidyverse)
+library(data.table)
+library(cppRouting)
+sf_use_s2(FALSE)  #remember, different nb output if not set
+
+centroid <- zat_shapefile %>% 
+  st_zm() %>% 
+  st_centroid()
+
+nb <- st_contiguity(zat_shapefile %>% st_zm(), snap = 0.005)
+dist_nb <- st_nb_dists(centroid, nb)  
+#has to be point -- NOTE unit is km (`st_is_longlat(zat)` = TRUE) BUT CRS is not WGS84
+
+#same as using spdep
+# zat_nb <- poly2nb(zat_shapefile %>% st_zm(), snap = 0.005)
+# dist_nb2 <- nbdists(zat_nb, centroid)
+
+check <- st_distance(st_geometry(centroid)[1],st_geometry(centroid)[2])
+#in meters, 1438, same as st_nb_dist()--unit in km
+
+library(sp)
+plot(as_Spatial(zat_shapefile %>% st_zm()), main = "snap0.005")
+plot(nb, coords = coordinates(as_Spatial(centroid)), col="blue", add = TRUE)
+
+
+# at the end, we want a structure like x -- NOTE unit is meter
+x <- st_distance(zat_shapefile[1:3,])
+
+#str(nb)
+#str(dist_nb)
+#these are lists with length of nrow(zat_shapefile) and each element has the 
+#index of neighbor/distance of each row
+
+# 1. make a df of from-to-distance
+n = length(dist_nb)
+res = data.table(from = integer(), to = integer(), dist = numeric())
+for(i in seq_len(n)){
+  res = rbind(res, data.table(from = i, to = nb[[i]], dist = dist_nb[[i]]))
+}
+
+# 2. create network with cppRouting package
+graph  <-  makegraph(res, directed = F)
+
+# library(igraph)
+# library(ggraph)
+# ig <- graph_from_data_frame(res)
+# plot(ig)
+# 
+# ggraph(ig)+
+#   geom_node_point(size =1)+
+#   geom_edge_link(arrow = arrow(length = unit(3, "mm")))+
+#   theme_graph()
+# not spatially relative, just network
+
+# 3. calculate distance with network topology (cppRouting package)
+dist_link <- get_distance_matrix(Graph=graph, 
+  from = unique(res$from), 
+  to = unique(res$to))
+
+# clustering
+D1 <- as.dist(dist_link)
+
+range.alpha <- seq(0,1, 0.05)
+k <- 4
+
+cr <- choicealpha(D0, D1, range.alpha, k, graph = FALSE)
+
+cr$Q
+
+plot(cr)
+# alpha = 0.45
+# (potentially a = 0.4 if rnorm = TRUE, but map seems low)
+
+tree <- hclustgeo(D0, D1, alpha = 0.45)
+p4_nbdist <- cutree(tree, 4)
+
+plot(zat_shapefile$geometry, border = "grey", col = p4_nbdist, 
+  main = "Partition p4_nbdist obtained with alpha=0.45 
+         and neighborhood distances")
+
 ## cluster_profile -------
 library(patchwork)
 library(ggplot2)
@@ -529,6 +618,7 @@ get_cluster <- function(data, clus_list){
 zat_hclust <- get_cluster(zat_std2, p4)
 zat_clustgeo <- get_cluster(zat_std2, p4_geo)
 zat_clustnb <- get_cluster(zat_std2, p4_nb)
+zat_clustnbdist <- get_cluster(zat_std2, p4_nbdist)
 
 
 pal <- c("#225ea8","#41b6c4","#a1dab4","#fecb3e") 
@@ -578,16 +668,27 @@ map <- ggplot()+
   geom_sf(data = hclust_geo, fill = pal[hclust_geo$clus])
 
 (cluster_plot(zat_hclust) | map ) + 
-  plot_annotation('Hierarchical Clustering with Indicators only', subtitle = 'ZAT level, Bogotá',
+  plot_annotation('Hierarchical Clustering with Indicators only', 
+                  subtitle = 'ZAT level, Bogotá',
                   theme=theme(plot.title=element_text(size=14, face = "bold", hjust=0.5),
-                              plot.subtitle = element_text(size = 10, face = "bold", hjust = 0.5)))
+                              plot.subtitle = element_text(size = 10, face = "bold", hjust = 0.5)))+
+  plot_layout(widths = c(1,1.5), heights = unit(15, units = "cm"))
 
-clustgeo_geo <- zat %>% 
+clustgeo_geo <- zat_shapefile %>% 
   mutate(clus = p4_geo) %>% 
   st_zm()
 
 map2 <- ggplot()+
   geom_sf(data = clustgeo_geo, fill = pal[clustgeo_geo$clus])
+
+
+
+(cluster_plot(zat_clustgeo) | map2 ) + 
+  plot_annotation('Hierarchical Clustering with Indicators and Geographical Distances Constraint', 
+                  subtitle = 'ZAT level, Bogotá',
+                  theme=theme(plot.title=element_text(size=14, face = "bold", hjust=0.5),
+                              plot.subtitle = element_text(size = 10, face = "bold", hjust = 0.5)))+
+  plot_layout(widths = c(1,1.5), heights = unit(15, units = "cm"))
 
 clustnb_geo <- zat %>% 
   mutate(clus = p4_nb) %>% 
@@ -596,15 +697,26 @@ clustnb_geo <- zat %>%
 map3 <- ggplot()+
   geom_sf(data = clustnb_geo, fill = pal[clustnb_geo$clus])
 
-(cluster_plot(zat_clustgeo) | map2 ) + 
-  plot_annotation('Hierarchical Clustering with Indicators and Spatial Constraint', subtitle = 'ZAT level, Bogotá',
-                  theme=theme(plot.title=element_text(size=14, face = "bold", hjust=0.5),
-                              plot.subtitle = element_text(size = 10, face = "bold", hjust = 0.5)))
-
 (cluster_plot(zat_clustnb) | map3 ) + 
-  plot_annotation('Hierarchical Clustering with Indicators and Neighborhood Constraint', subtitle = 'ZAT level, Bogotá',
+  plot_annotation('Hierarchical Clustering with Indicators and Neighborhood Constraint', 
+                  subtitle = 'ZAT level, Bogotá',
                   theme=theme(plot.title=element_text(size=14, face = "bold", hjust=0.5),
-                              plot.subtitle = element_text(size = 10, face = "bold", hjust = 0.5)))
+                              plot.subtitle = element_text(size = 10, face = "bold", hjust = 0.5)))+
+  plot_layout(widths = c(1,1.5), heights = unit(15, units = "cm"))
+
+clustnbdist_geo <- zat_shapefile %>% 
+  mutate(clus = p4_nbdist) %>% 
+  st_zm()
+
+map4 <- ggplot()+
+  geom_sf(data = clustnbdist_geo, fill = pal[clustnbdist_geo$clus])
+
+(cluster_plot(zat_clustnbdist) | map4 ) + 
+  plot_annotation('Hierarchical Clustering with Indicators and Neighborhood Distances Constraint', 
+                  subtitle = 'ZAT level, Bogotá',
+    theme=theme(plot.title=element_text(size=13, face = "bold", hjust=0.5),
+      plot.subtitle = element_text(size = 10, face = "bold", hjust = 0.5)))+
+  plot_layout(widths = c(1,1.5), heights = unit(15, units = "cm"))
 
 saveRDS(zat, file = "ZAT/zat_shapefile.rds")
 saveRDS(zat_hclust, file = "hclust_geo/zat_hclust.rds")
@@ -613,3 +725,6 @@ saveRDS(zat_clustnb, file = "hclust_geo/zat_clustnb.rds")
 saveRDS(hclust_geo, file = "hclust_geo/hclust_geo.rds")
 saveRDS(clustgeo_geo, file = "hclust_geo/clustgeo_geo.rds")
 saveRDS(clustnb_geo, file = "hclust_geo/clustnb_geo.rds")
+
+saveRDS(zat_clustnbdist, file = "hclust_geo/zat_clustnbdist.rds")
+saveRDS(clustnbdist_geo, file = "hclust_geo/clustnbdist_geo.rds")
