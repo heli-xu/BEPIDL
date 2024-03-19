@@ -61,12 +61,12 @@ zat_std <- zat_clean %>%
   ) 
 
 # select value per km2, length in log
-zat_std2 <- zat_std %>% 
-  select(ZAT, BUSTOPDENS, road_length_log, st_4ln_length_log, bikelane_m_log, 
+zat_std2n <- zat_std %>% 
+  select(ZAT, areakm2, INTDENS, BUSTOPDENS, road_length_log, st_4ln_length_log, bikelane_m_log, 
     sttree_per_km2, bridg_per_km2, trlight_per_km2, numrbp_per_km2,
     numrt_per_km2, bus_length_log, brt_length_log)
 
-saveRDS(zat_std2, file = "../clean_data/ZAT/zat_std2.rds")
+saveRDS(zat_std2n, file = "../clean_data/ZAT/zat_std2n.rds")
 
 # for shiny -----------------------------------------------------------
 ## df version with standardization
