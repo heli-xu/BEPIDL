@@ -66,17 +66,44 @@ calle_zat_mix <- calle_clean_sub %>%
   drop_na()
 
 calle_zat_mix %>% 
+ggplot(aes(calle_zat_mix$bikelane_m_log))+
+  geom_histogram()
+
+calle_zat_mix %>% 
+  select(-match_n, -total_walk) %>% 
+  pivot_longer(-c(CodigoCL, ZAT), names_to = "indicator", values_to = "value") %>% 
+  #filter(value >0) %>% 
+  ggplot(aes(value))+
+  geom_histogram(fill = "skyblue", color = "blue")+
+  facet_wrap(~indicator, scales = "free")
+
+calle_zat_mix %>% 
   ggplot(aes(calle_zat_mix$P_Ancho_Cl)) +
-  geom_histogram(fill = "skyblue", color = "blue")
+  geom_histogram()
 
 # cross-classified modeling ---------------
 formula <- bf(total_walk ~ P_Ancho_Cl + Calzada_per_km2 + andenes_per_km2 +
                 INTDENS + BUSTOPDENS+st_4ln_length_log + bikelane_m_log +trlight_per_km2 +
                 bus_length_log + brt_length_log+ (1|CodigoCL) + (1|ZAT))
 
+#fit032024.rds
 fit <- brm(formula, data = calle_zat_mix, family = hurdle_lognormal(), chains = 4, cores=4, iter = 2300,
-           control = list(max_treedepth = 15))
+           control = list(adapt_delta = 0.99, max_treedepth = 15))
 # # can not handle NA in rows
+
+#saveRDS(fit, file = "bayesian/fit032024.rds")
+
+group_effect <- ranef(fit)
+
+dist_matrix <- as.dist(dist(group_effect$ZAT))
+
+hc <- hclust(dist_matrix)
+
+plot(hc, hang = -1, label = FALSE,
+     xlab = "", sub = "",
+     main = "Cluster by ZAT group effect")
+
+
 
 calle_zat_mix2 <- calle_clean_sub %>%
   bind_rows(zat_walk) %>%
@@ -91,15 +118,3 @@ fit <- brm(formula, data = calle_zat_mix, family = gaussian(), chains = 4, cores
 # # can't do NAs either
 
 
-calle_clean_sub2 <- calle_clean_df %>% 
-  select(CodigoCL, area, Rutas_TRM, Rutas_SIT, largo_cicl,) %>% 
-  mutate(
-    areakm2 = area/1000, 
-    Calzada_per_km2 = A_Calzada/(area/1000),
-    separado_per_km2 = A_separado/(area/1000),
-    andenes_per_km2 = A_andenes/(area/1000)
-  ) %>%
-  select(-c(area, A_Calzada, A_separado, A_andenes)) %>% 
-  mutate(across(-c(CodigoCL,areakm2), ~scale(.x)[, 1])) %>% 
-  left_join(xwalk, by = "CodigoCL") %>% 
-  head(1000)
