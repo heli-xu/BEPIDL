@@ -147,7 +147,11 @@ sini <- c("sini_total","sini_herid","sini_muert","sini_solod",  "si_act_Tot","si
 tfine <- c("Administra","not_resp_p", "under_infl", "Mobile_pho",  "NO_DATA", "traffic_si",  "Not_Stoppi",  "safety_dev","Parking_Vi",  "Pedest_Bic", "driving_be","Smoking_dr", "Speeding","tehcnical")
 
 # hier clustering w/distance ----------------------------
-calle_clean <- readRDS("D:/LocalGitHub/BEPIDL/clean_data/calles/calle_clean.rds")
+library(sf)
+library(tidyverse)
+library(leaflet)
+
+calle_clean <- readRDS("calles/calle_clean.rds")
 
 sf_use_s2(FALSE)
 
@@ -155,9 +159,52 @@ sf_use_s2(FALSE)
 #dist_calle <- st_distance(calle_shapefile)
 # too big,  cannot do
 
-multipoint <- st_cast(calle_shapefile, to = "MULTIPOINT")
+# attempt: use RANN::nn2() and cppRouting to make distance matrix
+# centroid <- st_centroid(calle_shapefile)
+# 
+# x <- nn2(st_coordinates(centroid))
+# #very fast, but only nearest 10, higher number dowsn't work
+# 
+# index <- as.data.frame(x$nn.idx) %>% 
+#   #mutate(Codigo = centroid$CodigoCL,.before = "V1") %>% 
+#   rownames_to_column(var = "from") %>% 
+#   pivot_longer(-from, names_to = "to", values_to = "index")
+# 
+# dist <- as.data.frame(x$nn.dists) %>% 
+#   rownames_to_column(var = "from") %>% 
+#   pivot_longer(-from, names_to = "to", values_to = "dist")
+# 
+# from_to_dist <- index %>% 
+#   left_join(dist, by = c("from", "to")) %>% 
+#   mutate(to = index) %>% 
+#   select(-index)
+# 
+# graph  <-  makegraph(from_to_dist, directed = F)
+# 
+# dist_link <- get_distance_matrix(Graph=graph, 
+#                                  from = unique(from_to_dist$from), 
+#                                  to = unique(from_to_dist$to))
+#reach limit
 
-nn2(st_coordinates(multipoint), st_coordinates(multipoint))
+## have to clean data more
+calle_zat_xwalk <- readRDS("~/Documents/GitHub/BEPIDL/clean_data/calle_zat_xwalk.rds")
+
+big_calle_in_zat <- calle_clean %>% 
+  select(CodigoCL, area, A_Calzada) %>% 
+  left_join(calle_zat_xwalk, by = "CodigoCL") %>% 
+  group_by(ZAT) %>% 
+  slice_max(order_by = area, n = 100)
+
+big_calle_in_zat %>% 
+  st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>% 
+  leaflet() %>% 
+  addTiles() %>% 
+  addPolygons(weight = 2,  color = 'purple')
+#60k rows, took a bit
+
+dist <- st_distance(big_calle_in_zat) 
+# 3 hours in still not done,
+
 
 # aggregate to ZAT level ---------------------------------------------
 library(leaflet)
