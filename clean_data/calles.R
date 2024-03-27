@@ -8,7 +8,13 @@ library(ggplot2)
 
 # calle raw data ----------------------------------------------------------
 
-calle <- st_read("data/Calles/Calles_datos/Calles_datos.shp")
+calle <- st_read("../data/Calles/Calles_datos/Calles_datos.shp")
+
+## calle_shapefile.rds -------------
+
+calle_shapefile <- calle %>% select(CodigoCL, geometry)
+
+saveRDS(calle_shapefile, file = "calle_shapefile.rds")
 
 ## skim_calles.csv ------------------------------------------
 skim_calles <- skim(calle)
@@ -31,7 +37,7 @@ calles_100 |>
   addTiles() |>
   leaflet::addPolylines()
 
-# calle_df.rds ---------------------------------------------
+## calle_df.rds ---------------------------------------------
 calle_df <- calle %>% as.data.frame() %>% select(-geometry)
 
 saveRDS(calle_df, file = "clean_data/calles/calle_df.rds")
@@ -139,6 +145,19 @@ calle_clean_df %>%
 sini <- c("sini_total","sini_herid","sini_muert","sini_solod",  "si_act_Tot","si_act_pea", "si_act_cic","sin_veh_to","si_veh_bic")
 
 tfine <- c("Administra","not_resp_p", "under_infl", "Mobile_pho",  "NO_DATA", "traffic_si",  "Not_Stoppi",  "safety_dev","Parking_Vi",  "Pedest_Bic", "driving_be","Smoking_dr", "Speeding","tehcnical")
+
+# hier clustering w/distance ----------------------------
+calle_clean <- readRDS("D:/LocalGitHub/BEPIDL/clean_data/calles/calle_clean.rds")
+
+sf_use_s2(FALSE)
+
+## min dist btw polygons
+#dist_calle <- st_distance(calle_shapefile)
+# too big,  cannot do
+
+multipoint <- st_cast(calle_shapefile, to = "MULTIPOINT")
+
+nn2(st_coordinates(multipoint), st_coordinates(multipoint))
 
 # aggregate to ZAT level ---------------------------------------------
 library(leaflet)
