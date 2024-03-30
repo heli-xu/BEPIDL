@@ -18,7 +18,7 @@ calle_clean_df <- readRDS("calles/calle_clean_df.rds")
 
 rep_calle_zat <- calle_clean_df %>%
   select(CodigoCL, area, A_Calzada, A_separado, A_andenes, P_Ancho_Cl,
-         av_carrile, AVE_pendie, sent_vial) %>% 
+         av_carrile) %>% 
   left_join(calle_zat_xwalk, by = "CodigoCL") %>% 
   drop_na(ZAT) %>% #still need to remove NA here
   uncount(match_n)
@@ -26,11 +26,11 @@ rep_calle_zat <- calle_clean_df %>%
 rep_calle_zat_agg <- rep_calle_zat %>% 
   group_by(ZAT) %>% 
   summarise(
-    across(c(AVE_pendie, P_Ancho_Cl, sent_vial, av_carrile), ~weighted.mean(.x, w=area), .names = "{.col}"),
-    across(-c(CodigoCL, AVE_pendie, P_Ancho_Cl, sent_vial, av_carrile), ~sum(.x), .names = "{.col}")
+    across(c(P_Ancho_Cl, av_carrile), ~weighted.mean(.x, w=area), .names = "{.col}"),
+    across(-c(CodigoCL, P_Ancho_Cl, av_carrile), ~sum(.x), .names = "{.col}")
   )
 
-zat_std2n <- readRDS("~/Documents/GitHub/BEPIDL/clean_data/ZAT/zat_std2n.rds")
+zat_std2n <- readRDS("ZAT/zat_std2n.rds")
 
 area <- zat_std2n %>%
   select(ZAT, areakm2)
@@ -48,6 +48,7 @@ rep_calle_zat_agg2 <- rep_calle_zat_agg %>%
 
 
 calle_2_zat_rep <- rep_calle_zat_agg2 %>% 
+  select(-areakm2) %>% #we don't want this in clustering much
   left_join(zat_std2n %>% select(-areakm2), by = "ZAT") #areakm2 already included
 
 zat_shape_sub <- calle_2_zat_rep %>% 
@@ -60,6 +61,18 @@ walk_transit <- total_trips %>%
   select(ZAT, total_walk, total_pubt) %>% 
   mutate(flow = total_walk+total_pubt) %>% 
   select(-total_walk, -total_pubt)
+
+walk_transit_geo <- walk_transit %>% 
+  left_join(zat_shapefile, by = "ZAT") %>% 
+  filter(!st_is_empty(geometry)) %>% 
+  st_as_sf() %>% 
+  st_zm()
+
+ggplot()+
+  geom_sf(data = zat_shapefile %>% st_zm())+
+  geom_sf(data = walk_transit_geo, aes(fill = flow))+
+  scale_fill_viridis_c()
+
 
 # population -----------------------------
 pop <- read_excel("../data/pop_zat.xlsx")
@@ -121,7 +134,7 @@ legend("topright", legend = paste("cluster", 1:4),
        fill = 1:4, bty = "n", border = "white")
 
 ## spatial constrainst --------------------
-D1 <- as.dist(dist_link)
+D1 <- as.dist(dist_link2)
 
 range.alpha <- seq(0,1, 0.05)
 k <- 4
@@ -129,9 +142,9 @@ k <- 4
 cr <- choicealpha(D0, D1, range.alpha, k, graph = FALSE)
 
 plot(cr)
-# 0.35
+# 0.4
 
-tree <- hclustgeo(D0, D1, alpha = 0.35)
+tree <- hclustgeo(D0, D1, alpha = 0.4)
 p4_nbdist <- cutree(tree, 4)
 
 # visualization ---------------
@@ -146,26 +159,21 @@ calle2zat_clust <- get_cluster(calle_2_zat_rep, p4_nbdist)
 
 calle2zat_geo <- zat_shapefile %>% 
   st_zm() %>% 
-  mutate(clus = case_when(
-    ZAT%in%zat_shape_sub ~ p4_nbdist[ZAT],
-    TRUE ~ NA
-  ))
-
-calle2zat_geo2 <- zat_shapefile %>% 
-  st_zm() %>% 
   filter(ZAT%in%zat_shape_sub) %>% 
   mutate(clus = p4_nbdist)
 
 map <- ggplot()+
-  geom_sf(data = calle2zat_geo, fill = pal[calle2zat_geo2$clus])
+  geom_sf(data = zat_shapefile %>% st_zm())+
+  geom_sf(data = calle2zat_geo, fill = pal[calle2zat_geo$clus])
+  
 
 (cluster_plot(calle2zat_clust) | map ) + 
   plot_annotation('Hierarchical Clustering with Indicators and Neighborhood Constraint', 
-                  subtitle = 'ZAT level, Bogotá',
+                  subtitle = 'ZAT level and aggregated calle level, Bogotá',
                   theme=theme(plot.title=element_text(size=14, face = "bold", hjust=0.5),
                               plot.subtitle = element_text(size = 10, face = "bold", hjust = 0.5)))+
   plot_layout(widths = c(1,1.5), heights = unit(15, units = "cm"))
 
-plot(calle2zat_geo2$geometry, border = "grey", col  = p4_nbdist,
-     main = "Partition p4_nb obtained with
-         alpha=0.2 and neighborhood dissimilarities")
+# plot(calle2zat_geo$geometry, border = "grey", col  = p4_nbdist,
+#      main = "Partition p4_nb obtained with
+#          alpha=0.2 and neighborhood dissimilarities")
