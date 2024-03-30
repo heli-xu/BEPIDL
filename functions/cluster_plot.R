@@ -42,7 +42,13 @@ cluster_plot <- function(cluster_data) {
         "mean_numrbp_per_km2" ="Bus route count" ,
         "mean_numrt_per_km2" ="BRT route count",
         "mean_bus_length_log" ="Bus route length",
-        "mean_brt_length_log"="Bus route length" 
+        "mean_brt_length_log"="Bus route length",
+        "mean_P_Ancho_Cl"="Average road width",
+        "mean_av_carrile"="Average lane",
+        "mean_A_Calzada"="Calzada area",
+        "mean_A_separado"="Separado area",
+        "mean_A_andenes"="Andenes area",
+        "mean_INTDENS"="Intersection density"
       ))+
     theme(panel.grid = element_blank(),
       axis.text.x = element_blank(),
