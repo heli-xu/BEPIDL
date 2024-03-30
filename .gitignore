@@ -58,3 +58,4 @@ clean_data/traffic_sign/pedx_park_geo.rds
 clean_data/hclust_geo/
 clean_data/bayesian/fit032024.rds
 clean_data/calles/calle_shapefile.rds
+clean_data/aggr_hclust_geo/

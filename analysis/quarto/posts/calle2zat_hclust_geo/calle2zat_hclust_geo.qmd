@@ -1,0 +1,127 @@
+---
+title: "Hierarchical Clustering with Spatial Constraint"
+subtitle: "with ZAT- and calle-level indicators in Bogotá"
+author: "Heli Xu"
+date: 3/27/24
+format: 
+  html:
+    code-fold: true
+    toc: true
+    toc-depth: 4
+    self-contained: true
+editor: visual
+---
+
+```{r setup, warning=FALSE, message=FALSE}
+library(dplyr)
+library(sf)
+library(ClustGeo)
+library(ggplot2)
+library(tidyr)
+library(patchwork)
+```
+
+## Aggregation from calle to ZAT
+
+First, we'll aggregate a few calle level indicators to ZAT level for clustering. Here, for the calles matching to multiple ZAT units, we are making replicates of the calles and distribute them to each matched ZAT unit. We take the area-weighted average of road width and lanes, and sum of the areas of calzada, separado and andenes. After aggregation, for areas in m2, we are converting the unit to km2 and adjusting by the ZAT area in km2 to keep it consistent with the ZAT-level data.
+
+```{r, eval=FALSE}
+calle_zat_xwalk <- readRDS("calle_zat_xwalk.rds")
+
+calle_clean_df <- readRDS("calles/calle_clean_df.rds")
+
+rep_calle_zat <- calle_clean_df %>%
+  select(CodigoCL, area, A_Calzada, A_separado, A_andenes, P_Ancho_Cl,
+         av_carrile) %>% 
+  left_join(calle_zat_xwalk, by = "CodigoCL") %>% 
+  drop_na(ZAT) %>% #still need to remove NA here
+  uncount(match_n)
+
+rep_calle_zat_agg <- rep_calle_zat %>% 
+  group_by(ZAT) %>% 
+  summarise(
+    across(c(P_Ancho_Cl, av_carrile), ~weighted.mean(.x, w=area), .names = "{.col}"),
+    across(-c(CodigoCL, P_Ancho_Cl, av_carrile), ~sum(.x), .names = "{.col}")
+  )
+
+zat_std2n <- readRDS("ZAT/zat_std2n.rds")
+
+area <- zat_std2n %>%
+  select(ZAT, areakm2)
+
+rep_calle_zat_agg2 <- rep_calle_zat_agg %>% 
+  select(-area) %>% 
+  left_join(area, by = "ZAT") %>% 
+  mutate(
+    across(c(A_Calzada, A_separado, A_andenes), ~.x/areakm2),
+    across(c(A_Calzada, A_separado, A_andenes), ~.x/1000) #to km2
+  )
+
+
+calle_2_zat_rep <- rep_calle_zat_agg2 %>% 
+  select(-areakm2) %>% #we don't want this in clustering much
+  left_join(zat_std2n %>% select(-areakm2), by = "ZAT") #areakm2 already included
+
+zat_shape_sub <- calle_2_zat_rep %>% 
+  pull(ZAT)
+
+```
+
+## Hierarchical Clustering with Spatial Constraint
+
+```{r, echo=FALSE}
+zat_shapefile <- readRDS("../../../../clean_data/zat/zat_shapefile.rds")
+calle2zat_clust <- readRDS("../../../../clean_data/aggr_hclust_geo/calle2zat_clust.rds")
+
+calle2zat_geo <- readRDS("../../../../clean_data/aggr_hclust_geo/calle2zat_geo.rds")
+
+```
+
+Using a similar approach, we're clustering the aggregated calle data with the ZAT data for the indicators matrix, and calculate the neighborhood distance matrix from the network distance. To choose a mixing parameter, we examine the homogeneity plot:
+
+![](images/alpha.png){width="432"}
+
+Choosing 0.4 as the mixing parameter, we can perform the hierarchical clustering and visualize the result:
+
+```{r}
+#| fig-height: 10
+
+pal <- c("#225ea8","#41b6c4","#a1dab4","#fecb3e")
+source("../../../../functions/cluster_plot.R")
+
+map <- ggplot()+
+  geom_sf(data = zat_shapefile %>% st_zm())+
+  geom_sf(data = calle2zat_geo, fill = pal[calle2zat_geo$clus])
+
+(cluster_plot(calle2zat_clust) | map ) + 
+  plot_annotation('Hierarchical Clustering with Indicators and Neighborhood Constraint', 
+    subtitle = 'ZAT level and aggregated calle level, Bogotá',
+    theme=theme(plot.title=element_text(size=14, face = "bold", hjust=0.5),
+                plot.subtitle = element_text(size = 10, face = "bold", hjust = 0.5))) +
+  plot_layout(width = c(1, 1.5), height = unit(20, "cm"))
+   
+```
+
+## Traffic flow
+
+To visualize and compare the neighborhood profile with traffic flow (total walking trips and public transit trips):
+
+```{r}
+total_trips <- readRDS("../../../../data/zat_denom.rds")
+
+walk_transit <- total_trips %>% 
+  select(ZAT, total_walk, total_pubt) %>% 
+  mutate(flow = total_walk+total_pubt) %>% 
+  select(-total_walk, -total_pubt)
+
+walk_transit_geo <- walk_transit %>% 
+  left_join(zat_shapefile, by = "ZAT") %>% 
+  filter(!st_is_empty(geometry)) %>% 
+  st_as_sf() %>% 
+  st_zm()
+
+ggplot()+
+  geom_sf(data = zat_shapefile %>% st_zm())+
+  geom_sf(data = walk_transit_geo, aes(fill = flow))+
+  scale_fill_viridis_c()
+```
