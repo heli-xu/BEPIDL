@@ -28,7 +28,7 @@ cluster_plot <- function(cluster_data) {
     coord_flip() + 
     geom_hline(yintercept = 0, linetype = "dotted")+ #still set as y (although it's after flipping)
     theme_minimal() +
-    labs(y = "Relative Less          Relative More",
+    labs(y = "Relative Less   Relative More",
       x = "") +
     scale_x_discrete(expand = expansion(mult = 0.002),
       labels = c(
@@ -43,16 +43,19 @@ cluster_plot <- function(cluster_data) {
         "mean_numrt_per_km2" ="BRT route count",
         "mean_bus_length_log" ="Bus route length",
         "mean_brt_length_log"="Bus route length",
-        "mean_P_Ancho_Cl"="Average road width",
-        "mean_av_carrile"="Average lane",
-        "mean_A_Calzada"="Calzada area",
-        "mean_A_separado"="Separado area",
-        "mean_A_andenes"="Andenes area",
-        "mean_INTDENS"="Intersection density"
+        "mean_road_width"="Road width (st)",
+       # "mean_av_carrile"="Average lane",
+        "mean_area_roadway"="Roadway area (st)",
+        "mean_area_median"="Median area (st)",
+        "mean_area_sidewalk"="Sidewalk area (st)",
+        "mean_INTDENS"="Intersection density",
+        "mean_road_marks" ="Road marks (st)",
+        "mean_road_signs" = "Road signs (st)",
+        "mean_pedxwalk_signs"="Ped crosswalk sign (st)"
       ))+
     theme(panel.grid = element_blank(),
       axis.text.x = element_blank(),
-      axis.text.y = element_text(size = 9),
+      axis.text.y = element_text(size = 8),
       axis.line.x = element_line(arrow = grid::arrow(length = unit(0.3, "cm"), 
         ends = "both")),
       plot.margin=grid::unit(c(0,0,0,0), "mm"),
