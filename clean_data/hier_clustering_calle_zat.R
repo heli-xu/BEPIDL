@@ -5,20 +5,61 @@ library(readxl)
 library(sfdep)
 library(data.table)
 library(cppRouting)
+library(ggplot2)
+library(patchwork)
+
 sf_use_s2(FALSE)
 
-
+# calle to zat with replicates -----------------------------
 calle_zat_xwalk <- readRDS("calle_zat_xwalk.rds")
 # NA is removed from xwalk
 
 # calle_zat_xwalk <- calle_zat_xwalk %>% 
 #   filter(!is.na(ZAT))
 
-calle_clean_df <- readRDS("calles/calle_clean_df.rds")
+calle_clean_df <- readRDS("calles/calle_clean_df.rds") 
 
-rep_calle_zat <- calle_clean_df %>%
-  select(CodigoCL, area, A_Calzada, A_separado, A_andenes, P_Ancho_Cl,
-         av_carrile) %>% 
+calle_rename_df <- calle_clean_df %>%   
+  rename_with(~ tolower(.), area:X9ceder_el) %>% 
+  rename(
+    area_calle = area,
+    trees = arboles,
+    grade = ave_pendie,
+    road_width = p_ancho_cl,
+    area_roadway = a_calzada,
+    area_median = a_separado,
+    vehicle_bridge = puente_vh,
+    ped_bridge = puente_pt,
+    area_sidewalk = a_andenes,
+    brt_routes = rutas_trm,
+    bus_routes = rutas_sitp,
+    bus_stops = parad_sitp,
+    bus_lanes = caril_sitp,
+    bike_length = largo_cicl,
+    road_marks = sen_horizo,
+    warning_signs = se_hor_seg,
+    road_signs = sen_vert,
+    traffic_lights = semaforo,
+    road_segments = segme_via,
+    speed_limit = velcidad,
+    num_lanes_total = sum_carril,
+    num_lanes_avg = av_carrile,
+   # road_signs_inv = sen_v_inv,
+    stop_signs = s_pare_inv,
+    lturn_sign = x1_girar_iz,
+    bike_signs = x2_ciclov.,
+    bus_signs = x3bus_o_tra,
+    pedxwalk_signs = x4peatonale,
+    speed_bump_signs = x5policiasa,
+    stop_signs2 = x6pare,
+    parking_signs = x7estaciona,
+    school_zone_signs = x8zonas_esc,
+    yield_signs = x9ceder_el
+  )
+
+rep_calle_zat <- calle_rename_df %>%
+  select(CodigoCL, area_calle, area_roadway, area_median, area_sidewalk,
+    road_width, road_marks, road_signs, pedxwalk_signs) %>% 
   left_join(calle_zat_xwalk, by = "CodigoCL") %>% 
   drop_na(ZAT) %>% #still need to remove NA here
   uncount(match_n)
@@ -26,8 +67,8 @@ rep_calle_zat <- calle_clean_df %>%
 rep_calle_zat_agg <- rep_calle_zat %>% 
   group_by(ZAT) %>% 
   summarise(
-    across(c(P_Ancho_Cl, av_carrile), ~weighted.mean(.x, w=area), .names = "{.col}"),
-    across(-c(CodigoCL, P_Ancho_Cl, av_carrile), ~sum(.x), .names = "{.col}")
+    across(road_width, ~weighted.mean(.x, w=area_calle), .names = "{.col}"),
+    across(-c(CodigoCL, road_width), ~sum(.x), .names = "{.col}")
   )
 
 zat_std2n <- readRDS("ZAT/zat_std2n.rds")
@@ -39,11 +80,12 @@ area <- zat_std2n %>%
 #for sum value, adjusted by areakm2,
 #for average, leave as is
 rep_calle_zat_agg2 <- rep_calle_zat_agg %>% 
-  select(-area) %>% 
+  select(-area_calle) %>% 
   left_join(area, by = "ZAT") %>% 
   mutate(
-    across(c(A_Calzada, A_separado, A_andenes), ~.x/areakm2),
-    across(c(A_Calzada, A_separado, A_andenes), ~.x/1000) #to km2
+    across(c(area_roadway, area_median, area_sidewalk, 
+      road_marks, road_signs, pedxwalk_signs), ~.x/areakm2),
+    across(c(area_roadway, area_median, area_sidewalk), ~.x/1000) #to km2
   )
 
 
@@ -51,10 +93,13 @@ calle_2_zat_rep <- rep_calle_zat_agg2 %>%
   select(-areakm2) %>% #we don't want this in clustering much
   left_join(zat_std2n %>% select(-areakm2), by = "ZAT") #areakm2 already included
 
+saveRDS(calle_2_zat_rep, file = "aggr_hclust_geo/calle_2_zat_rep.rds")
+
 zat_shape_sub <- calle_2_zat_rep %>% 
   pull(ZAT)
 
 # traffic flow (total trips) -----------
+zat_shapefile <- readRDS("ZAT/zat_shapefile.rds")
 total_trips <- readRDS("../data/zat_denom.rds")
 
 walk_transit <- total_trips %>% 
@@ -71,14 +116,34 @@ walk_transit_geo <- walk_transit %>%
 ggplot()+
   geom_sf(data = zat_shapefile %>% st_zm())+
   geom_sf(data = walk_transit_geo, aes(fill = flow))+
-  scale_fill_viridis_c()
+  scale_fill_viridis_c()+
+  ggtitle("Traffic Flow: Walking + Public Transit Trips")+
+  theme(
+    title = element_text(face = "bold", size = 10),
+    plot.title = element_text(hjust = 0.5)
+  )
 
 
 # population -----------------------------
 pop <- read_excel("../data/pop_zat.xlsx")
 
 zat_pop2021 <- pop %>% 
-  select(ZAT, POBD2021)
+  select(ZAT, POBD2021) %>% 
+  left_join(zat_shapefile, by = "ZAT") %>% 
+  filter(!st_is_empty(geometry)) %>%
+  st_as_sf() %>% 
+  st_zm()
+  
+
+ggplot()+
+  geom_sf(data = zat_shapefile %>% st_zm()) +
+  geom_sf(data = zat_pop2021, aes(fill = POBD2021))+
+  scale_fill_viridis_c()+
+  ggtitle("Population") +
+  theme(
+    title = element_text(face = "bold", size = 12),
+    plot.title = element_text(hjust = 0.5)
+  )
 
 # neighborhood distances -------------------------
 zat_shapefile <- readRDS("ZAT/zat_shapefile.rds")
@@ -119,6 +184,8 @@ dist_link <- get_distance_matrix(Graph=graph,
                                  from = unique(res$from), 
                                  to = unique(res$to))
 
+#dist_lin2.rds saved##
+
 # clustering --------------------
 ## cluster number ------------------
 D0 <- dist(calle_2_zat_rep)
@@ -134,6 +201,8 @@ legend("topright", legend = paste("cluster", 1:4),
        fill = 1:4, bty = "n", border = "white")
 
 ## spatial constrainst --------------------
+dist_link2 <- readRDS("aggr_hclust_geo/dist_link2.rds")
+
 D1 <- as.dist(dist_link2)
 
 range.alpha <- seq(0,1, 0.05)
@@ -142,14 +211,12 @@ k <- 4
 cr <- choicealpha(D0, D1, range.alpha, k, graph = FALSE)
 
 plot(cr)
-# 0.4
+# 0.25
 
-tree <- hclustgeo(D0, D1, alpha = 0.4)
+tree <- hclustgeo(D0, D1, alpha = 0.25)
 p4_nbdist <- cutree(tree, 4)
 
 # visualization ---------------
-library(ggplot2)
-library(patchwork)
 
 source("../functions/get_cluster.R")
 source("../functions/cluster_plot.R")
@@ -177,3 +244,6 @@ map <- ggplot()+
 # plot(calle2zat_geo$geometry, border = "grey", col  = p4_nbdist,
 #      main = "Partition p4_nb obtained with
 #          alpha=0.2 and neighborhood dissimilarities")
+
+saveRDS(calle2zat_clust, file = "aggr_hclust_geo/calle2zat_clust.rds")
+saveRDS(calle2zat_geo, file = "aggr_hclust_geo/calle2zat_geo.rds")
