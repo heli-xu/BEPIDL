@@ -297,7 +297,10 @@ plot(res[[1]])
 map2(n, colors, \(x, y) plot(res[[x]], col = y, xlim = c(-0.5, 1.2), add = T))
 legend("bottomright", legend = label, col = colors, lty = 1, cex =0.8)
 
-    
+# sensitivity/specificity -------------------    
+library(caret)
+
+a <- confusionMatrix(data = predict_gis_clean2$an_sign_traff_yn, reference = predict_gis_clean2$gis_road_signs_inv_yn, positive = "1")
 
 # na2 <- predict_gis %>% 
 #   filter(is.na(CodigoCL))
