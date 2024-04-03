@@ -217,13 +217,19 @@ predict_gis_clean2 <- predict_gis_clean %>%
   #   
   # )
 
+saveRDS(predict_gis_clean2, file = "MLdata_GIS/predict_gis_clean2.rds")
+
 #c(an_sign_traff-an_potholes, gis_trees, gis_bus_stops, gis_road_signs, gis_traffic_lights, gis_road_signs_inv, gis_stop_signs, gis_traffic_fines_tot, gis_lturn_sign, gis_bike_signs, gis_bus_signs, gis_pedxwalk_signs, gis_speed_bump_signs, gis_stop_signs2, gis_parking_signs, gis_school_zone_signs, gis_yield_signs, gis_total_st_signs, area_calle, grade, area_roadway, p_ancho_cl, area_median, area_sidewalk, brt_routes, bus_routes, speed_limit, num_lanes_total, num_lanes_avg, administra:total_gene)
 
 # correlation -------------------------
 predict_gis_cor <- predict_gis_clean2 %>% 
   select(c(an_sign_traff:an_potholes, gis_trees, gis_bus_stops, gis_road_signs, gis_traffic_lights, gis_road_signs_inv, gis_stop_signs, gis_traffic_fines_tot, gis_lturn_sign, gis_bike_signs, gis_bus_signs, gis_pedxwalk_signs, gis_speed_bump_signs, gis_stop_signs2, gis_parking_signs, gis_school_zone_signs, gis_yield_signs, gis_total_st_signs, area_calle, grade, area_roadway, p_ancho_cl, area_median, area_sidewalk, brt_routes, bus_routes, speed_limit, num_lanes_total, num_lanes_avg, administra:total_gene)) %>% 
-  cor() %>% 
-  as.data.frame()
+  cor()
+  
+predict_gis_cor[upper.tri(predict_gis_cor, diag = FALSE)] <- NA
+  
+predict_gis_cor <- predict_gis_cor %>% as.data.frame() %>% 
+  rownames_to_column()
 
 write_csv(predict_gis_cor, file = "MLdata_GIS/predict_gis_cor.csv")
 
