@@ -189,7 +189,11 @@ predict_gis_clean2 <- predict_gis_clean %>%
     )
   ) %>% 
   mutate(
-    across(ends_with("_yn"), ~factor(.))
+    across(c(gis_sw,
+             gis_bike_lane,
+             gis_any_bus,
+             gis_median,
+             ends_with("_yn")), ~factor(.))
   )
   # mutate(
   #   gis_median = case_when(
@@ -275,7 +279,7 @@ gis_variables <- c(
   "gis_bike_lane",
   "gis_any_bus",
   "gis_median",
-  "gis_speed_bump_signs",
+  "gis_speed_bump_signs_yn",#noted change
   "gis_trees_yn",
   "gis_bus_stops_yn",
   "gis_parking_signs_yn",
@@ -301,6 +305,13 @@ legend("bottomright", legend = label, col = colors, lty = 1, cex =0.8)
 library(caret)
 
 a <- confusionMatrix(data = predict_gis_clean2$an_sign_traff_yn, reference = predict_gis_clean2$gis_road_signs_inv_yn, positive = "1")
+
+a$overall #named vector
+
+sensitivity(data = predict_gis_clean2[["an_sign_traff_yn"]], reference = predict_gis_clean2$gis_road_signs_inv_yn, positive = "1")
+
+map2_dbl(an_variables, gis_variables,
+        \(x, y) sensitivity(data = factor(predict_gis_clean2[[x]]), reference = factor(predict_gis_clean2[[y]]), positive = "1"))
 
 # na2 <- predict_gis %>% 
 #   filter(is.na(CodigoCL))
