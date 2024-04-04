@@ -221,6 +221,9 @@ predict_gis_clean2 <- predict_gis_clean %>%
   #   
   # )
 
+predict_gis_clean2 <- predict_gis_clean2 %>% select(-join_count, -join_cou_1,
+                                                    -target_fid)
+
 saveRDS(predict_gis_clean2, file = "MLdata_GIS/predict_gis_clean2.rds")
 
 #c(an_sign_traff-an_potholes, gis_trees, gis_bus_stops, gis_road_signs, gis_traffic_lights, gis_road_signs_inv, gis_stop_signs, gis_traffic_fines_tot, gis_lturn_sign, gis_bike_signs, gis_bus_signs, gis_pedxwalk_signs, gis_speed_bump_signs, gis_stop_signs2, gis_parking_signs, gis_school_zone_signs, gis_yield_signs, gis_total_st_signs, area_calle, grade, area_roadway, p_ancho_cl, area_median, area_sidewalk, brt_routes, bus_routes, speed_limit, num_lanes_total, num_lanes_avg, administra:total_gene)
@@ -298,10 +301,10 @@ colors <- c("#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b",
             "#e377c2", "#7f7f7f", "#bcbd22", "#17becf", "#aec7e8", "#ffbb78", 
             "#98df8a", "#ff9896", "#c5b0d5", "#c49c94", "#f7b6d2", "#c98379")
 plot(res[[1]])
-map2(n, colors, \(x, y) plot(res[[x]], col = y, xlim = c(-0.5, 1.2), add = T))
-legend("bottomright", legend = label, col = colors, lty = 1, cex =0.8)
+map2(n, colors, \(x, y) plot(res[[x]], col = y, add = T))
+legend("bottomright", legend = label, col = colors, lty = 1, cex =0.8, text.font = 2)
 
-# sensitivity/specificity -------------------    
+# sensitivity/specificity/predValues -------------------    
 library(caret)
 
 a <- confusionMatrix(data = predict_gis_clean2$an_sign_traff_yn, reference = predict_gis_clean2$gis_road_signs_inv_yn, positive = "1")
@@ -310,9 +313,39 @@ a$overall #named vector
 
 sensitivity(data = predict_gis_clean2[["an_sign_traff_yn"]], reference = predict_gis_clean2$gis_road_signs_inv_yn, positive = "1")
 
-map2_dbl(an_variables, gis_variables,
-        \(x, y) sensitivity(data = factor(predict_gis_clean2[[x]]), reference = factor(predict_gis_clean2[[y]]), positive = "1"))
+sensitivity <- map2_dbl(
+  an_variables, gis_variables,
+  \(x, y) sensitivity(data = predict_gis_clean2[[x]], reference = predict_gis_clean2[[y]], 
+                      positive = "1")
+        )
 
+specificity <- map2_dbl(
+  an_variables, gis_variables,
+  \(x, y) specificity(data = predict_gis_clean2[[x]], reference = predict_gis_clean2[[y]], 
+                      positive = "1")
+)
+
+ppv <- map2_dbl(
+  an_variables, gis_variables,
+  \(x, y) posPredValue(data = predict_gis_clean2[[x]], reference = predict_gis_clean2[[y]], 
+                      positive = "1")
+)
+
+npv <- map2_dbl(
+  an_variables, gis_variables,
+  \(x, y) negPredValue(data = predict_gis_clean2[[x]], reference = predict_gis_clean2[[y]], 
+                       positive = "1")
+)
+
+
+df <- bind_cols("an_var" = an_variables, 
+                "gis_var"=gis_variables, 
+                "sensitivity" = sensitivity,
+                "specificity"=specificity, 
+                "ppv"=ppv, 
+                "npv"=npv)
+
+write_csv(df, file = "MLdata_GIS/sen_sp_predV.csv")
 # na2 <- predict_gis %>% 
 #   filter(is.na(CodigoCL))
 # #got data..check if can join to a street
