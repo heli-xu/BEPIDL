@@ -123,6 +123,7 @@ ggplot()+
     plot.title = element_text(hjust = 0.5)
   )
 
+saveRDS(walk_transit_geo, file = "aggr_hclust_geo/walk_transit_geo.rds")
 
 # population -----------------------------
 pop <- read_excel("../data/pop_zat.xlsx")
