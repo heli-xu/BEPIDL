@@ -217,9 +217,10 @@ zat_injury <- injury2 %>%
 base_map <- ggplot()+
   geom_sf(data = zat_shapefile %>% st_zm(), color = "grey")
 
+pal <- c("#225ea8","#41b6c4","#a1dab4","#fecb3e") 
 map_clust <- base_map +
   geom_sf(data = calle2zat_geo, aes(fill = factor(clus)))+
-  scale_fill_brewer(palette = "YlGnBu")+
+  scale_fill_manual(values = pal) +
   labs(
     fill = "Cluster"
   )+
