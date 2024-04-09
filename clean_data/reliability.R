@@ -12,11 +12,13 @@ predict_gis <- read.dbf("../data/MLdata_GIS/predictions_st_mv.dbf")
 
 canvas <- read_csv("../data/MLdata_GIS/Bogota_MeanValues_20230519.csv")
 
-annot <- fromJSON("../data/MLdata_GIS/annotators/test.json")
+annot <- fromJSON("../data/MLdata_GIS/test.json")
 
-z <- annot$annotations
+z <- annot$images
 
-annot2 <- fromJSON("../data/MLdata_GIS/annotators/train.json")
+annot2 <- fromJSON("../data/MLdata_GIS/train.json")
+annot3 <- fromJSON("../data/MLdata_GIS/val.json")
+
 
 calle_geo <- readRDS("calles/calle_shapefile.rds")
 
@@ -295,6 +297,7 @@ roc(predict_gis_clean2$gis_brt_yn, as.numeric(predict_gis_clean2$an_brt_statio_y
 res = map2(an_variables, gis_variables, 
      \(x, y) roc(predict_gis_clean2[[y]], as.numeric(predict_gis_clean2[[x]])))
 
+## ROC curve ----------------------------------------------------
 label <- str_sub(gis_variables, 5)
 n <- c(1:length(gis_variables))
 colors <- c("#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", 
@@ -304,7 +307,14 @@ plot(res[[1]])
 map2(n, colors, \(x, y) plot(res[[x]], col = y, add = T))
 legend("bottomright", legend = label, col = colors, lty = 1, cex =0.8, text.font = 2)
 
-# sensitivity/specificity/predValues -------------------    
+## AUC ---------------------------------------------------------
+a <- auc(predict_gis_clean2$gis_brt_yn, as.numeric(predict_gis_clean2$an_brt_statio_yn))
+#checking what format is output
+
+auc <- map2_dbl(an_variables, gis_variables, 
+           \(x, y) auc(predict_gis_clean2[[y]], as.numeric(predict_gis_clean2[[x]])))
+
+# sensitivity/specificity/predValues ---------------------------------------   
 library(caret)
 
 a <- confusionMatrix(data = predict_gis_clean2$an_sign_traff_yn, reference = predict_gis_clean2$gis_road_signs_inv_yn, positive = "1")
@@ -312,6 +322,11 @@ a <- confusionMatrix(data = predict_gis_clean2$an_sign_traff_yn, reference = pre
 a$overall #named vector
 
 sensitivity(data = predict_gis_clean2[["an_sign_traff_yn"]], reference = predict_gis_clean2$gis_road_signs_inv_yn, positive = "1")
+
+specificity(data = predict_gis_clean2[["an_sign_traff_yn"]], reference = predict_gis_clean2$gis_road_signs_inv_yn, negative = "0")
+
+negPredValue(data = predict_gis_clean2[["an_sign_traff_yn"]], reference = predict_gis_clean2$gis_road_signs_inv_yn, negative = "0")
+
 
 sensitivity <- map2_dbl(
   an_variables, gis_variables,
@@ -322,7 +337,7 @@ sensitivity <- map2_dbl(
 specificity <- map2_dbl(
   an_variables, gis_variables,
   \(x, y) specificity(data = predict_gis_clean2[[x]], reference = predict_gis_clean2[[y]], 
-                      positive = "1")
+                      negative = "0")
 )
 
 ppv <- map2_dbl(
@@ -334,18 +349,35 @@ ppv <- map2_dbl(
 npv <- map2_dbl(
   an_variables, gis_variables,
   \(x, y) negPredValue(data = predict_gis_clean2[[x]], reference = predict_gis_clean2[[y]], 
-                       positive = "1")
+                       negative = "0")
 )
 
+# kappa -------------------------------------
+library(epiR)
+#has to be a matrix using table()
+epi.kappa(table(predict_gis_clean2[["an_sign_traff_yn"]], predict_gis_clean2$gis_road_signs_inv_yn),
+          method = "cohen")
+#check against confusionMatrix() value
 
+
+kappa <- map2_dfr(
+  an_variables, gis_variables,
+  \(x, y) epi.kappa(table(predict_gis_clean2[[x]], predict_gis_clean2[[y]]), 
+                      method = "cohen") %>% pluck("kappa")
+)
+
+# summary table ----------------------
 df <- bind_cols("an_var" = an_variables, 
                 "gis_var"=gis_variables, 
                 "sensitivity" = sensitivity,
                 "specificity"=specificity, 
                 "ppv"=ppv, 
-                "npv"=npv)
+                "npv"=npv,
+                kappa,
+                "auc" = auc) %>% 
+  rename_with(~ paste0("kappa_", .x), est:upper)
 
-write_csv(df, file = "MLdata_GIS/sen_sp_predV.csv")
+write_csv(df, file = "MLdata_GIS/reliability.csv")
 # na2 <- predict_gis %>% 
 #   filter(is.na(CodigoCL))
 # #got data..check if can join to a street
