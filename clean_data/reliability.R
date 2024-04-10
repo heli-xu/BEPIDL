@@ -14,15 +14,6 @@ gis <- gis %>% st_drop_geometry()
 
 predict_gis <- read.dbf("../data/MLdata_GIS/predictions_st_mv.dbf")
 
-canvas <- read_csv("../data/MLdata_GIS/Bogota_MeanValues_20230519.csv")
-
-annot <- fromJSON("../data/MLdata_GIS/test.json")
-
-z <- annot$images
-
-annot2 <- fromJSON("../data/MLdata_GIS/train.json")
-annot3 <- fromJSON("../data/MLdata_GIS/val.json")
-
 
 calle_geo <- readRDS("calles/calle_shapefile.rds")
 #calle_shapefile <- calle_clean %>% select(CodigoCL, geometry)
@@ -355,6 +346,7 @@ df <- bind_cols("an_var" = an_variables,
   rename_with(~ paste0("kappa_", .x), est:upper)
 
 write_csv(df, file = "MLdata_GIS/reliability.csv")
+
 # na2 <- predict_gis %>% 
 #   filter(is.na(CodigoCL))
 # #got data..check if can join to a street
@@ -377,7 +369,7 @@ write_csv(df, file = "MLdata_GIS/reliability.csv")
 #   filter(is.na(CodigoCL))
 
 # training - GIS compare --------------------------------------------------
-#(same var names as section above, caution: will overwrite.)
+
 ## training data by calle ---------------------------------------
 training_sf <- st_as_sf(training, coords = c("Latitude", "Longitude"),  #googlemap use lat first, check on map see which is x, y
                         #confusing column names!!
@@ -473,6 +465,7 @@ gis_clean <- gis %>%
   ) %>% 
   drop_na(codigocl) 
 
+saveRDS(gis_clean, file = "MLdata_GIS/gis_clean.rds")
 
 ## join training data with gis ------------------------------------------
 
@@ -518,7 +511,7 @@ tr_gis_calle <- gis_clean %>%
 
 saveRDS(tr_gis_calle, file = "MLdata_GIS/tr_gis_calle.rds")
 
-## ROC ---------------------------------------------------
+## Reliability metrics ---------------------------------------------------
 #colnames(tr_calle)
 
 tr_variables <- c(
@@ -564,12 +557,13 @@ gis_variables <- c(
   "gis_brt_yn"
 )
 
+## ROC ----------------------
 roc(tr_gis_calle$gis_brt_yn, as.numeric(tr_gis_calle$tr_brt_station_yn))
 
 res = map2(tr_variables, gis_variables, 
            \(x, y) roc(tr_gis_calle[[y]], as.numeric(tr_gis_calle[[x]])))
 
-### Curve -----------
+### ROC Curve -----------
 label <- str_sub(gis_variables, 5)
 n <- c(1:length(gis_variables))
 colors <- c("#FF0000", "#FFA500", "#FFFF00", "#008000", "#00FF00", "#00FFFF", "#0000FF", "#800080", "#FFC0CB", "#FF69B4", "#8B4513", "#FFD700", "#00CED1", "#483D8B", "#32CD32", "#800000", "#800080", "#2E8B57")
@@ -580,78 +574,13 @@ legend("bottomright", legend = label, col = colors, lty = 1, cex =0.8, text.font
 title(main = "Training-GIS comparison", line = 3)
 
 
-### AUC --------------
-auc <- map2_dbl(tr_variables, gis_variables, 
-                \(x, y) auc(tr_gis_calle[[y]], as.numeric(tr_gis_calle[[x]])))
 
+## Summary table --------------------------------------
+source("../functions/reliability_table.R")
 
-## sensitivity ---------------------------------------   
-library(caret)
-
-sensitivity <- map2_dbl(
-  tr_variables, gis_variables,
-  \(x, y) sensitivity(data = tr_gis_calle[[x]], reference = tr_gis_calle[[y]], 
-                      positive = "1")
-)
-
-## specificity -------------------------------------------
-#note to set negative value instead of positive
-
-specificity <- map2_dbl(
-  tr_variables, gis_variables,
-  \(x, y) specificity(data = tr_gis_calle[[x]], reference = tr_gis_calle[[y]], 
-                      negative = "0")
-)
-
-## PPV --------------------------------------------------
-#set positive value 
-ppv <- map2_dbl(
-  tr_variables, gis_variables,
-  \(x, y) posPredValue(data = tr_gis_calle[[x]], reference = tr_gis_calle[[y]], 
-                       positive = "1")
-)
-
-## NPV --------------------------------------
-#set negative value
-
-npv <- map2_dbl(
-  tr_variables, gis_variables,
-  \(x, y) negPredValue(data = tr_gis_calle[[x]], reference = tr_gis_calle[[y]], 
-                       negative = "0")
-)
-
-## kappa -------------------------------------
-library(epiR)
-#has to be a matrix using table()
-epi.kappa(table(tr_gis_calle[["tr_sign_traffic_yn"]], tr_gis_calle$gis_road_signs_inv_yn),
-          method = "cohen")
-#check against confusionMatrix() value
-
-confusionMatrix(data = tr_gis_calle[["tr_sign_traffic_yn"]], reference = tr_gis_calle$gis_road_signs_inv_yn, positive = "1")
-
-kappa <- map2_dfr(
-  tr_variables, gis_variables,
-  \(x, y) epi.kappa(table(tr_gis_calle[[x]], tr_gis_calle[[y]]), 
-                    method = "cohen") %>% pluck("kappa")
-)
-
-## summary table ----------------------
-df <- bind_cols("an_var" = tr_variables, 
-                "gis_var"=gis_variables, 
-                "sensitivity" = sensitivity,
-                "specificity"=specificity, 
-                "ppv"=ppv, 
-                "npv"=npv,
-                kappa,
-                "auc" = auc) %>% 
-  rename_with(~ paste0("kappa_", .x), est:upper)
+df <- reliability_table(tr_variables, gis_variables, tr_gis_calle)
 
 write_csv(df, file = "MLdata_GIS/train_gis_reliability.csv")
-
-
-
-
-
 
 
 
