@@ -1,10 +1,9 @@
 library(tidyverse)
 library(readr)
-library(jsonlite)
 library(foreign)
 library(sf)
 library(leaflet)
-library(janitor)
+
 # import data --------------------------
 training <- read_csv("../data/MLdata_GIS/annotations.csv")
 

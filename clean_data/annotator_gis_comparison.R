@@ -7,21 +7,13 @@ library(leaflet)
 library(janitor)
 
 # import data -------------------------------------------------------------
-## canvas ------------------
-gis_clean <- readRDS("MLdata_GIS/gis_clean.rds")
-canvas <- read_csv("../data/MLdata_GIS/Bogota_MeanValues_20230519.csv")
 
-colnames(canvas)
-
-## annot.json -----------------------
 annot <- fromJSON("../data/MLdata_GIS/test.json")
 
 z <- annot$images
 
 annot2 <- fromJSON("../data/MLdata_GIS/train.json")
 annot3 <- fromJSON("../data/MLdata_GIS/val.json")
-
-#canvas_shp <- st_read("../data/Bogota_Sample_Availability/Bogota_Sample_Availability.shp")
 
 calle_geo <- readRDS("calles/calle_shapefile.rds")
 
