@@ -2,6 +2,7 @@ library(tidyverse)
 library(readr)
 library(sf)
 library(leaflet)
+library(sfheaders)
 
 # import data -------------------------------
 
@@ -35,11 +36,71 @@ canvas_clean <- canvas %>%
     across(-segment_id, ~if_else(. == 0, 0, 1))  #it takes one rater to make it yes
   ) 
 
-# join canvas segments to street------------------------------------------
+# make CANVAS linestring from coordinate pairs------------------------------
+canvas_coord  <- canvas %>% 
+  distinct(segment_id, .keep_all = TRUE) %>% 
+  select(segment_id,start_lat, start_lng, end_lat, end_lng) 
+  
+canvas_line <- canvas_coord %>% 
+  select(segment_id, lat = start_lat, lng = start_lng) %>% 
+  mutate(order = 1) %>% 
+  bind_rows(canvas_coord %>% 
+      select(segment_id, lat = end_lat, lng=end_lng) %>% 
+      mutate(order =2)) %>% 
+  group_by(segment_id) %>% 
+  arrange(order, .by_group = TRUE) %>% 
+  sf_linestring(x = "lng", y = "lat", linestring_id = "segment_id")
 
-# derive corresp. columns in gis_clean---------------------
-gis_clean2 <- gis_clean %>% 
-  right_join(tr_calle, by = "codigocl") %>% #check reference gis are not NA
+canvas_sf <- canvas_clean %>% 
+  left_join(canvas_line, by = "segment_id") %>% 
+  st_as_sf(crs = 4326)
+
+leaflet() %>% 
+  addTiles() %>% 
+  addPolylines(
+    data = canvas_sf %>%
+      st_transform(crs = st_crs("+proj=longlat +datum=WGS84")),
+    weight = 2, fillColor = 'blue', color = 'blue')
+  # addPolygons(
+  #   data = pr_gis_geo %>% 
+  #     st_transform(crs = st_crs("+proj=longlat +datum=WGS84")), 
+  #   weight = 2,
+  #   fillColor = 'purple', color = 'purple') 
+
+# Join CANVAS to calle----------------------------------------
+sf_use_s2(FALSE)
+calle_geo <- readRDS(file = "calles/calle_shapefile.rds")
+
+##line to polygon, a bit more tricky (st_within doesn't work)
+calle_canvas_sf <- canvas_sf %>% 
+  st_transform(crs = st_crs(calle_geo)) %>% 
+  st_join(calle_geo,
+    join= st_intersects, largest = TRUE) %>% 
+  #NOTE the order of sf object in st_join() also matters here with 'largest' arg.
+  drop_na(CodigoCL) %>% 
+  st_drop_geometry() %>% 
+  left_join(calle_geo, by = "CodigoCL") %>% 
+  st_as_sf()
+
+leaflet() %>% 
+  addTiles() %>% 
+  addPolylines(
+    data = canvas_sf %>%
+      st_transform(crs = st_crs("+proj=longlat +datum=WGS84")),
+    weight = 2, fillColor = 'blue', color = 'blue') %>% 
+  addPolygons(
+    data = calle_canvas_sf %>%
+      st_transform(crs = st_crs("+proj=longlat +datum=WGS84")),
+    weight = 2,
+    fillColor = 'purple', color = 'purple')
+
+calle_canvas <- calle_canvas_sf %>% 
+  st_drop_geometry() %>% 
+  rename(codigocl = CodigoCL)
+
+# Join with gis_clean and derive -----------------------------------
+canvas_gis <- gis_clean %>% 
+  right_join(calle_canvas, by = "codigocl") %>% #check reference gis are not NA
   #drop_na(tr_Potholes)
   mutate(
     gis_median = if_else(area_median > 0, 1, 0),
@@ -55,7 +116,7 @@ gis_clean2 <- gis_clean %>%
     gis_ped_br = if_else(gis_ped_bridge == "Peatonal", 1, 0, missing = 0)
   ) %>% 
   mutate(
-    across(c(tr_sign_traffic:tr_potholes, gis_trees, gis_bus_stops, 
+    across(c(gis_trees, gis_bus_stops, 
       gis_road_signs, gis_traffic_lights, gis_road_signs_inv, 
       gis_stop_signs, gis_traffic_fines_tot, gis_lturn_sign, 
       gis_bike_signs, gis_bus_signs, gis_pedxwalk_signs, 
@@ -64,11 +125,7 @@ gis_clean2 <- gis_clean %>%
       ~if_else(.>0, 1, 0, missing = 0), .names = "{.col}_yn")
   ) %>% 
   mutate(
-    any_ped = if_else(si_act_pea >0, 1, 0),
-    tr_pedxwalk_yn = if_else(tr_sign_crossing_yn == 1 | tr_crosswalk_yn == 1, 
-      #tr_pedestrian_light not included (not sure if an_pedestrian is relavant)
-      true = 1, 
-      false = 0)
+    any_ped = if_else(si_act_pea >0, 1, 0)
   ) %>% 
   mutate(
     across(c(gis_sw,
@@ -77,3 +134,4 @@ gis_clean2 <- gis_clean %>%
       gis_median,
       ends_with("_yn")), ~factor(.))
   )
+
