@@ -1,0 +1,83 @@
+---
+title: "Diagnostic Evaluation of an AI Model for Built Environment Features"
+subtitle: "Part 1: Comparing annotators' reports, AI training data and predictions with GIS data"
+author: "Heli Xu"
+image: thumbnail-multimatch.jpg
+date: 4/17/24
+format: 
+  html:
+    code-fold: true
+    toc: true
+    toc-depth: 4
+    self-contained: true
+editor: visual
+---
+
+This post is to document the process of the (preliminary) assessments of the reliability of the AI model for built environment (BE) features, by comparing different data sources of BE features at the street level. Here, we are testing the reliability of training data for the AI model, model-based predictions and annotators' reports, using GIS data or as reference; In another post, we are also testing the GIS/training/prediction/reports data against Computer Assisted Neighborhood Visual Assessment System (CANVAS) data, which is considered a gold standard for BE data collection.
+
+::: callout-tip
+## Note
+
+In contrast to the AI testing and validation process, BE features data from different sources are aggregated to the street level for comparison.
+:::
+
+```{r setup, warning=FALSE, message=FALSE}
+library(dplyr)
+library(sf)
+library(readr)
+library(reactable)
+```
+
+## GIS - Training data
+
+The code related to this part (and the next part) of the work is stored in \`train_predict_gis_comparison.R\`, and linked [here](https://github.com/heli-xu/BEPIDL/blob/main/clean_data/train_predict_gis_comparison.R).
+
+### Data cleaning
+
+#### - Training data
+
+Raw data file is located at `Data/Bogota/Annotations/2024_02_12/annotations.csv`. Using the latitude and longitude columns, we can construct the coordinates and join that to the street (calle) level (point to polygons, with `st_within`). On a side note, there are 343 unmatched data points that are outside of the calle polygons (shown below).
+
+![](images/unmatched_training.jpg)
+
+After spatially joining the training data to the street level, we can group by the street ID (`CodigoCL`) and sum up the counts for each street. For distinguishing variables about similar features between sources, we are adding "tr\_" to all the variables from training data.
+
+#### - GIS data
+
+The raw data for GIS data is the `Calle_datos/` shapefiles, or the `STREET_LEVEL.xlsx` with updated column names (that match the codebook).
+
+Most of the cleaning is renaming the columns for easier understanding (following the styles by Alex's Stata code), with an additional prefix of "gis\_".
+
+#### - Join and Derive
+
+Last, we are joining the training and GIS data by street IDs, and generate binary variables based on street-level counts (1 if counts \>0, 0 if otherwise). Most of the binary columns will have a suffix of "\_yn", with the following exceptions (these are also binary variables): `gis_sw`, `gis_bike_lane`, `gis_any_bus` and `gis_median`. Notably, some binary variables may be used to derive additional binary variables. For example, `tr_pedxwalk_yn` is set as 1 if either `tr_sign_crossing_yn` or `tr_crosswalk_yn` is 1.
+
+### Reliability Metrics
+
+Given that locations of data points vary from different sources, the aggregated street-level counts may not be compatible for comparison. Here we are only comparing the binary variables of equivalent/similar features, including traffic signs, traffic lights, crosswalk, stop signs, yield signs, school zone signs, sidewalks, bike lanes, bus lanes, medians, speed bumps, trees, bus stops, parked vehicles, parking lanes, and BRT stations. For quick reference, below shows the summary table of the reliability metrics, and the ROC curves.
+
+```{r, echo = FALSE}
+#| tbl-cap: "Reliability metrics comparing training data vs GIS data"
+sticky_style <- list(backgroundColor = "#f7f7f7")
+
+train_gis <- read_csv("../../../../clean_data/MLdata_GIS_CANVAS/train_gis_reliability.csv")
+
+train_gis %>% reactable(
+  columns = list(
+    var = colDef(
+      sticky = "left",
+      style = sticky_style,
+      headerStyle = sticky_style
+    ),
+    var_reference = colDef(
+      sticky = "left",
+      style = sticky_style,
+      headerStyle = sticky_style
+    )
+  ),
+  defaultPageSize = 18,
+  resizable = TRUE,
+  bordered = TRUE,
+  wrap = FALSE
+)
+```
