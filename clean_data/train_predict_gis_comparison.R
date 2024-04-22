@@ -258,13 +258,16 @@ res = map2(an_variables, gis_variables,
 ### ROC curve ----------------------------------------------------
 label <- str_sub(gis_variables, 5)
 n <- c(1:length(gis_variables))
-colors <- c("#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", 
-            "#e377c2", "#7f7f7f", "#bcbd22", "#17becf", "#aec7e8", "#ffbb78", 
+colors <- c("#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b",
+            "#e377c2", "#7f7f7f", "#bcbd22", "#17becf", "#aec7e8", "#ffbb78",
             "#98df8a", "#ff9896", "#c5b0d5", "#c49c94", "#f7b6d2", "#c98379")
+
+
+colors <- c("#800000", "#d62728","#FF69B4", "#f7b6d2", "#9c27b0", "#673ab7", "#6c579d","#3f51b5", "#0000FF", "#2196f3", "#03a9f4", "#00bcd4", "#009688", "#008000", "#8bc34a", "#ffc107", "#ff9800", "#ff5722")
 
 plot(res[[1]])
 map2(n, colors, \(x, y) plot(res[[x]], col = y, add = T))
-legend("bottomright", legend = label, col = colors, lty = 1, cex =0.8, text.font = 2, bty ="n")
+legend("bottomright", legend = label, col = colors, lty = 1, lwd = 3, cex =0.8, text.font = 2, bty = "n")
 title("Prediction-GIS comparison", line = 3)
 
 ### AUC ---------------------------------------------------------
@@ -344,7 +347,11 @@ df <- bind_cols("an_var" = an_variables,
                 "auc" = auc) %>% 
   rename_with(~ paste0("kappa_", .x), est:upper)
 
-write_csv(df, file = "MLdata_GIS/reliability.csv")
+
+df <- reliability_table(an_variables, gis_variables, predict_gis_clean2)
+
+write_csv(df, file = "MLdata_GIS_CANVAS/gis_predict_reliability.csv")
+
 
 # na2 <- predict_gis %>% 
 #   filter(is.na(CodigoCL))
@@ -565,11 +572,14 @@ res = map2(tr_variables, gis_variables,
 ### ROC Curve -----------
 label <- str_sub(gis_variables, 5)
 n <- c(1:length(gis_variables))
-colors <- c("#FF0000", "#FFA500", "#FFFF00", "#008000", "#00FF00", "#00FFFF", "#0000FF", "#800080", "#FFC0CB", "#FF69B4", "#8B4513", "#FFD700", "#00CED1", "#483D8B", "#32CD32", "#800000", "#800080", "#2E8B57")
+# colors <- c("#FF0000", "#FFA500", "#FF6347", "#008000", "#00FF00", "#00FFFF", "#0000FF", "#800080", "#FFC0CB", "#FF69B4", "#8B4513", "#FFD700", "#00CED1", "#483D8B", "#32CD32", "#800000", "#800080", "#2E8B57")
+#https://colorswall.com/palette/
+
+colors <- c("#800000", "#d62728","#FF69B4", "#f7b6d2", "#9c27b0", "#673ab7", "#6c579d","#3f51b5", "#0000FF", "#2196f3", "#03a9f4", "#00bcd4", "#009688", "#008000", "#8bc34a", "#ffc107", "#ff9800", "#ff5722")
 
 plot(res[[1]])
 map2(n, colors, \(x, y) plot(res[[x]], col = y, add = T))
-legend("bottomright", legend = label, col = colors, lty = 1, cex =0.8, text.font = 2, bty = "n")
+legend("bottomright", legend = label, col = colors, lty = 1, lwd = 3, cex =0.8, text.font = 2, bty = "n")
 title(main = "Training-GIS comparison", line = 3)
 
 
