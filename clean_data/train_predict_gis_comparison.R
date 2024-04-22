@@ -594,30 +594,43 @@ write_csv(df, file = "MLdata_GIS/train_gis_reliability.csv")
 
 
 # overlap in predict and training ---------------
-tr_pr_gis_calle <- pr_gis_calle %>% 
-  left_join(tr_calle, by = "CodigoCL") %>% 
-  drop_na()
+tr_pr_gis_calle <- predict_gis_clean2 %>% 
+  select(codigocl, gis_sw) %>% 
+  left_join(tr_calle, by = "codigocl") %>% 
+  drop_na() %>% 
 #945 street 
+  left_join(calle_geo, by = c("codigocl" = "CodigoCL")) %>% 
+  st_as_sf()
 
 tr_calle_geo <- tr_calle %>% 
+  rename(CodigoCL = codigocl) %>% 
   left_join(calle_geo, by = "CodigoCL") %>% 
   st_as_sf() %>% 
-  select(CodigoCL, tr_Sidewalk, geometry)
+  select(CodigoCL, tr_sidewalk, geometry)
 
-pr_gis_geo <- pr_gis_calle %>% 
-  select(CodigoCL, pr_Sidewalk, gis_sidewalk) %>% 
+pr_gis_geo <- predict_gis_clean2 %>% 
+  select(CodigoCL = codigocl, an_sidewalk, gis_sw) %>% 
   left_join(calle_geo, by = "CodigoCL") %>% 
   st_as_sf()
 
 leaflet() %>% 
-  addTiles() %>% 
-  addPolygons(
-    data = tr_calle_geo %>%
-      st_transform(crs = st_crs("+proj=longlat +datum=WGS84")),
-    weight = 2, fillColor = 'blue', color = 'blue') %>% 
+  addProviderTiles(providers$CartoDB.Positron) %>% 
   addPolygons(
     data = pr_gis_geo %>% 
       st_transform(crs = st_crs("+proj=longlat +datum=WGS84")), 
-    weight = 2,
-    fillColor = 'purple', color = 'purple') 
+    weight = 3,
+    fillColor = 'orange', color = 'orange', fillOpacity = 0.8) %>% 
+  addPolygons(
+    data = tr_calle_geo %>%
+      st_transform(crs = st_crs("+proj=longlat +datum=WGS84")),
+    weight = 2, fillColor = 'blue', color = 'blue', fillOpacity = 0.4)
+  
 
+
+leaflet() %>% 
+  addTiles() %>% 
+  addPolygons(
+    data = tr_pr_gis_calle %>% 
+      st_transform(crs = st_crs("+proj=longlat +datum=WGS84")),
+    weight = 2, fillColor = "red", color = "red")
+  )
