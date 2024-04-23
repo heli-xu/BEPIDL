@@ -263,11 +263,13 @@ res <- map2(js_variables, gis_variables,
 label <- str_sub(gis_variables, 5)
 
 n <- c(1:length(gis_variables))
-colors <- c("#FF0000", "#FFA500", "#FFFF00", "#008000", "#00FF00", "#00FFFF", "#0000FF", "#800080", "#FFC0CB", "#FF69B4", "#8B4513", "#FFD700", "#00CED1", "#483D8B", "#32CD32", "#800000", "#800080", "#2E8B57")
+# colors <- c("#FF0000", "#FFA500", "#FFFF00", "#008000", "#00FF00", "#00FFFF", "#0000FF", "#800080", "#FFC0CB", "#FF69B4", "#8B4513", "#FFD700", "#00CED1", "#483D8B", "#32CD32", "#800000", "#800080", "#2E8B57")
+
+colors <- c("#800000", "#d62728","#FF69B4", "#f7b6d2", "#9c27b0", "#673ab7", "#6c579d","#3f51b5", "#0000FF", "#2196f3", "#03a9f4", "#00bcd4", "#009688", "#008000", "#8bc34a", "#ffc107", "#ff9800", "#ff5722")
 
 plot(res[[1]])
 map2(n, colors, \(x, y) plot(res[[x]], col = y, add = T))
-legend("bottomright", legend = label, col = colors, lty = 1, cex =0.8, text.font = 2, bty = "n")
+legend("bottomright", legend = label, col = colors, lty = 1, lwd = 3, cex =0.8, text.font = 2, bty = "n")
 title(main = "Annotator-GIS comparison", line = 3)
 
 
