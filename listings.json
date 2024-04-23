@@ -2,6 +2,7 @@
   {
     "listing": "/index.html",
     "items": [
+      "/posts/canvas_all_compare/canvas_all_compare.html",
       "/posts/gis_all_compare/gis_all_compare.html",
       "/posts/calle2zat_hclust_geo/calle2zat_hclust_geo.html",
       "/posts/zat_hclust_geo/zat_hclust_geo.html",
