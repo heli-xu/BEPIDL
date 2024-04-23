@@ -1,0 +1,195 @@
+---
+title: "Diagnostic Evaluation of an AI Model for Built Environment Features"
+subtitle: "Part 2: Comparing GIS, AI training data and predictions with CANVAS data"
+author: "Heli Xu"
+image: images/canvas_predict_ROC.jpg
+date: 4/22/24
+format: 
+  html:
+    code-fold: true
+    toc: true
+    toc-depth: 4
+    self-contained: true
+editor: visual
+---
+
+As another post to document the process of the (preliminary) assessments of the reliability of the AI model for built environment (BE) features, here, we are comparing the training data for the AI model, model-based predictions and GIS data against Computer Assisted Neighborhood Visual Assessment System (CANVAS) data, which is considered a gold standard for BE data collection.
+
+The code related to this post is stored in `canvas_all_comparison.R`, and linked [here](https://github.com/heli-xu/BEPIDL/blob/main/clean_data/canvas_all_comparison.R).
+
+::: callout-tip
+## Note
+
+In contrast to the AI testing and validation process, BE features data from different sources are aggregated to the street level for comparison.
+:::
+
+```{r setup, warning=FALSE, message=FALSE}
+library(dplyr)
+library(sf)
+library(readr)
+library(reactable)
+library(leaflet)
+```
+
+## 1. CANVAS - GIS data
+
+### Data cleaning
+
+#### CANVAS data
+
+Raw data file is located at `Data/Bogota/CANVAS/Bogota_AllRaters_20230519.csv`. The format and variable names are different from training/prediction data, and the geometry of the data is street segments (lines).
+
+There are 382 streets with valid inputs (1 street all NAs), and some of the streets are annotated by multiple raters. The reason we are using "AllRaters" file instead of the "MeanValues" file is because some of the variables contain numbers representing categories that need to be evaluated separately.
+
+Based on the manual for CANVAS annotation, we are selecting the relevant variables to compare with the GIS data, including `veg_tree`, `str_med`, `str_tcont`, `str_tcont`, `str_tcont`, `str_scont`, `str_cwalk`, `str_blane`, `str_mod`, `swalk_pres`, `trans_blane`.
+
+For details regarding the canvas variables and their range, please see `canvas_variables.xlsx` in `annotation_compare_hx/` folder.
+
+#### Join CANVAS with GIS 
+
+Since the CANVAS data is in street segments, we'll join the line geometry to the street polygons where there are largest overlapping. Below shows the map of the street segments from CANVAS (blue) and the street that each segment is assigned to (purple).
+
+```{r, echo= FALSE}
+canvas_sf <- readRDS("../../../../clean_data/MLdata_GIS_CANVAS/canvas_sf.rds")
+
+calle_canvas_sf <- readRDS("../../../../clean_data/MLdata_GIS_CANVAS/calle_canvas_sf.rds")
+
+leaflet() %>% 
+  addProviderTiles(provider = "CartoDB.Positron") %>% 
+  addPolylines(
+    data = canvas_sf %>%
+      st_transform(crs = st_crs("+proj=longlat +datum=WGS84")),
+    weight = 2, fillColor = 'blue', color = 'blue') %>% 
+  addPolygons(
+    data = calle_canvas_sf %>%
+      st_transform(crs = st_crs("+proj=longlat +datum=WGS84")),
+    weight = 2,
+    fillColor = 'purple', color = 'purple')
+```
+
+After joining to street level, we follow the same procedure to rename and derive the columns:
+
+-   Prefix "can\_" for CANVAS data, prefix "gis\_" for GIS data.
+
+-   Suffix "\_yn" for binary variables.
+
+The total street count is 350.
+
+### Reliability Metrics
+
+```{r, echo=FALSE, message=FALSE}
+#| fig-cap: "Reliability metrics comparing GIS data vs CANVAS data"
+
+sticky_style <- list(backgroundColor = "#f7f7f7")
+
+gis_canvas <- read_csv("../../../../clean_data/MLdata_GIS_CANVAS/canvas_gis_reliability.csv")
+
+gis_canvas %>% reactable(
+  columns = list(
+    var = colDef(
+      sticky = "left",
+      style = sticky_style,
+      headerStyle = sticky_style
+    ),
+    var_reference = colDef(
+      sticky = "left",
+      style = sticky_style,
+      headerStyle = sticky_style
+    )
+  ),
+  theme = reactableTheme(color = "#002b36"),
+  defaultPageSize = 18,
+  resizable = TRUE,
+  bordered = TRUE,
+  wrap = FALSE
+)
+
+```
+
+![ROC curves of GIS vs CANVAS data](images/canvas_gis_ROC.jpg)
+
+There are fewer variable pairs, because not all the features are available in CANVAS data. Among these comparisons, traffic lights, sidewalks, bike lanes, medians, trees and transit lanes show better agreement between GIS and CANVAS data.
+
+## 2. CANVAS - Training data
+
+### Data cleaning
+
+Here, we use the training data aggregated to street level to join with CANVAS data by street IDs (`CodigoCL`). We only end up with 69 streets, but we'll still check the agreement between these two data sources. We'll use the prefix "tr\_" for training data, prefix "can\_" for CANVAS data, and suffix "\_yn" for binary columns.
+
+### Reliability Metrics
+
+```{r, echo=FALSE, message=FALSE}
+#| fig-cap: "Reliability metrics comparing Training data vs CANVAS data"
+
+sticky_style <- list(backgroundColor = "#f7f7f7")
+
+train_canvas <- read_csv("../../../../clean_data/MLdata_GIS_CANVAS/canvas_train_reliability.csv")
+
+train_canvas %>% reactable(
+  columns = list(
+    var = colDef(
+      sticky = "left",
+      style = sticky_style,
+      headerStyle = sticky_style
+    ),
+    var_reference = colDef(
+      sticky = "left",
+      style = sticky_style,
+      headerStyle = sticky_style
+    )
+  ),
+  theme = reactableTheme(color = "#002b36"),
+  defaultPageSize = 18,
+  resizable = TRUE,
+  bordered = TRUE,
+  wrap = FALSE
+)
+```
+
+![ROC curves of training vs CANVAS data](images/canvas_train_ROC.jpg)
+
+Some of these metrics turned out a bit surprising, perhaps due to the small number of streets and street segments not completely positioning in the street polygons. But many features (7 out of 10) show fair to substantial agreement between training and CANVAS data, including traffic lights, crosswalks, bike lanes, transit lanes, speed bumps and trees.
+
+## 3. CANVAS - Prediction data
+
+### Data cleaning
+
+Similarly, we are joining the prediction and CANVAS data by the street IDs after they are aggregated/matched to street level. The resulting street count is 85, and we're using prefix "an\_" for prediction data, prefix "can\_" for CANVAS data, and suffix "\_yn" for derived binary columns.
+
+### Reliability Metrics
+
+```{r, echo=FALSE, message=FALSE}
+#| fig-cap: "Reliability metrics comparing Prediction data vs CANVAS data"
+
+sticky_style <- list(backgroundColor = "#f7f7f7")
+
+predict_canvas <- read_csv("../../../../clean_data/MLdata_GIS_CANVAS/canvas_predict_reliability.csv")
+
+predict_canvas %>% reactable(
+  columns = list(
+    var = colDef(
+      sticky = "left",
+      style = sticky_style,
+      headerStyle = sticky_style
+    ),
+    var_reference = colDef(
+      sticky = "left",
+      style = sticky_style,
+      headerStyle = sticky_style
+    )
+  ),
+  theme = reactableTheme(color = "#002b36"),
+  defaultPageSize = 18,
+  resizable = TRUE,
+  bordered = TRUE,
+  wrap = FALSE
+)
+```
+
+![ROC curves of prediction vs CANVAS data](images/canvas_predict_ROC.jpg)
+
+8 out of 10 features included here show fair to moderate agreement between prediction and CANVAS data, including traffic lights, school signs, sidewalks, bike lanes, transit lanes, medians, speed bumps and trees.
+
+In summary, despite a smaller street number and fewer variable pairs for comparison, several features show reasonable agreement across GIS, training and prediction data when compared against CANVAS data, including traffic lights, sidewalks, bike lanes, medians, trees and transit lanes.
+
+Interestingly, training and prediction data have better agreement with CANVAS data than GIS data, with almost all of them showing kappa estimate \> 0.2. The variables with inconsistent agreement between training and prediction data (crosswalks, school signs, sidewalks) may have to do with the street/point location, whereas stop signs are the only features that don't seem to align well between CANVAS and other sources.
