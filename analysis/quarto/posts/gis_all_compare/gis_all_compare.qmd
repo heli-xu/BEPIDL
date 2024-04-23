@@ -2,7 +2,7 @@
 title: "Diagnostic Evaluation of an AI Model for Built Environment Features"
 subtitle: "Part 1: Comparing annotators' reports, AI training data and predictions with GIS data"
 author: "Heli Xu"
-image: thumbnail-multimatch.jpg
+image: images/Training-GIS_ROC_color_updated.jpg
 date: 4/17/24
 format: 
   html:
@@ -28,9 +28,9 @@ library(readr)
 library(reactable)
 ```
 
-## GIS - Training data
+## 1. GIS - Training data
 
-The code related to this part (and the next part) of the work is stored in \`train_predict_gis_comparison.R\`, and linked [here](https://github.com/heli-xu/BEPIDL/blob/main/clean_data/train_predict_gis_comparison.R).
+The code related to this part (and the next part) of the work is stored in `train_predict_gis_comparison.R`, and linked [here](https://github.com/heli-xu/BEPIDL/blob/main/clean_data/train_predict_gis_comparison.R). Alex has a Stata code for GIS-prediction comparison (discussed in the next section), and the R scripts here are following a similar workflow and naming fashion.
 
 ### Data cleaning
 
@@ -52,12 +52,15 @@ Most of the cleaning is renaming the columns for easier understanding (following
 
 Last, we are joining the training and GIS data by street IDs, and generate binary variables based on street-level counts (1 if counts \>0, 0 if otherwise). Most of the binary columns will have a suffix of "\_yn", with the following exceptions (these are also binary variables): `gis_sw`, `gis_bike_lane`, `gis_any_bus` and `gis_median`. Notably, some binary variables may be used to derive additional binary variables. For example, `tr_pedxwalk_yn` is set as 1 if either `tr_sign_crossing_yn` or `tr_crosswalk_yn` is 1.
 
+Total street count is 8132.
+
 ### Reliability Metrics
 
 Given that locations of data points vary from different sources, the aggregated street-level counts may not be compatible for comparison. Here we are only comparing the binary variables of equivalent/similar features, including traffic signs, traffic lights, crosswalk, stop signs, yield signs, school zone signs, sidewalks, bike lanes, bus lanes, medians, speed bumps, trees, bus stops, parked vehicles, parking lanes, and BRT stations. For quick reference, below shows the summary table of the reliability metrics, and the ROC curves.
 
-```{r, echo = FALSE}
-#| tbl-cap: "Reliability metrics comparing training data vs GIS data"
+```{r, echo = FALSE, message=FALSE}
+#| fig-cap: "Reliability metrics comparing training data vs GIS data"
+
 sticky_style <- list(backgroundColor = "#f7f7f7")
 
 train_gis <- read_csv("../../../../clean_data/MLdata_GIS_CANVAS/train_gis_reliability.csv")
@@ -75,9 +78,124 @@ train_gis %>% reactable(
       headerStyle = sticky_style
     )
   ),
+  theme = reactableTheme(color = "#002b36"),
   defaultPageSize = 18,
   resizable = TRUE,
   bordered = TRUE,
   wrap = FALSE
 )
 ```
+
+![ROC curves of training vs GIS data](images/Training-GIS_ROC_color_updated.jpg){width="688"}
+
+Overall, traffic lights, medians, sidewalks, trees, bus and BRT stops seem to have higher agreement between training and GIS data.
+
+## 2. GIS - Prediction data
+
+The code related to this part (and the previous part) of the work is stored in `train_predict_gis_comparison.R`, and linked [here](https://github.com/heli-xu/BEPIDL/blob/main/clean_data/train_predict_gis_comparison.R).
+
+### Data cleaning
+
+Alex completed joining the prediction and GIS data (with SES level and road types) at the street level (`Data/Bogota/Annotations/2024_02_12/predictions_st_mv.dbf`), so we'll use that to perform further processing:
+
+-   rename the columns: prefix "an\_" for prediction data, prefix "gis\_" for GIS data.
+
+-   derive the binary columns.
+
+With NAs removed in street id, total street count is 7332.
+
+### Reliability Metrics
+
+```{r, echo=FALSE, message=FALSE}
+#| fig-cap: "Reliability metrics comparing prediction data vs GIS data"
+
+sticky_style <- list(backgroundColor = "#f7f7f7")
+
+predict_gis <- read_csv("../../../../clean_data/MLdata_GIS_CANVAS/gis_predict_reliability.csv")
+
+predict_gis %>% reactable(
+  columns = list(
+    var = colDef(
+      sticky = "left",
+      style = sticky_style,
+      headerStyle = sticky_style
+    ),
+    var_reference = colDef(
+      sticky = "left",
+      style = sticky_style,
+      headerStyle = sticky_style
+    )
+  ),
+  theme = reactableTheme(color = "#002b36"),
+  defaultPageSize = 18,
+  resizable = TRUE,
+  bordered = TRUE,
+  wrap = FALSE
+)
+
+```
+
+![ROC curves of prediction vs GIS data](images/Prediction-GIS_ROC_color_updated.jpg)
+
+Traffic lights, sidewalks, median, trees, bus and BRT stops remain to have relatively high agreement between prediction and GIS data. In addition, bike lanes also showed much higher agreement in prediction-GIS comparison than training-GIS comparison.
+
+## \*Spatial Overlap between Training and Prediction
+
+In the image below, prediction data is shown in orange, while training data is shown in blue. The slightly darker shade of blue indicates the streets that are present in both training and prediction data aggregated to street level (\~1000 streets).
+
+![](images/train-predict-overlap.jpg)
+
+## 3. GIS - Annotators
+
+The code related to this part of the work is stored in `annotator_gis_comparison.R`, and linked [here](https://github.com/heli-xu/BEPIDL/blob/main/clean_data/annotator_gis_comparison.R).
+
+### Data cleaning
+
+These are another set of data from human annotators stored in .json format (in `Bogota/Annotations/Annotations_2023_04_23/` folder). Each json contains a list of lists/tables (as shown below for `test.json`), and the more important and relevant information for us are the coordinates in the image file names (in red rectangle), the categories of the annotation (orange underlined: IDs and names) and the actual annotations. We'll match the category name to the annotations by category id, match the image coordinates to the annotations by image id, combine the three json files (`test.json`, `train.json` and `eval.json`) together, and use the coordinates to join the point data to street level.
+
+![](images/clipboard-3039831679.png)
+
+Last, we'll join GIS data by street IDs and rename/derive the columns.
+
+-   Rename: prefix "js\_" for annotators' report, "gis\_" for GIS data.
+
+-   Binary variables.
+
+Total street count is 9178.
+
+### Reliability Metrics
+
+```{r, echo=FALSE, message=FALSE}
+#| fig-cap: "Reliability metrics comparing annotation data vs GIS data"
+
+sticky_style <- list(backgroundColor = "#f7f7f7")
+
+predict_gis <- read_csv("../../../../clean_data/MLdata_GIS_CANVAS/annotator_gis_reliability.csv")
+
+predict_gis %>% reactable(
+  columns = list(
+    var = colDef(
+      sticky = "left",
+      style = sticky_style,
+      headerStyle = sticky_style
+    ),
+    var_reference = colDef(
+      sticky = "left",
+      style = sticky_style,
+      headerStyle = sticky_style
+    )
+  ),
+  theme = reactableTheme(color = "#002b36"),
+  defaultPageSize = 18,
+  resizable = TRUE,
+  bordered = TRUE,
+  wrap = FALSE
+)
+
+```
+
+![ROC curves of annotators' vs GIS data](images/Annotators-GIS_ROC_color_updated.jpg)
+
+Consistently, traffic lights, sidewalks, medians, bike lanes, trees, bus and BRT stops show better agreement between annotators' data and GIS data.
+
+In summary, compared with GIS data, several features have fair to substantial agreement across training, prediction and annotators' data, including traffic lights, sidewalks, medians, trees and bus and BRT stops (potentially bike lanes).
