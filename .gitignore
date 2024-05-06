@@ -63,3 +63,5 @@ clean_data/MLdata_GIS/gis_clean.rds
 clean_data/MLdata_GIS_CANVAS/calle_canvas_sf.rds
 clean_data/SES/ses_calle500m.rds
 clean_data/SES/wt_mean_ses_calle_500m.csv
+clean_data/SES/wt_mean_ses_calle_100m.csv
+clean_data/SES/ses_calle100m.rds

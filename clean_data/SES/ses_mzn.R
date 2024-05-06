@@ -14,15 +14,9 @@ ses_level <- ses %>%
 
 calle_geo <- readRDS("../../clean_data/calles/calle_shapefile.rds")
 
-## (not necessary) MGN not only for bogota------------
-bb <- st_bbox(calle_geo)
-
-bogota_ses <- ses_level %>% 
-  st_transform(crs = st_crs(calle_geo)) %>% 
-  st_filter(st_as_sfc(bb), .predicate = st_within)
 
 
-# create buffer ------------------------------
+# 1. Create 500m buffer ------------------------------
 st_crs(calle_geo)$units #m
 st_crs(ses_level)$units #null
 
@@ -46,7 +40,15 @@ buffer500m <- st_buffer(calle_geo, dist = 500, endCapStyle = "SQUARE", joinStyle
 #        col = c("blue", "red", "green", "orange"), lty = 1, cex = 0.8)
 # 
 
-# EDA: how buffer looks like -----------------
+# 1.1 EDA -----------------
+## filter MGN for bogota only ------------
+bb <- st_bbox(calle_geo)
+
+bogota_ses <- ses_level %>% 
+  st_transform(crs = st_crs(calle_geo)) %>% 
+  st_filter(st_as_sfc(bb), .predicate = st_within)
+
+## how buffer looks--------------------------
 leaflet() %>% 
   addTiles() %>% 
   addPolygons(
@@ -59,9 +61,7 @@ leaflet() %>%
       st_transform(crs = st_crs("+proj=longlat +datum=WGS84")),
     fillColor = "navy")
 
-
-
-#EDA: how buffer intersects with blocks------------------------
+## how buffer intersects with blocks------------------------
 leaflet() %>% 
   addTiles() %>% 
   addPolygons(
@@ -81,9 +81,9 @@ leaflet() %>%
   )
 
 
-# join buffer with blocks (ses)-----------------------------------
+# 1.2 Join buffer with blocks (ses)-----------------------------------
 
-# try one --but we actually need st_join() instead
+# try one for map--but we actually need st_join() instead
 filter_g1 <- st_filter(ses_level %>%
                          st_transform(crs = st_crs(buffer500m)),
                        buffer500m$geometry[1],
@@ -143,7 +143,7 @@ leaflet() %>%
     fillColor = "blue", fillOpacity = 0.5, color = "blue"
   )
 
-
+# 1.3 Sum SES-specific households in each street ------------------
 ses_calle500m <- ses_buffer %>% 
   st_drop_geometry() %>% 
   drop_na(CodigoCL) %>% #remember!
@@ -164,7 +164,7 @@ check <- ses_calle500m %>%
   mutate(total = rowSums(pick(percent_TP19_EE_E1:percent_TP19_EE_E6))) %>% 
   select(CodigoCL, TP19_EE_E9, total_household, total)
 
-# weighted mean for street-level SES ------------------------------------
+# 1.4 Weighted mean for street-level SES ------------------------------------
 wt_mean_ses <- ses_calle500m %>% 
   mutate(wt_mean = (percent_TP19_EE_E1*1 + percent_TP19_EE_E2*2 + percent_TP19_EE_E3*3 + percent_TP19_EE_E4*4 + percent_TP19_EE_E5*5 + percent_TP19_EE_E6*6)/100) %>% 
   drop_na(wt_mean) %>% 
@@ -188,7 +188,7 @@ wt_mean_ses_geo <- wt_mean_ses %>%
   left_join(calle_geo, by = "CodigoCL") %>% 
   st_as_sf()
 
-# Visualize ----------
+# 1.5 Visualize ----------
 pal <- colorFactor(
   palette = c("orange","navy"),
   domain = wt_mean_ses_geo$ses_cat
@@ -224,3 +224,119 @@ wt_mean_ses_geo %>%
             values = ~ses_cat,
             title = "Average SES Level",
             opacity = 1)
+
+# 2. Create 100m buffer ----------------
+buffer100m <- st_buffer(calle_geo, dist = 100, endCapStyle = "SQUARE", joinStyle = "BEVEL")
+
+# 2.1 Map blocks, street, buffer -------------------------------------
+filter_100m <- st_filter(ses_level %>%
+    st_transform(crs = st_crs(buffer100m)),
+  buffer100m$geometry[1],
+  .predicate = st_intersects)
+
+leaflet() %>% 
+  addTiles() %>% 
+  addPolygons(
+    data = filter_100m %>%
+      st_transform(crs = st_crs("+proj=longlat +datum=WGS84")),
+    fillColor = "blue", fillOpacity = 0.5, color = "blue"
+  ) %>%
+  addPolygons(
+    data = buffer100m[1,] %>%
+      st_transform(crs = st_crs("+proj=longlat +datum=WGS84")),
+    fillColor = "orange", color = "orange", fillOpacity = 0.6
+  )  %>% 
+  addPolygons(
+    data = calle_geo[1,] %>% 
+      st_transform(crs = st_crs("+proj=longlat +datum=WGS84")),
+    fillColor = "purple", color = "purple", fillOpacity = 1
+  )
+
+# 
+ses_buffer100 <- ses_level %>%
+  st_transform(crs = st_crs(buffer100m)) %>% 
+  st_join(buffer100m, .predicate = st_intersects)
+
+na2 <- ses_buffer %>% 
+  st_drop_geometry() %>% 
+  filter(is.na(CodigoCL))
+# same NA as before - out of bogota
+
+
+# 2.2 Sum SES-specific households in each street ------------------
+ses_calle100m <- ses_buffer100 %>% 
+  st_drop_geometry() %>% 
+  drop_na(CodigoCL) %>% #remember!
+  group_by(CodigoCL) %>% 
+  summarise(across(TP19_EE_E1:TP19_EE_E9, ~sum(.x), .names = "{.col}"), .groups = "drop") %>% 
+  #  rowwise(CodigoCL) %>% 
+  mutate(
+    total_household = rowSums(pick(TP19_EE_E1:TP19_EE_E9)),  #faster than rowwise
+    #ungroup() %>% 
+    across(TP19_EE_E1:TP19_EE_E6, ~ (.x/total_household)*100, .names = "percent_{.col}")
+  ) 
+
+ses_calle100m %>% filter(is.na(CodigoCL))  # no NA
+
+saveRDS(ses_calle100m, file = "ses_calle100m.rds")
+
+
+# 2.3 weighted mean for street-level SES ------------------------------------
+wt_mean_ses2 <- ses_calle100m %>% 
+  mutate(wt_mean = (percent_TP19_EE_E1*1 + percent_TP19_EE_E2*2 + percent_TP19_EE_E3*3 + percent_TP19_EE_E4*4 + percent_TP19_EE_E5*5 + percent_TP19_EE_E6*6)/100) %>% 
+  drop_na(wt_mean) %>% 
+  mutate(
+    ses_cat = case_when(
+      wt_mean %in% c(1.5, 2.5, 3.5, 4.5, 5.5) ~ ceiling(wt_mean),
+      .default = round(wt_mean, 0)
+    ),
+    ses_cat = factor(ses_cat)
+  )
+
+levels(wt_mean_ses2$ses_cat) #make sure it's 6 levels
+
+
+write_csv(wt_mean_ses2, file = "wt_mean_ses_calle_100m.csv")
+
+
+# 2.4 Visualize ------------------------------
+wt_mean_ses_geo2 <- wt_mean_ses2 %>% 
+  left_join(calle_geo, by = "CodigoCL") %>% 
+  st_as_sf()
+
+pal2 <- colorFactor(
+  palette = c("orange","navy"),
+  domain = wt_mean_ses_geo2$ses_cat
+)
+
+label2 <- glue("{wt_mean_ses_geo2$CodigoCL} Weighted average SES level: {wt_mean_ses_geo2$ses_cat}")
+
+
+wt_mean_ses_geo2 %>%
+  st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>%
+  leaflet() %>%
+  addProviderTiles(providers$CartoDB.Positron)  %>%
+  addPolygons(color = ~pal(ses_cat), 
+    weight = 1,
+    smoothFactor = 0.5,
+    opacity = 1,
+    fillColor = ~pal(ses_cat),
+    fillOpacity = 0.8,
+    highlightOptions = highlightOptions(
+      weight = 5,
+      color = "#666",
+      fillOpacity = 0.8,
+      bringToFront = TRUE),
+    label = label,
+    labelOptions = labelOptions(
+      style = list(
+        "font-family" = "Fira Sans, sans-serif",
+        "font-size" = "1.2em"
+      ))
+  ) %>% 
+  addLegend("bottomleft",
+    pal = pal,
+    values = ~ses_cat,
+    title = "Average SES Level",
+    opacity = 1)
+
