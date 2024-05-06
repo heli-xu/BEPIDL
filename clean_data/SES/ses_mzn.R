@@ -75,7 +75,7 @@ leaflet() %>%
     fillColor = "purple", color = "purple"
   ) %>%
   addPolygons(
-    data = bogota_ses[1:200,] %>% 
+    data = bogota_ses[600:800,] %>% 
       st_transform(crs = st_crs("+proj=longlat +datum=WGS84")),
     fillColor = "blue", fillOpacity = 0.6
   )
@@ -83,9 +83,9 @@ leaflet() %>%
 
 # join buffer with blocks (ses)-----------------------------------
 
-## try one --------
+# try one --but we actually need st_join() instead
 filter_g1 <- st_filter(ses_level %>%
-                         st_transform(crs = st_crs(buffer500m)), 
+                         st_transform(crs = st_crs(buffer500m)),
                        buffer500m$geometry[1],
                        .predicate = st_intersects)
 
@@ -120,23 +120,33 @@ leaflet() %>%
 
 ## instead, use st_join() --------
 #which one comes first doesn't matter, below is a little bit faster
-#will turn out to be 16mil rows....
+#will turn out to be 13mil rows....
 #in case some edges blocks get cut off, we'll use orginial to join, 
 #'bout the same time
 ses_buffer <- ses_level %>%
   st_transform(crs = st_crs(buffer500m)) %>% 
-  st_filter(buffer500m, .predicate = st_intersects)
+  st_join(buffer500m, .predicate = st_intersects)
 
-ses_buffer %>% 
+na <- ses_buffer %>% 
   st_drop_geometry() %>% 
   filter(is.na(CodigoCL))
 # a bunch of NAs, but remember we used ses_level to join, and anything outside of bogota will not have any intersection!
 
+## Check NAs in map --not in bogota  -------------
+leaflet() %>% 
+  addTiles() %>% 
+  addPolygons(
+    data = ses_level %>%
+      filter(COD_DANE_A %in% na$COD_DANE_A) %>% 
+      st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>% 
+      head(1000),
+    fillColor = "blue", fillOpacity = 0.5, color = "blue"
+  )
 
-  filter(CodigoCL = )
 
 ses_calle500m <- ses_buffer %>% 
   st_drop_geometry() %>% 
+  drop_na(CodigoCL) %>% #remember!
   group_by(CodigoCL) %>% 
   summarise(across(TP19_EE_E1:TP19_EE_E9, ~sum(.x), .names = "{.col}"), .groups = "drop") %>% 
 #  rowwise(CodigoCL) %>% 
@@ -144,45 +154,58 @@ ses_calle500m <- ses_buffer %>%
     total_household = rowSums(pick(TP19_EE_E1:TP19_EE_E9)),  #faster than rowwise
   #ungroup() %>% 
     across(TP19_EE_E1:TP19_EE_E6, ~ (.x/total_household)*100, .names = "percent_{.col}")
-  )
+  ) 
+  
+ses_calle500m %>% filter(is.na(CodigoCL))
 
-saveRDS(ses_calle2, file = "ses_calle500m.rds")
+saveRDS(ses_calle500m, file = "ses_calle500m.rds")
 
-check <- ses_calle2 %>% 
+check <- ses_calle500m %>% 
   mutate(total = rowSums(pick(percent_TP19_EE_E1:percent_TP19_EE_E6))) %>% 
   select(CodigoCL, TP19_EE_E9, total_household, total)
 
 # weighted mean for street-level SES ------------------------------------
-wt_mean_ses <- ses_calle2 %>% 
+wt_mean_ses <- ses_calle500m %>% 
   mutate(wt_mean = (percent_TP19_EE_E1*1 + percent_TP19_EE_E2*2 + percent_TP19_EE_E3*3 + percent_TP19_EE_E4*4 + percent_TP19_EE_E5*5 + percent_TP19_EE_E6*6)/100) %>% 
-  drop_na(wt_mean) 
+  drop_na(wt_mean) %>% 
+  mutate(
+    ses_cat = case_when(
+      wt_mean %in% c(1.5, 2.5, 3.5, 4.5, 5.5) ~ ceiling(wt_mean),
+      .default = round(wt_mean, 0)
+    ),
+    ses_cat = factor(ses_cat)
+  )
+
 #realized there's 1 street of NA, where all values are 0
 #wt_mean_ses %>% filter(is.na(wt_mean))
+    
+levels(wt_mean_ses$ses_cat) #make sure it's 6 levels
 
-write_csv(wt_mean_ses, file = "wt_mean_ses_calle.csv")
+
+write_csv(wt_mean_ses, file = "wt_mean_ses_calle_500m.csv")
 
 wt_mean_ses_geo <- wt_mean_ses %>% 
   left_join(calle_geo, by = "CodigoCL") %>% 
   st_as_sf()
 
 # Visualize ----------
-pal <- colorNumeric(
+pal <- colorFactor(
   palette = c("orange","navy"),
-  domain = wt_mean_ses_geo$wt_mean
+  domain = wt_mean_ses_geo$ses_cat
 )
 
-label <- glue("{wt_mean_ses_geo$CodigoCL} Weighted average SES level: {wt_mean_ses_geo$wt_mean}")
+label <- glue("{wt_mean_ses_geo$CodigoCL} Weighted average SES level: {wt_mean_ses_geo$ses_cat}")
 
 
 wt_mean_ses_geo %>%
   st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>%
   leaflet() %>%
   addProviderTiles(providers$CartoDB.Positron)  %>%
-  addPolygons(color = ~pal(wt_mean), 
+  addPolygons(color = ~pal(ses_cat), 
               weight = 1,
               smoothFactor = 0.5,
               opacity = 1,
-              fillColor = ~pal(wt_mean),
+              fillColor = ~pal(ses_cat),
               fillOpacity = 0.8,
               highlightOptions = highlightOptions(
                 weight = 5,
@@ -198,6 +221,6 @@ wt_mean_ses_geo %>%
   ) %>% 
   addLegend("bottomleft",
             pal = pal,
-            values = ~wt_mean,
+            values = ~ses_cat,
             title = "Average SES Level",
             opacity = 1)
