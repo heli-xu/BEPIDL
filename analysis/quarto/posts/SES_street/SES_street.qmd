@@ -1,0 +1,92 @@
+---
+title: "Summarizing Street-specific SES Level from Block-level Data"
+author: "Heli Xu"
+image: images/block-500mbuffer-street.jpg
+date: 5/6/24
+format: 
+  html:
+    code-fold: true
+    toc: true
+    toc-depth: 4
+    self-contained: true
+editor: visual
+---
+
+One of the goals in the project is to assess the relationship of socioeconomic status (SES) with pedestrian collisions at the street level. While the street-level collision data is available, the SES data is at the block (manzana) level, and this post describes the process of summarizing SES to the street level.
+
+The code used to generate the maps is linked [here](https://github.com/heli-xu/BEPIDL/blob/main/clean_data/SES/ses_mzn.R) and table outputs are shared with Alex on Onedrive (`Analysis_output_HX2024/SES_street/`).
+
+```{r setup, warning=FALSE, message=FALSE}
+library(dplyr)
+library(sf)
+library(readr)
+library(reactable)
+```
+
+## 1. SES with 500m buffer
+
+### 1.1 Raw data
+
+Raw data is located at `Bogota/Censo/SHP_MGN2018_INTGRD_MANZ/` in shapefiles format, and includes many variables at the manzana level across Colombia (dictionary included in the folder). For our purposes, we are selecting the following variables related to SES level:
+
+![](images/clipboard-1367493005.png)
+
+### 1.2 Join street-buffer with blocks
+
+Since blocks are not directly intersecting with streets, we'll first create buffers around the streets and use the blocks that are intersecting with the buffers to summarize SES for the streets. First, we'll set the buffer range as 500m, where the borders of the street segment will be extended 500m. Next, we can match each street (buffer) with the intersecting blocks.
+
+To visualize what the buffer looks like with the corresponding streets and blocks, we'll map one street (in purple), its buffer (in orange) and the intersecting blocks (in blue):
+
+![](images/block-500mbuffer-street.jpg)
+
+### 1.3 Summarize street-level average SES
+
+After establishing the relationship between the street-buffer and the intersecting blocks, we can sum the SES-specific and total household counts for all the blocks in each street, followed by calculating the percent of households in each SES category (from `E1` to `E6`, with `E9` being unknown).
+
+At this point, we have the percent of households in each SES category in the blocks associating with each street. Using weighted mean of the SES level, we can obtained a street-level SES (`wt_mean`). Since the SES level is a categorical variable, we'll round the weighted mean (`ses_cat`) to the nearest integer, with 0.5 rounded up.
+
+The resulting table looks like this (first 10 rows):
+
+```{r, echo=FALSE, message=FALSE}
+#| fig-cap: "Street-level average SES with 500m buffer"
+ses_calle500m <- read_csv("../../../../clean_data/SES/wt_mean_ses_calle_500m.csv")
+
+sticky_style <- list(backgroundColor = "#f7f7f7")
+
+ses_calle500m %>% 
+  head(10) %>% 
+  reactable(
+  columns = list(
+    CodigoCL = colDef(
+      sticky = "left",
+      style = sticky_style,
+      headerStyle = sticky_style
+    )
+  ),
+  theme = reactableTheme(color = "#002b36"),
+  defaultPageSize = 18,
+  resizable = TRUE,
+  bordered = TRUE,
+  wrap = FALSE
+)
+```
+
+### 1.4 Visualize street-level average SES (500m buffer)
+
+Here is a map of the summarized SES at the street level, with 6 being the highest SES level and 1 being the lowest.
+
+![](images/ses_street_500mbuffer.jpg)
+
+# 2. SES with 100m buffer
+
+Using the same data, we'll replicate the process with another range of buffer – 100m – and examine the SES of the immediate surroundings of each street.
+
+In this case, we can image that each street would have fewer intersecting blocks, and here is a glimpse of a street (in purple), its buffer (in orange) and the intersecting blocks (in blue):
+
+![](images/block-100mbuffer-street.jpg)
+
+After summing up the SES-specific households in all the blocks for each street and calculating the percent of households within each SES category at the street level, we can take the weighted mean and obtain the average SES level with the 100m street buffer. To visualize the result in a map:
+
+![](images/ses_street_100mbuffer.jpg)
+
+In summary, the overall pattern of street-level average SES is similar between the two ranges of street buffering and in general consistent with our understanding of Bogotá.
