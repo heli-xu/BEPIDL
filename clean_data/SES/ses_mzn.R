@@ -182,6 +182,8 @@ wt_mean_ses <- ses_calle500m %>%
 levels(wt_mean_ses$ses_cat) #make sure it's 6 levels
 
 
+saveRDS(wt_mean_ses, file = "ses_calle500m.rds")
+
 write_csv(wt_mean_ses, file = "wt_mean_ses_calle_500m.csv")
 
 wt_mean_ses_geo <- wt_mean_ses %>% 
@@ -278,8 +280,6 @@ ses_calle100m <- ses_buffer100 %>%
 
 ses_calle100m %>% filter(is.na(CodigoCL))  # no NA
 
-saveRDS(ses_calle100m, file = "ses_calle100m.rds")
-
 
 # 2.3 weighted mean for street-level SES ------------------------------------
 wt_mean_ses2 <- ses_calle100m %>% 
@@ -295,6 +295,7 @@ wt_mean_ses2 <- ses_calle100m %>%
 
 levels(wt_mean_ses2$ses_cat) #make sure it's 6 levels
 
+saveRDS(wt_mean_ses2, file = "ses_calle100m.rds")
 
 write_csv(wt_mean_ses2, file = "wt_mean_ses_calle_100m.csv")
 
