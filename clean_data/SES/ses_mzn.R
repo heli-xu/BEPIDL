@@ -254,18 +254,18 @@ leaflet() %>%
     fillColor = "purple", color = "purple", fillOpacity = 1
   )
 
-# 
+# 2.2 Join buffer with blocks------------------------------
 ses_buffer100 <- ses_level %>%
   st_transform(crs = st_crs(buffer100m)) %>% 
   st_join(buffer100m, .predicate = st_intersects)
 
-na2 <- ses_buffer %>% 
+na2 <- ses_buffer100 %>% 
   st_drop_geometry() %>% 
   filter(is.na(CodigoCL))
 # same NA as before - out of bogota
 
 
-# 2.2 Sum SES-specific households in each street ------------------
+# 2.3 Sum SES-specific households in each street ------------------
 ses_calle100m <- ses_buffer100 %>% 
   st_drop_geometry() %>% 
   drop_na(CodigoCL) %>% #remember!
@@ -281,7 +281,7 @@ ses_calle100m <- ses_buffer100 %>%
 ses_calle100m %>% filter(is.na(CodigoCL))  # no NA
 
 
-# 2.3 weighted mean for street-level SES ------------------------------------
+# 2.4 weighted mean for street-level SES ------------------------------------
 wt_mean_ses2 <- ses_calle100m %>% 
   mutate(wt_mean = (percent_TP19_EE_E1*1 + percent_TP19_EE_E2*2 + percent_TP19_EE_E3*3 + percent_TP19_EE_E4*4 + percent_TP19_EE_E5*5 + percent_TP19_EE_E6*6)/100) %>% 
   drop_na(wt_mean) %>% 
@@ -300,7 +300,7 @@ saveRDS(wt_mean_ses2, file = "ses_calle100m.rds")
 write_csv(wt_mean_ses2, file = "wt_mean_ses_calle_100m.csv")
 
 
-# 2.4 Visualize ------------------------------
+# 2.5 Visualize ------------------------------
 wt_mean_ses_geo2 <- wt_mean_ses2 %>% 
   left_join(calle_geo, by = "CodigoCL") %>% 
   st_as_sf()
@@ -317,18 +317,18 @@ wt_mean_ses_geo2 %>%
   st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>%
   leaflet() %>%
   addProviderTiles(providers$CartoDB.Positron)  %>%
-  addPolygons(color = ~pal(ses_cat), 
+  addPolygons(color = ~pal2(ses_cat), 
     weight = 1,
     smoothFactor = 0.5,
     opacity = 1,
-    fillColor = ~pal(ses_cat),
+    fillColor = ~pal2(ses_cat),
     fillOpacity = 0.8,
     highlightOptions = highlightOptions(
       weight = 5,
       color = "#666",
       fillOpacity = 0.8,
       bringToFront = TRUE),
-    label = label,
+    label = label2,
     labelOptions = labelOptions(
       style = list(
         "font-family" = "Fira Sans, sans-serif",
@@ -336,8 +336,16 @@ wt_mean_ses_geo2 %>%
       ))
   ) %>% 
   addLegend("bottomleft",
-    pal = pal,
+    pal = pal2,
     values = ~ses_cat,
     title = "Average SES Level",
     opacity = 1)
 
+# Check ses diff between 100m and 500m-----
+#use ses_calle100m.rds and ses_calle500m.rds
+diff <- ses_calle100m %>% 
+  dplyr::select(CodigoCL, wt_mean100 = wt_mean) %>% 
+  left_join(ses_calle500m %>% 
+      dplyr::select(CodigoCL, wt_mean500 = wt_mean),
+    by= "CodigoCL") %>% 
+  mutate(diff = wt_mean100/wt_mean500)
