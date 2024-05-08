@@ -5,6 +5,7 @@ library(sf)
 a <- st_read("../../data/siniestros2015-2019.gdb/")
 
 a2 <- a %>% 
-  filter(CLASE_ACC == "ATROPELLO")
+  filter(CLASE_ACC == "ATROPELLO",
+         ANO_OCURRENCIA_ACC %in% c(2015:2019))
 
 saveRDS(a2, "../GitHub/BEPIDL/data/atropello_point_sf.rds")
