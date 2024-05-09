@@ -23,7 +23,8 @@ st_crs(zat_xy)
 
 ped_zat <- ped %>% 
   st_transform(crs = st_crs(zat_xy)) %>% 
-  st_join(zat_xy, .predicate = st_within)
+  st_join(zat_xy, .predicate = st_within) %>% 
+  drop_na(ZAT) #30ish NA
 
 ## Map of point in ZAT ----------------------------
 label <- glue::glue("Collision point matched to ZAT{ped_zat$ZAT}")
@@ -57,10 +58,10 @@ ped_zat_df2 <- ped_zat_df %>%
   group_by(ZAT, GRAVEDAD) %>% 
   summarise(count = sum(count), .groups = "drop") %>%
   pivot_wider(id_cols = ZAT, names_from = GRAVEDAD, values_from = count) %>% 
-  mutate(across(everything(), ~replace_na(., 0))) %>% 
   rename(injury = "CON HERIDOS",
     death = "CON MUERTOS",
     damage = "SOLO DANOS") %>% 
+  mutate(across(injury:damage, ~replace_na(., 0))) %>% 
   mutate(total = injury + death + damage)
 
 saveRDS(ped_zat_df2, file = "collision_zat_df.rds")
