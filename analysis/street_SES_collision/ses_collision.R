@@ -24,10 +24,12 @@ distr_stat <- function(data, unit, group){
     dplyr::select({{unit}},{{group}}) %>% 
     count({{group}}) %>% 
     ungroup() %>% 
-    pivot_wider(names_from = {{group}}, values_from = n) %>% 
-    mutate(total = rowSums(.)) %>% 
-    pivot_longer(cols = -total, names_to = "group", values_to = "n") %>% 
-    mutate(percent = (n/total)*100)
+    mutate(total = nrow(data), #as long as no NA rows
+      percent = (n/total)*100)
+    # pivot_wider(names_from = {{group}}, values_from = n) %>% 
+    # mutate(total = rowSums(.)) %>% 
+    # pivot_longer(cols = -total, names_to = "group", values_to = "n") %>% 
+    # mutate(percent = (n/total)*100)
 }
 
 # check it works
@@ -54,7 +56,7 @@ summary(fit100)
 
 fit100_df <- tidy(fit100) %>% 
   mutate(buffer_m = 100, 
-    group = case_match(
+    ses_cat = case_match(
       term,
       "(Intercept)" ~ "6",
       "ses_cat_r5" ~ "5",
@@ -63,9 +65,9 @@ fit100_df <- tidy(fit100) %>%
       "ses_cat_r2" ~ "2",
       "ses_cat_r1" ~ "1"
     )) %>% 
-  left_join(ses_100, by = "group") %>% 
-  dplyr::select(group:percent, estimate:buffer_m) %>% 
-  rename(ses_level = group,
+  left_join(ses_100, by = "ses_cat") %>% 
+  dplyr::select(ses_cat:percent, estimate:buffer_m) %>% 
+  rename(ses_level = ses_cat,
     percent_street = percent)
   
 
