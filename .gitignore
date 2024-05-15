@@ -49,6 +49,7 @@ po/*~
 rsconnect/
 
 # other folders/files
+.DS_Store
 data/
 reading/
 *_files/
