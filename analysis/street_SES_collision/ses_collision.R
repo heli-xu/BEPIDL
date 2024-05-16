@@ -19,9 +19,9 @@ ses_100 <- ses_calle100m %>%
   pivot_longer(cols = -total_hs, names_to = "ses_cat", values_to = "count") %>% 
   mutate(percent = (count/total_hs)*100)
 
-distr_stat <- function(data, unit, group){
+distr_stat <- function(data, id, group){
   data %>% 
-    dplyr::select({{unit}},{{group}}) %>% 
+    dplyr::select({{id}},{{group}}) %>% 
     count({{group}}) %>% 
     ungroup() %>% 
     mutate(total = nrow(data), #as long as no NA rows
