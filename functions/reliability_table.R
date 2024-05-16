@@ -49,7 +49,7 @@ reliability_table <- function(var, var_ref, data){
   
   kappa <- map2_dfr(
     var, var_ref,
-    \(x, y) epi.kappa(table(data[[x]], data[[y]]), 
+    \(x, y) epi.kappa(apply(table(data[[x]], data[[y]]), c(1,2), as.numeric),
                       method = "cohen") %>% pluck("kappa")
   )
   
