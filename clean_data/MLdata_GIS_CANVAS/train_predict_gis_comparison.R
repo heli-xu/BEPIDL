@@ -377,7 +377,8 @@ write_csv(df, file = "MLdata_GIS_CANVAS/gis_predict_reliability.csv")
 # training - GIS compare --------------------------------------------------
 
 ## training data by calle ---------------------------------------
-training_sf <- st_as_sf(training, coords = c("Latitude", "Longitude"),  #googlemap use lat first, check on map see which is x, y
+training_sf <- st_as_sf(training, coords = c("Latitude", "Longitude"),  
+                        #googlemap use lat first, check on map see which is x, y
                         #confusing column names!!
                         crs = st_crs(4326)) 
 ##very important, it's geographical coordinates code EPSG 4326 (WGS84)

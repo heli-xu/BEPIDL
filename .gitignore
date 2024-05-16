@@ -67,3 +67,4 @@ clean_data/SES/wt_mean_ses_calle_500m.csv
 clean_data/SES/wt_mean_ses_calle_100m.csv
 clean_data/SES/ses_calle100m.rds
 /analysis/quarto/posts/SES_street/images
+analysis/prediction_reliability/predict_gis_calle.rds
