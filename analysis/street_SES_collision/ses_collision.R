@@ -3,13 +3,16 @@ library(sf)
 library(MASS)
 library(broom)
 
-# import data ----------------------------
+# 0.import data ----------------------------
+#collision
 calle_df <- readRDS("../../clean_data/calles/calle_df.rds")
+calle_df %>% filter(is.na(si_act_pea))
 
+#ses
 ses_calle100m <- readRDS("../../clean_data/SES/ses_calle100m.rds")
 ses_calle500m <- readRDS("../../clean_data/SES/ses_calle500m.rds")
 
-# SES distribution ----------------------------
+# 1.SES distribution ----------------------------
 ses_100 <- ses_calle100m %>% 
   dplyr::select(CodigoCL, ses_cat) %>% 
   count(ses_cat) %>% 
@@ -37,7 +40,7 @@ ses_100 <- distr_stat(ses_calle100m, CodigoCL, ses_cat)
 
 ses_500 <- distr_stat(ses_calle500m, CodigoCL, ses_cat)
   
-# SES~ped collision -------------------------------
+# 2. SES~ped collision -------------------------------
 ## 100m buffer------------------------------------
 calle_ped100 <- calle_df %>% 
   dplyr::select(CodigoCL, ped_inc = si_act_pea) %>% 
@@ -46,6 +49,8 @@ calle_ped100 <- calle_df %>%
       dplyr::select(CodigoCL, ses_cat),
     by = "CodigoCL"
       ) %>% 
+ # filter(is.na(ses_cat)) 150 NAs
+  drop_na(ses_cat) %>% 
   #use ses6 as reference
   mutate(ses_cat_r = factor(ses_cat, levels = rev(levels(ses_cat)))) 
 
@@ -54,7 +59,7 @@ levels(calle_ped100$ses_cat_r)
 fit100 <- glm.nb(ped_inc ~ ses_cat_r, data = calle_ped100)
 summary(fit100)
 
-fit100_df <- tidy(fit100) %>% 
+fit100_df <- tidy(fit100, conf.int = TRUE, exponentiate = TRUE) %>% 
   mutate(buffer_m = 100, 
     ses_cat = case_match(
       term,
@@ -65,10 +70,7 @@ fit100_df <- tidy(fit100) %>%
       "ses_cat_r2" ~ "2",
       "ses_cat_r1" ~ "1"
     )) %>% 
-  left_join(ses_100, by = "ses_cat") %>% 
-  dplyr::select(ses_cat:percent, estimate:buffer_m) %>% 
-  rename(ses_level = ses_cat,
-    percent_street = percent)
+  left_join(ses_100, by = "ses_cat") 
   
 
 ## 500m buffer--------------------------------------------
@@ -79,15 +81,17 @@ calle_ped500 <- calle_df %>%
       dplyr::select(CodigoCL, ses_cat),
     by = "CodigoCL"
   ) %>% 
+  #filter(is.na(ses_cat))
+  drop_na(ses_cat) %>% 
   #use ses6 as reference
   mutate(ses_cat_r = factor(ses_cat, levels = rev(levels(ses_cat))))
 
 fit500 <- glm.nb(ped_inc ~ ses_cat_r, data = calle_ped500)
 summary(fit500)
 
-fit500_df <- tidy(fit500) %>% 
+fit500_df <- tidy(fit500, conf.int = TRUE, exponentiate = TRUE) %>% 
   mutate(buffer_m = 500,
-    group = case_match(
+    ses_cat = case_match(
       term,
       "(Intercept)" ~ "6",
       "ses_cat_r5" ~ "5",
@@ -96,11 +100,18 @@ fit500_df <- tidy(fit500) %>%
       "ses_cat_r2" ~ "2",
       "ses_cat_r1" ~ "1"
     )) %>% 
-  left_join(ses_500, by = "group") %>% 
-  dplyr::select(group:percent, estimate:buffer_m) %>% 
-  rename(ses_level = group,
-    percent_street = percent)
+  left_join(ses_500, by = "ses_cat")
 
-total_df <- bind_rows(fit100_df, fit500_df)
+## summarise RR-----------------
+total_df <- bind_rows(fit100_df, fit500_df) %>% 
+  mutate(
+    RR_95CI = paste0(round(estimate,2)," (", round(conf.low,2), ",", round(conf.high, 2), ")"),
+    predictor = paste0("ses_", ses_cat)
+  ) %>% 
+  dplyr::select(
+    predictor, n, total, 
+    percent_street = percent, 
+    RR_95CI, p.value, buffer_m)
+
 
 write_csv(total_df, file = "ses_collision_street.csv")
