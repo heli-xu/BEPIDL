@@ -38,24 +38,27 @@ profile_ped_zat <- col_ped_zat %>%
 
 ## pedestrian collision with injury --------------
 
-fit_injury <- glm.nb(injury ~ clus, data = profile_ped_zat)
-summary(fit_injury)
-injury_df <- tidy(fit_injury) %>% 
+fit_injuryP <- glm.nb(injury ~ clus, data = profile_ped_zat)
+summary(fit_injuryP)
+injuryP_df <- tidy(fit_injuryP, conf.int = TRUE, exponentiate = TRUE) %>% 
   mutate(outcome = 'injury')
 
 ## pedestrian collision with death --------------
-fit_death <- glm.nb(death ~ clus, data = profile_ped_zat)
-summary(fit_death)
-death_df <- tidy(fit_death) %>% 
+fit_deathP <- glm.nb(death ~ clus, data = profile_ped_zat)
+summary(fit_deathP)
+
+deathP_df <- tidy(fit_deathP, conf.int = TRUE, exponentiate = TRUE) %>% 
   mutate(outcome='death')
 
 ## total pedestrian collision --------------
-fit_total <- glm.nb(total ~ clus, data = profile_ped_zat)
-summary(fit_total)
+fit_totalP <- glm.nb(total ~ clus, data = profile_ped_zat)
+summary(fit_totalP)
 
-total_df <- tidy(fit_total) %>% 
+## summarise RR -----------------------------
+RR_profile <- tidy(fit_totalP, conf.int = TRUE, exponentiate = TRUE) %>% 
   mutate(outcome='total') %>% 
-  bind_rows(injury_df, death_df) %>% 
+  bind_rows(injuryP_df, deathP_df) %>% 
+  mutate(RR_95CI = paste0(round(estimate,2)," (", round(conf.low,2), ",", round(conf.high, 2), ")")) %>% 
   mutate(clus = case_match(
     term,
     "(Intercept)" ~ "1",
@@ -64,12 +67,14 @@ total_df <- tidy(fit_total) %>%
     "clus4" ~ "4"
   )) %>% 
   left_join(profile_distr, by = "clus") %>% 
-  dplyr::select(clus:percent, estimate:outcome) %>% 
-  rename(nb_profile = clus,
-    percent_zat = percent)
+  mutate(predictor = paste0("profile_", clus)) %>% 
+  dplyr::select(
+    predictor, n, total, 
+    percent_zat = percent, 
+    RR_95CI, p.value, outcome)
 
-## save csv ---------------------
-write_csv(total_df, file = "collision-profile_zat.csv")
+
+write_csv(RR_profile, file = "collision-profile_zat.csv")
 
 # 4. Collision ~ SES --------------------------
 ses_ped_zat <- col_ped_zat %>% 
@@ -82,23 +87,25 @@ levels(ses_ped_zat$ses_cat_r)
 ## injury --------
 fit_injuryS <- glm.nb(injury ~ ses_cat_r, data = ses_ped_zat)
 summary(fit_injuryS)
-injuryS_df <- tidy(fit_injuryS) %>% 
+injuryS_df <- tidy(fit_injuryS, conf.int = TRUE, exponentiate = TRUE) %>% 
   mutate(outcome = "injury")
 
 ## death ------------
 fit_deathS <- glm.nb(death ~ ses_cat_r, data = ses_ped_zat)
 summary(fit_deathS)
-deathS_df <- tidy(fit_deathS) %>% 
+
+deathS_df <- tidy(fit_deathS, conf.int = TRUE, exponentiate = TRUE) %>% 
   mutate(outcome = "death")
 
 ## total ------------------
 fit_totalS <- glm.nb(total ~ ses_cat_r, data = ses_ped_zat)
 summary(fit_totalS)
 
-## save csv --------------
-total_df <- tidy(fit_totalS) %>% 
+## summarise RR --------------
+RR_ses <- tidy(fit_totalS, conf.int = TRUE, exponentiate = TRUE) %>% 
   mutate(outcome = "total") %>% 
-  bind_rows(injuryS_df, deathS_df) %>% 
+  bind_rows(injuryS_df, deathS_df) %>%
+  mutate(RR_95CI = paste0(round(estimate,2)," (", round(conf.low,2), ",", round(conf.high, 2), ")")) %>% 
   mutate(ses_cat = case_match(
     term,
     "(Intercept)" ~ "6",
@@ -108,9 +115,82 @@ total_df <- tidy(fit_totalS) %>%
     "ses_cat_r2" ~ "2",
     "ses_cat_r1" ~ "1"
   )) %>% 
-  left_join(ses_zat_distri, by = "ses_cat") %>% 
-  dplyr::select(ses_cat:percent, estimate:outcome) %>% 
-  rename(ses_level = ses_cat,
-         percent_zat = percent)
+  left_join(ses_zat_distri, by = "ses_cat") %>%
+  mutate(predictor = paste0("ses_", ses_cat)) %>% 
+  dplyr::select(
+    predictor, n, total, 
+    percent_zat = percent, 
+    RR_95CI, p.value, outcome)
 
-write_csv(total_df, file = "collision-ses_zat.csv")
+
+write_csv(RR_ses, file = "collision-ses_zat.csv")
+
+# 5. Collision ~ SES + profile -------------------------------
+ses_profile_ped <- ses_zat %>% 
+  dplyr::select(ZAT, ses_cat) %>% 
+  mutate(ses_cat_r = factor(ses_cat, levels = rev(levels(ses_cat)))) %>% 
+  left_join(profile, by = "ZAT") %>% 
+  mutate(clus = factor(clus)) %>% 
+  #drop_na(clus) %>% 
+  left_join(col_ped_zat, by = "ZAT") %>% 
+  drop_na()
+
+## corr-----------------
+cor(ses_profile %>% dplyr::select(-ZAT))
+
+# library(corrplot) for plot
+# corrplot(mx, method = "number") 
+
+## injury ------------------
+fit_injury2 <- glm.nb(injury ~ clus + ses_cat_r, data = ses_profile_ped)
+summary(fit_injury2)
+
+## compare with or w/o profile ---------------
+BIC(fit_injury2, fit_injuryS)
+#about the same
+
+plot(residuals(fit_injury2))
+
+injury_df <- tidy(fit_injury2, conf.int = TRUE, exponentiate = TRUE) %>% #exponentiate->RR 
+  mutate(outcome = "injury")
+
+## death ---------------------------
+fit_death2 <- glm.nb(death ~ clus + ses_cat_r, data = ses_profile_ped)
+summary(fit_death2)
+
+death_df <- tidy(fit_death2, conf.int = TRUE, exponentiate = TRUE) %>% 
+  mutate(outcome = "death")
+
+## total --------------------------------
+fit_total2 <- glm.nb(total ~ clus + ses_cat_r, data = ses_profile_ped)
+summary(fit_total2)
+
+total_df <- tidy(fit_total2, conf.int = TRUE, exponentiate = TRUE) %>% 
+  mutate(outcome = "total")
+
+## summarise table and RR -------------------
+RR_df <- injury_df %>% 
+  bind_rows(death_df, total_df) %>% 
+  mutate(RR_95CI = paste0(round(estimate,2)," (", round(conf.low,2), ",", round(conf.high, 2), ")")) %>% 
+  mutate(predictor = case_match(
+    term,
+    "(Intercept)" ~ "profile_1+ses_6",
+    "clus2" ~ "profile_2",
+    "clus3" ~ "profile_3",
+    "clus4" ~ "profile_4",
+    "ses_cat_r5" ~ "ses_5",
+    "ses_cat_r4" ~ "ses_4",
+    "ses_cat_r3" ~ "ses_3",
+    "ses_cat_r2" ~ "ses_2",
+    "ses_cat_r1" ~ "ses_1"
+  )) %>% 
+  dplyr::select(
+    predictor,
+    RR_95CI,
+    p.value,
+    outcome
+  )
+
+write_csv(RR_df, file = "collision-ses-profile_zat.csv" )
+
+
