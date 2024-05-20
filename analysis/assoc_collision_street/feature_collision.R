@@ -128,9 +128,9 @@ plot_RR <- function(data, group){
       panel.border = element_blank(),
       #axis.text.y = element_blank(),
       axis.ticks.length.y = unit(0, "points"),
-      strip.text.y.left = element_text(face = "bold", angle = 0),
-      strip.background.y = element_blank(),
-      strip.placement = "outside",
+      #strip.text.y.left = element_text(face = "bold", angle = 0),
+      #strip.background.y = element_blank(),
+      #strip.placement = "outside",
       axis.line = element_line()
     )
 }
@@ -339,10 +339,12 @@ xtraFeatures <- map(xtra_features, fit_features) #change data in fit_features()
 feature_xtra <- map_df(xtraFeatures,
   \(x) tidy(x, conf.int = TRUE, exponentiate = TRUE))
 
+saveRDS(feature_xtra, file = "all_features-collision.rds")
+
 sig <- feature_xtra %>% 
   filter(p.value < 0.05)
 
-# 3. Visualize ------------
+## 2.6 Visualize ------------
 feature_RR %>% 
   filter(!term == "(Intercept)",
     !term == "st_dir2") %>%  #st_dir2 no difference
