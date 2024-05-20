@@ -103,11 +103,15 @@ fit500_df <- tidy(fit500, conf.int = TRUE, exponentiate = TRUE) %>%
   left_join(ses_500, by = "ses_cat")
 
 ## summarise RR-----------------
-total_df <- bind_rows(fit100_df, fit500_df) %>% 
+ses_collision_RR <- bind_rows(fit100_df, fit500_df) %>% 
   mutate(
     RR_95CI = paste0(round(estimate,2)," (", round(conf.low,2), ",", round(conf.high, 2), ")"),
     predictor = paste0("ses_", ses_cat)
-  ) %>% 
+  ) 
+
+saveRDS(ses_collision_RR, file = "ses_collision_RR.rds")
+
+ses_collision_csv <- ses_collision_RR %>% 
   dplyr::select(
     predictor, n, total, 
     percent_street = percent, 
@@ -115,3 +119,19 @@ total_df <- bind_rows(fit100_df, fit500_df) %>%
 
 
 write_csv(total_df, file = "ses_collision_street.csv")
+
+## Visualize ----------------------
+plot_RR(ses_collision_RR, predictor)+
+  facet_grid(vars(buffer_m), switch = "y")+
+  theme(
+    strip.text.y.left = element_text(face = "bold", angle = 90),
+    strip.background.y = element_rect(fill = "white"),
+    strip.placement = "outside",
+  )+
+  labs(
+    title = "Pedestrian Collision and Socioeconomic Status (SES)",
+    subtitle = "Street level, Bogotá, Colombia",
+    x = "RR (95%CI)",
+    y = "SES Level",
+    caption = "All comparisons are relative to the 'ses_6' (highest) level."
+  )
