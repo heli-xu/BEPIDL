@@ -1,0 +1,414 @@
+library(tidyverse)
+library(sf)
+library(MASS)
+library(broom)
+
+# 0.import data ----------------------------
+#collision and feature
+calle_df <- readRDS("../../clean_data/calles/calle_df.rds")
+
+# road type
+road_type_calle <- readRDS("../../clean_data/road_type/road_type_calle.rds") %>% 
+  mutate(
+    road_type = case_match(
+      MVITCla,
+     # 0 ~ "missing",
+      1 ~ "Arterial",
+      2 ~ "Collector",
+      3 ~ "Local",
+      4 ~ "Pedestrian",
+      5 ~ "Rural",
+      6 ~ "Unknown"
+     # 7 ~ "Projected"
+    ),
+    road_type2 = case_match(
+      road_type,
+      c("Pedestrian", "Rural","Unknown") ~ "Other",
+      .default = road_type
+    ))
+
+#saveRDS(road_type_calle, file = "../../clean_data/road_type/road_type_calle.rds")
+
+# 1. collision ~ road_type -----------
+## 1.1 distribution------------------
+source("../../functions/distr_stat.R")
+
+rd_dsitr <- road_type_calle %>% 
+  st_drop_geometry() %>% 
+  distr_stat(., CodigoCL, road_type2)
+
+## 1.2 join data, fit model---------
+collision_rd_type <- road_type_calle %>% 
+  left_join(calle_df, by = "CodigoCL") %>% 
+  dplyr::select(CodigoCL, road_type2, ped = si_act_pea) %>% 
+  mutate(road_type2 = factor(road_type2))
+
+levels(collision_rd_type$road_type2)
+
+fit_rd <- glm.nb(ped ~ road_type2, data = collision_rd_type)
+summary(fit_rd)
+
+## 1.3 summarise RR -------------------
+rd_type_RR <- tidy(fit_rd, conf.int = TRUE, exponentiate = TRUE) %>% 
+  mutate(
+    RR_95CI = paste0(round(estimate,2)," (", round(conf.low,2), ",", round(conf.high, 2), ")"),
+    road_type2 = case_match(
+      term,
+      "(Intercept)" ~ "Arterial",
+      "road_type2Collector" ~ "Collector",
+      "road_type2Local" ~ "Local",
+      "road_type2Other" ~ "Other"
+    )
+  ) %>% 
+  left_join(rd_dsitr, by = "road_type2") 
+
+saveRDS(rd_type_RR, file = "rd_type-collision_RR.rds")
+
+rd_type_RR_csv <- rd_type_RR %>% 
+  dplyr::select(
+    predictor = road_type2,
+    n, total,
+    percent_street = percent,
+    RR_95CI, 
+    p.value)
+
+write_csv(rd_type_RR, file = "rd_type-collision.csv")
+
+## 1.4 Visualize --------------
+data <- rd_type_RR %>% 
+  filter(!term == "(Intercept)") 
+
+data %>% 
+  ggplot(aes(x = estimate, y = road_type2))+
+  geom_errorbar(aes(xmin = conf.low, xmax = conf.high), linewidth = 0.5)+
+  geom_point(aes(x = estimate), size = 2)+
+  geom_vline(aes(xintercept = 1), linetype = 2) +
+  theme_bw()+
+  theme(
+    plot.title = element_text(size = 13, face = "bold", hjust = 0),
+    text = element_text(size = 11),
+    axis.title = element_text(size = 12),
+    # plot.title.position = "plot",
+    panel.spacing.y = unit(0, "points"),
+    panel.border = element_blank(),
+    #axis.text.y = element_blank(),
+    axis.ticks.length.y = unit(0, "points"),
+    strip.text.y.left = element_text(face = "bold", angle = 0),
+    strip.background.y = element_blank(),
+    strip.placement = "outside",
+    axis.line = element_line()
+  )+  
+  #below are outside of function
+  labs(
+    title = "Pedestrian Collision and Road Type",
+    x = "RR (95%CI)",
+    y = "Road Type",
+    caption = "All comparisons are relative to the 'Arterial' road type."
+  )+
+  scale_x_continuous(breaks = sort(round(c(seq(min(data$conf.low), max(data$conf.high), length.out = 3), 1), 2)))
+
+### function for basic plot --------------
+plot_RR <- function(data, group){
+  data2 <- data %>% 
+    filter(!term == "(Intercept)") %>% 
+    rename(predictor = {{group}})
+  
+  data2 %>% 
+    ggplot(aes(x = estimate, y = predictor))+
+    geom_errorbar(aes(xmin = conf.low, xmax = conf.high), linewidth = 0.5)+
+    geom_point(aes(x = estimate), size = 2)+
+    geom_vline(aes(xintercept = 1), linetype = 2) +
+    theme_bw()+
+    theme(
+      plot.title = element_text(size = 13, face = "bold", hjust = 0),
+      text = element_text(size = 11),
+      axis.title = element_text(size = 12),
+      # plot.title.position = "plot",
+      panel.spacing.y = unit(0, "points"),
+      panel.border = element_blank(),
+      #axis.text.y = element_blank(),
+      axis.ticks.length.y = unit(0, "points"),
+      strip.text.y.left = element_text(face = "bold", angle = 0),
+      strip.background.y = element_blank(),
+      strip.placement = "outside",
+      axis.line = element_line()
+    )
+}
+
+plot_RR(rd_type_RR, road_type2)  
+
+# 2. collision ~ feature ---------------------------
+## 2.1 Rename feature (follow gis_clean)----------------
+calle_rename_df <- calle_df %>% 
+  dplyr::select(-c(FID_EP_IND, CODIGO_IDE, Etiquetas, Etiqueta_1)) %>% 
+  rename_with(~ tolower(.)) %>% 
+  rename(
+    area_calle = area,
+    trees = arboles,
+    grade = ave_pendie,
+    area_roadway = a_calzada,
+    road_width = p_ancho_cl, #added
+    area_median = a_separado,
+    vehicle_bridge = puente_vh,
+    ped_bridge = puente_pt,
+    area_sidewalk = a_andenes,
+    brt_routes = rutas_trm,
+    bus_routes = rutas_sitp,
+    bus_stops = parad_sitp,
+    bus_lanes = caril_sitp,
+    bike_length = largo_cicl,
+    road_marks = sen_horizo,
+    warning_signs = se_hor_seg,
+    road_signs = sen_vert,
+    traffic_lights = semaforo,
+    road_segments = segme_via,
+    speed_limit = velcidad,
+    num_lanes_total = sum_carril,
+    num_lanes_avg = av_carrile,
+    road_signs_inv = sen_v_inv, #inventory only
+    stop_signs_v = s_pare_inv, #vertical
+    traffic_fines_tot = comp_cl,
+    lturn_sign = x1_girar_iz,
+    bike_signs = x2_ciclov.,
+    bus_signs = x3bus_o_tra,
+    pedxwalk_signs = x4peatonale,
+    speed_bump_signs = x5policiasa,
+    stop_signs = x6pare, #stop sign related
+    parking_signs = x7estaciona,
+    school_zone_signs = x8zonas_esc,
+    yield_signs = x9ceder_el,
+    total_st_signs = total_ge_1,
+    ped_collision = si_act_pea
+  ) %>% 
+  mutate(
+    st_dir = case_when(
+      sent_vial == "sinD*" ~ NA,
+      sent_vial == "doble" ~ 2,
+      sent_vial == "uno" ~ 1
+    ),
+    veh_br = if_else(vehicle_bridge == "vehicular", 1, 0, missing = 0),
+    ped_br = if_else(ped_bridge == "Peatonal", 1, 0, missing = 0)
+  ) %>% 
+  dplyr::select(-c(vehicle_bridge, ped_bridge, sent_vial, oid_))
+
+saveRDS(calle_rename_df, file = "../../clean_data/calles/calle_rename_df.rds")
+
+## 2.2 feature descrp stat ------------------------------
+feature_stat <- calle_rename_df %>% 
+  pivot_longer(cols = -codigocl, names_to = "feature", values_to = "value") %>% 
+  #count(codigocl)
+  group_by(feature) %>% 
+  summarise(
+    mean = mean(value),
+    sd = sd(value),
+    min = min(value),
+    max = max(value),
+    median = median(value),
+    IQR = IQR(value, na.rm = TRUE)
+  )
+
+write_csv(feature_stat, file = "st_feature_descrpt_stat.csv")
+
+## 2.3 choose features --------------
+### features to tertile
+features <-  c(
+  "trees",
+  "grade",
+  "area_median",
+  "area_sidewalk",
+  "road_width",
+  "road_marks",
+  "warning_signs",
+  "road_signs",
+  "traffic_lights",
+  #"st_dir",  only 1,2 directions
+  "num_lanes_total",
+  "pedxwalk_signs",
+  "school_zone_signs",
+  "stop_signs_v",
+  "stop_signs",
+  "yield_signs",
+  "total_st_signs",
+  "bus_routes",
+  "brt_routes",
+  "bike_length",
+  "traffic_fines_tot"
+)
+
+#features to iterate
+all_features <-  c(
+  "trees",
+  "grade",
+  "area_median",
+  "area_sidewalk",
+  "road_width",
+  "road_marks",
+  "warning_signs",
+  "road_signs",
+  "traffic_lights",
+  "st_dir",
+  "num_lanes_total",
+  "pedxwalk_signs",
+  "school_zone_signs",
+  "stop_signs_v",
+  "stop_signs",
+  "yield_signs",
+  "total_st_signs",
+  "bus_routes",
+  "brt_routes",
+  "bike_length",
+  "traffic_fines_tot"
+)
+
+### Take Tertiles, factored--------------
+calle_tertile <- calle_rename_df %>% 
+  dplyr::select(codigocl, st_dir, all_of(features), ped_collision) %>% 
+  mutate(
+    across(all_of(features), ~ntile(., 3), .names = "{.col}"),
+    across(-c(codigocl, ped_collision), ~factor(.))
+  )
+
+
+
+## 2.3 modeling -----------------
+### try one
+fit_feature <- glm.nb(ped_collision ~ area_median, data = calle_tertile)
+summary(fit_feature)
+
+### function for iterate -------
+fit_features <- function(predictor){
+  formula <- as.formula(paste("ped_collision ~", predictor))
+  
+  model <- glm.nb(formula,  data = calle_tertile)
+  return(model)
+}
+
+test <- fit_features("area_median")
+summary(test)
+
+### iterate ---------
+fit_allfeatures <- map(all_features, fit_features)
+
+## 2.4 summarise RR ------------
+
+feature_df <- map_df(fit_allfeatures,
+  \(x) tidy(x, conf.int = TRUE, exponentiate = TRUE))
+
+feature_RR <- feature_df %>%
+  mutate(
+    RR_95CI = paste0(round(estimate,2)," (", round(conf.low,2), ",", round(conf.high, 2), ")"),
+    tertile = str_sub(term, -1),
+    predictor = str_sub(term, end = -2),
+    category = case_match(
+        tertile,
+        ")" ~ "Low (ref)",
+        "2" ~ "Medium",
+        "3" ~ "High"
+      )
+  ) 
+
+saveRDS(feature_RR, file = "feature-collision_RR.rds")
+
+feature_RR_csv <- feature_RR %>% 
+   # note category for `st_dir` needs manual changing in csv, only 1, 2 directions
+  dplyr::select(
+    predictor = term,
+    category,
+    RR_95CI, 
+    p.value
+  )
+
+write_csv(feature_RR_csv, file = "st_feature-collision.csv")
+
+## 2.5 xtra: all features --------------
+### tertile ------------
+calle_tertile2 <- calle_rename_df %>% 
+  dplyr::select(-c(sini_total:si_act_tot,si_act_cic:si_veh_bic)) %>% 
+  mutate(
+    across(-c(codigocl, ped_collision, st_dir), ~ntile(., 3), .names = "{.col}"),
+    across(-c(codigocl, ped_collision), ~factor(.))
+  )
+
+xtra_features <- calle_tertile2 %>% 
+  dplyr::select(-c(codigocl, ped_collision)) %>% 
+  colnames()
+
+### model --------------
+xtraFeatures <- map(xtra_features, fit_features) #change data in fit_features()
+
+feature_xtra <- map_df(xtraFeatures,
+  \(x) tidy(x, conf.int = TRUE, exponentiate = TRUE))
+
+sig <- feature_xtra %>% 
+  filter(p.value < 0.05)
+
+# 3. Visualize ------------
+feature_RR %>% 
+  filter(!term == "(Intercept)",
+    !term == "st_dir2") %>%  #st_dir2 no difference
+  #mutate(category = factor(predictor)) %>% 
+  ggplot(aes(x = estimate, y = category))+
+  geom_rect(aes(xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, fill = predictor), alpha = 1) +
+  scale_fill_manual(values = rep(c("#ffffff00", "#f0f0f090"), 20), guide = "none")+ 
+  geom_errorbar(aes(xmax = conf.high, xmin = conf.low), linewidth = 0.5)+
+  geom_point(aes(x = estimate), size = 2)+
+  geom_vline(aes(xintercept = 1), linetype = 2) +
+  facet_grid(rows = vars(predictor), scales = "free_x", switch = "y")+
+  #scale_x_continuous(breaks = c(1, 4, 8, 12), labels = c("1","4", "8", "12"))+
+  scale_x_continuous(breaks = sort(round(c(seq(min(feature_RR$conf.low), max(feature_RR$conf.high), length.out = 4), 1), 0)))+
+  theme_bw()+
+ # scale_fill_manual(values = c("Medium" = "#ffffff00", "High" = "#f0f0f090"), guide = "none") +
+  labs(
+    title = "Pedestrian Collision and Street Features",
+    x = "RR (95%CI)",
+    y = "Street Features",
+    caption = "Tertiles of street feature values are used in analysis.\n All comparisons are relative to the 'Low' category."
+    )+
+  theme(
+    plot.title = element_text(size = 13, face = "bold", hjust = 0),
+    text = element_text(size = 11),
+    axis.title = element_text(size = 12),
+   # plot.title.position = "plot",
+    panel.spacing.y = unit(0, "points"),
+    panel.border = element_blank(),
+    #axis.text.y = element_blank(),
+    axis.ticks.length.y = unit(0, "points"),
+    strip.text.y.left = element_text(face = "bold", angle = 0),
+    strip.background.y = element_blank(),
+    strip.placement = "outside",
+    axis.line = element_line()
+  )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
