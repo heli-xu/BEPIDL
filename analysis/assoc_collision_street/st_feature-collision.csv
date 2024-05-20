@@ -1,0 +1,63 @@
+predictor,category,RR_95CI,p.value
+(Intercept),Low (ref),"0.12 (0.11,0.12)",0
+trees2,Medium,"0.95 (0.89,1.01)",0.12212521832160703
+trees3,High,"3.3 (3.12,3.5)",0
+(Intercept),Low (ref),"0.19 (0.18,0.19)",0
+grade2,Medium,"1.4 (1.32,1.48)",8.826055840754883e-29
+grade3,High,"0.89 (0.84,0.94)",1.302116447281528e-4
+(Intercept),Low (ref),"0.13 (0.12,0.13)",0
+area_median2,Medium,"0.79 (0.74,0.84)",5.188473979171675e-13
+area_median3,High,"3.03 (2.86,3.2)",0
+(Intercept),Low (ref),"0.05 (0.04,0.05)",0
+area_sidewalk2,Medium,"2.54 (2.37,2.73)",1.470078122519906e-145
+area_sidewalk3,High,"10.03 (9.4,10.72)",0
+(Intercept),Low (ref),"0.03 (0.03,0.03)",0
+road_width2,Medium,"5.41 (5,5.85)",0
+road_width3,High,"14.1 (13.08,15.21)",0
+(Intercept),Low (ref),"0.14 (0.14,0.15)",0
+road_marks2,Medium,"1.04 (0.98,1.11)",0.17842141458153712
+road_marks3,High,"2.3 (2.17,2.44)",1.1081392770130552e-171
+(Intercept),Low (ref),"0.16 (0.15,0.17)",0
+warning_signs2,Medium,"1.13 (1.06,1.2)",9.494298225459969e-5
+warning_signs3,High,"1.75 (1.65,1.85)",9.340280248094118e-76
+(Intercept),Low (ref),"0.06 (0.06,0.07)",0
+road_signs2,Medium,"1.56 (1.46,1.67)",4.169142596626726e-38
+road_signs3,High,"7.28 (6.86,7.74)",0
+(Intercept),Low (ref),"0.17 (0.16,0.17)",0
+traffic_lights2,Medium,"1.11 (1.04,1.18)",7.430968866959459e-4
+traffic_lights3,High,"1.59 (1.5,1.69)",5.9318379078682435e-53
+(Intercept),Low (ref),"0.23 (0.22,0.25)",0
+st_dir2,Medium,"0.98 (0.91,1.06)",0.63072022666597
+(Intercept),Low (ref),"0.06 (0.05,0.06)",0
+num_lanes_total2,Medium,"1.94 (1.81,2.08)",2.0881146560045025e-81
+num_lanes_total3,High,"7.7 (7.24,8.2)",0
+(Intercept),Low (ref),"0.19 (0.18,0.2)",0
+pedxwalk_signs2,Medium,"1.04 (0.98,1.1)",0.22913548006142506
+pedxwalk_signs3,High,"1.23 (1.16,1.31)",1.0783082568127293e-11
+(Intercept),Low (ref),"0.19 (0.18,0.2)",0
+school_zone_signs2,Medium,"1.1 (1.04,1.17)",0.00167533623223833
+school_zone_signs3,High,"1.15 (1.09,1.22)",3.2972270824759992e-6
+(Intercept),Low (ref),"0.2 (0.19,0.21)",0
+stop_signs_v2,Medium,"1.03 (0.97,1.09)",0.3749859962411133
+stop_signs_v3,High,"1.05 (0.99,1.12)",0.09970488421696945
+(Intercept),Low (ref),"0.2 (0.19,0.21)",0
+stop_signs2,Medium,"1.03 (0.97,1.1)",0.2796639028227361
+stop_signs3,High,"1.06 (1,1.12)",0.06123416320093153
+(Intercept),Low (ref),"0.2 (0.19,0.21)",0
+yield_signs2,Medium,"1.07 (1.01,1.13)",0.029539846527935804
+yield_signs3,High,"1.05 (0.99,1.12)",0.09311619182680579
+(Intercept),Low (ref),"0.15 (0.14,0.15)",0
+total_st_signs2,Medium,"1.14 (1.08,1.22)",1.883060475847853e-5
+total_st_signs3,High,"2.02 (1.91,2.15)",1.1959006056417247e-120
+(Intercept),Low (ref),"0.07 (0.06,0.07)",0
+bus_routes2,Medium,"0.96 (0.9,1.03)",0.2673319849450576
+bus_routes3,High,"7.26 (6.85,7.69)",0
+(Intercept),Low (ref),"0.16 (0.15,0.17)",0
+brt_routes2,Medium,"1.19 (1.12,1.27)",1.551516723247441e-8
+brt_routes3,High,"1.66 (1.56,1.76)",3.0027247254171923e-62
+(Intercept),Low (ref),"0.16 (0.15,0.17)",0
+bike_length2,Medium,"0.86 (0.81,0.92)",2.5388746180412153e-6
+bike_length3,High,"1.95 (1.84,2.06)",2.39501132231207e-112
+(Intercept),Low (ref),"0.08 (0.08,0.08)",0
+traffic_fines_tot2,Medium,"0.93 (0.87,1)",0.03990924225311929
+traffic_fines_tot3,High,"5.64 (5.33,5.97)",0
