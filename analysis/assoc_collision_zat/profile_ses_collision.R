@@ -11,6 +11,7 @@ profile <- readRDS("../../clean_data/aggr_hclust_geo/calle2zat_geo.rds") %>%
 profile %>% filter(is.na(clus))
 
 ses_zat <- readRDS("../../clean_data/ses/ses_zat.rds")
+ses_zat %>% filter(is.na(ses_cat))
 
 # 1. Profile distribution --------------------------------
 distr_stat <- function(data, unit, group){
@@ -67,23 +68,29 @@ RR_profile <- tidy(fit_totalP, conf.int = TRUE, exponentiate = TRUE) %>%
     "clus4" ~ "4"
   )) %>% 
   left_join(profile_distr, by = "clus") %>% 
-  mutate(predictor = paste0("profile_", clus)) %>% 
+  mutate(predictor = paste0("profile_", clus)) 
+
+saveRDS(RR_profile, file = "profile_col_RR.rds")
+
+profile_collision_csv <- RR_profile %>% 
   dplyr::select(
     predictor, n, total, 
     percent_zat = percent, 
     RR_95CI, p.value, outcome)
 
 
-write_csv(RR_profile, file = "collision-profile_zat.csv")
+write_csv(profile_collision_csv, file = "collision-profile_zat.csv")
 
 # 4. Collision ~ SES --------------------------
 ses_ped_zat <- col_ped_zat %>% 
   left_join(ses_zat %>% 
               dplyr::select(ZAT, ses_cat), by = "ZAT") %>% 
+  drop_na(ses_cat) %>%  #after join check NA
   mutate(ses_cat_r = factor(ses_cat, levels = rev(levels(ses_cat)))) 
 
 levels(ses_ped_zat$ses_cat_r)
 
+ses_ped_zat %>% filter(is.na(ses_cat_r))
 ## injury --------
 fit_injuryS <- glm.nb(injury ~ ses_cat_r, data = ses_ped_zat)
 summary(fit_injuryS)
@@ -116,14 +123,18 @@ RR_ses <- tidy(fit_totalS, conf.int = TRUE, exponentiate = TRUE) %>%
     "ses_cat_r1" ~ "1"
   )) %>% 
   left_join(ses_zat_distri, by = "ses_cat") %>%
-  mutate(predictor = paste0("ses_", ses_cat)) %>% 
+  mutate(predictor = paste0("ses_", ses_cat)) 
+
+saveRDS(RR_ses, file = "ses_col_RR.rds")
+
+ses_collision_csv <- RR_ses %>% 
   dplyr::select(
     predictor, n, total, 
     percent_zat = percent, 
     RR_95CI, p.value, outcome)
 
 
-write_csv(RR_ses, file = "collision-ses_zat.csv")
+write_csv(ses_collision_csv, file = "collision-ses_zat.csv")
 
 # 5. Collision ~ SES + profile -------------------------------
 ses_profile_ped <- ses_zat %>% 
@@ -136,6 +147,12 @@ ses_profile_ped <- ses_zat %>%
   drop_na()
 
 ## corr-----------------
+ses_profile <- ses_zat %>% 
+  dplyr::select(ZAT, ses_cat) %>% 
+  left_join(profile, by = "ZAT") %>% 
+  mutate(across(-ZAT, ~as.numeric(.), .names = "{.col}")) %>% 
+  drop_na()
+
 cor(ses_profile %>% dplyr::select(-ZAT))
 
 # library(corrplot) for plot
@@ -151,7 +168,8 @@ BIC(fit_injury2, fit_injuryS)
 
 plot(residuals(fit_injury2))
 
-injury_df <- tidy(fit_injury2, conf.int = TRUE, exponentiate = TRUE) %>% #exponentiate->RR 
+injury_df <- tidy(fit_injury2, conf.int = TRUE, exponentiate = TRUE) %>% 
+  #exponentiate->RR 
   mutate(outcome = "injury")
 
 ## death ---------------------------
@@ -169,7 +187,7 @@ total_df <- tidy(fit_total2, conf.int = TRUE, exponentiate = TRUE) %>%
   mutate(outcome = "total")
 
 ## summarise table and RR -------------------
-RR_df <- injury_df %>% 
+ses_prof_RR <- injury_df %>% 
   bind_rows(death_df, total_df) %>% 
   mutate(RR_95CI = paste0(round(estimate,2)," (", round(conf.low,2), ",", round(conf.high, 2), ")")) %>% 
   mutate(predictor = case_match(
@@ -183,7 +201,11 @@ RR_df <- injury_df %>%
     "ses_cat_r3" ~ "ses_3",
     "ses_cat_r2" ~ "ses_2",
     "ses_cat_r1" ~ "ses_1"
-  )) %>% 
+  )) 
+
+saveRDS(ses_prof_RR, file = "ses_profile_col_RR.rds")
+
+ses_prof_col_csv <- ses_prof_RR %>% 
   dplyr::select(
     predictor,
     RR_95CI,
@@ -191,6 +213,41 @@ RR_df <- injury_df %>%
     outcome
   )
 
-write_csv(RR_df, file = "collision-ses-profile_zat.csv" )
+write_csv(ses_prof_col_csv, file = "collision-ses-profile_zat.csv" )
 
+# 6. Visualize ------------------------
+## profile-collision ------------
+plot_RR(RR_profile, predictor)+
+  facet_grid(vars(outcome), switch = "y")+
+  labs(
+    title = "Pedestrian Collision and Neighborhood Profiles",
+    subtitle = "ZAT level, Bogota, Colombia",
+    x = "RR (95%CI)",
+    y = "ZAT Profile",
+    caption = "All comparisons are relative to the profile 1."
+  )
 
+## ses-collision ---------------
+plot_RR(RR_ses, predictor) +
+  facet_grid(vars(outcome), switch = "y")+
+  labs(
+    title = "Pedestrian Collision and Neighborhood SES Level",
+    subtitle = "ZAT level, Bogota, Colombia",
+    x = "RR (95%CI)",
+    y = "SES Level",
+    caption = "All comparisons are relative to the SES 6 (highest) level."
+  )
+
+## ses+profile -col ----------
+plot_RR(ses_prof_RR, predictor)+
+  facet_grid(vars(outcome), switch = "y")+
+  labs(
+    title = "Pedestrian Collision, Neighborhood Profile and SES Level",
+    subtitle = "ZAT level, Bogota, Colombia",
+    x = "RR (95%CI)",
+    y = "SES Level or Profile",
+    caption = "All comparisons are relative to the SES 6 (highest level) and profile 1."
+  )+
+  theme(
+    plot.title.position = "plot"
+  )
