@@ -249,7 +249,12 @@ img_to_st <- function(data){
 
 g1_st <- img_to_st(predict_g1)
 
-# 5.3 link GIS ----------
+g2_st <- img_to_st(predict_g2)
+
+g3_st <- img_to_st(predict_g3)
+
+## 5.3 link GIS ----------
+#input data from last step
 link_gis <- function(data){
   pr_gis_calle <- gis_clean %>%
     right_join(data, by = "codigocl") %>% #check reference gis are not NA
@@ -309,3 +314,54 @@ link_gis <- function(data){
     ))
   return(pr_gis_calle)
 }
+
+pr_gis_g1 <- link_gis(g1_st)
+
+pr_gis_g2 <- link_gis(g2_st)
+
+pr_gis_g3 <- link_gis(g3_st)
+
+## 5.4 Reliability Metrics------
+res_g1 <- map2(pr_variables, gis_variables, 
+            \(x, y) roc(pr_gis_g1[[y]], as.numeric(pr_gis_g1[[x]])))
+
+source("../../functions/reliability_table.R")
+
+df_g1 <- reliability_table(pr_variables, gis_variables, pr_gis_g1) %>% 
+  mutate(year = "2012-2015")
+
+df_g2 <- reliability_table(pr_variables, gis_variables, pr_gis_g2) %>% 
+  mutate(year = "2016-2019")
+
+df_g3 <- reliability_table(pr_variables, gis_variables, pr_gis_g3) %>% 
+  mutate(year = "2020-2023")
+
+df_all <- bind_rows(df_g1, df_g2, df_g3)
+
+df_all %>% 
+  ggplot(aes(x = kappa_est, y = var))+
+  geom_errorbar(aes(xmin = kappa_lower, xmax = kappa_upper), linewidth = 0.5)+
+  geom_point(aes(x = kappa_est, color = var), size = 2)+
+  scale_color_manual(values = colors)+
+  theme_bw()+
+  facet_grid(vars(year), switch = "y")+
+  theme(
+    plot.title = element_text(size = 13, face = "bold", hjust = 0),
+    text = element_text(size = 11),
+    axis.title = element_text(size = 12),
+    # plot.title.position = "plot",
+    panel.spacing.y = unit(0, "points"),
+    panel.border = element_blank(),
+    #axis.text.y = element_blank(),
+    axis.ticks.length.y = unit(0, "points"),
+    strip.text.y.left = element_text(face = "bold", angle = 0),
+    #strip.background.y = element_blank(),
+    strip.placement = "outside",
+    axis.line = element_line()
+  )+  
+  #below are outside of function
+  labs(
+    title = "Prediction2024 vs GIS",
+    x = "Cohen's kappa (95%CI)",
+    y = "Variables"
+  )
