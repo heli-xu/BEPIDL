@@ -13,7 +13,7 @@ predict_200k <- read_csv("../../data/AI_prediction2024/predictions_200k.csv")
 
 calle_geo <- readRDS("../../clean_data/calles/calle_shapefile.rds")
 
-# 1. Link image to street ------------------
+# 1. Link image coordinates ------------------
 predict_sf <- st_as_sf(predict_200k, coords = c("Latitude", "Longitude"),  
                         #googlemap api use lat first, but longitude is x, lat is y
                         #note confusing column names
@@ -82,8 +82,10 @@ calle_predict <- calle_predict_sf2 %>%
 
 # 3. Join GIS to prediction ----------
 pr_gis_calle <- gis_clean %>% 
-  right_join(calle_predict, by = "codigocl") %>% #check reference gis are not NA
-  drop_na()
+  right_join(calle_predict, by = "codigocl") %>% 
+  #check no NAs
+  # select(-gis_vehicle_bridge, -gis_ped_bridge) %>% 
+  # drop_na() %>% 
   mutate(
     gis_median = if_else(area_median > 0, 1, 0),
     gis_sw = if_else(area_sidewalk > 0, 1, 0),
@@ -96,7 +98,7 @@ pr_gis_calle <- gis_clean %>%
     ),
     gis_veh_br = if_else(gis_vehicle_bridge == "vehicular", 1, 0, missing = 0),
     gis_ped_br = if_else(gis_ped_bridge == "Peatonal", 1, 0, missing = 0)
-  ) 
+  ) %>% 
   mutate(
     across(c(pr_sign_traffic:pr_potholes, gis_trees, gis_bus_stops, 
              gis_road_signs, gis_traffic_lights, gis_road_signs_inv, 
@@ -123,7 +125,9 @@ pr_gis_calle <- gis_clean %>%
 
 saveRDS(pr_gis_calle, file = "predict_gis_calle.rds")
 
-# 4. Reliability metrics
+# 4. Reliability metrics ------------------------------
+pr_gis_calle <- readRDS("predict_gis_calle.rds")
+
 pr_variables <- c(
   "pr_sign_traffic_yn",
   "pr_sign_traffic_yn",
@@ -167,7 +171,7 @@ gis_variables <- c(
   "gis_brt_yn"
 )
 
-## ROC 
+## ROC -----------------
 roc(pr_gis_calle$gis_brt_yn, as.numeric(pr_gis_calle$pr_brt_station_yn))
 
 res <- map2(pr_variables, gis_variables, 
@@ -186,7 +190,7 @@ map2(n, colors, \(x, y) plot(res[[x]], col = y, add = T))
 legend("bottomright", legend = label, col = colors, lty = 1, lwd = 3, cex =0.8, text.font = 2, bty = "n")
 title(main = "Prediction2024-GIS comparison", line = 3)
 
-## Summary table 
+## Summary table -------------------------------------
 source("../../functions/reliability_table.R")
 
 df <- reliability_table(pr_variables, gis_variables, pr_gis_calle)
@@ -204,4 +208,104 @@ df <- reliability_table(pr_variables, gis_variables, pr_gis_calle)
 # 
 # confusionMatrix(pr_gis_calle[["pr_traffic_light_yn"]], pr_gis_calle$gis_traffic_lights_yn)
 
-write_csv(df, file = "MLdata_GIS/train_gis_reliability.csv")
+write_csv(df, file = "predict24_gis_reliability_allyears.csv")
+
+# 5. Reliability by year group ---------------------
+## 5.1 Split data by year group---------
+g1 <- c(2012:2015)
+g2 <- c(2016:2019)
+g3 <- c(2020:2023)
+
+predict_g1 <- predict_200k %>% 
+  filter(Date %in% g1)
+
+predict_g2 <- predict_200k %>% 
+  filter(Date %in% g2)
+
+predict_g3 <- predict_200k %>% 
+  filter(Date %in% g3)
+
+## 5.2 Aggr image to street-----------------
+
+img_to_st <- function(data){
+  st_data <- st_as_sf(data,
+    coords = c("Latitude", "Longitude"),
+    #googlemap api use lat first, but longitude is x, lat is y
+    #note confusing column names
+    crs = st_crs(4326)) %>%
+    st_transform(crs = st_crs(calle_geo)) %>%
+    st_join(calle_geo, join = st_within) %>% 
+    drop_na(CodigoCL) %>% 
+    st_drop_geometry() %>% 
+    rename_all(~paste0("pr_", .)) %>% 
+    rename(CodigoCL = pr_CodigoCL) %>% 
+    group_by(CodigoCL) %>% 
+    summarise(
+      across(pr_Sign_traffic:pr_Potholes, ~sum(.x), .names = "{.col}")
+  ) %>% 
+    rename_with(~ tolower(.x))
+  return(st_data)
+}
+
+g1_st <- img_to_st(predict_g1)
+
+# 5.3 link GIS ----------
+link_gis <- function(data){
+  pr_gis_calle <- gis_clean %>%
+    right_join(data, by = "codigocl") %>% #check reference gis are not NA
+    mutate(
+      gis_median = if_else(area_median > 0, 1, 0),
+      gis_sw = if_else(area_sidewalk > 0, 1, 0),
+      gis_bike_lane = if_else(bike_length > 0, 1, 0),
+      gis_any_bus = if_else(gis_bus_lanes > 0, 1, 0),
+      gis_brt_yn = if_else(brt_routes > 0, 1, 0),
+      st_dir = case_when(sent_vial == "doble" ~ 0,
+        sent_vial == "uno" ~ 1),
+      gis_veh_br = if_else(gis_vehicle_bridge == "vehicular", 1, 0, missing = 0),
+      gis_ped_br = if_else(gis_ped_bridge == "Peatonal", 1, 0, missing = 0)
+    ) %>%
+    mutate(across(
+      c(
+        pr_sign_traffic:pr_potholes,
+        gis_trees,
+        gis_bus_stops,
+        gis_road_signs,
+        gis_traffic_lights,
+        gis_road_signs_inv,
+        gis_stop_signs,
+        gis_traffic_fines_tot,
+        gis_lturn_sign,
+        gis_bike_signs,
+        gis_bus_signs,
+        gis_pedxwalk_signs,
+        gis_speed_bump_signs,
+        gis_stop_signs2,
+        gis_parking_signs,
+        gis_school_zone_signs,
+        gis_yield_signs,
+        gis_total_st_signs
+      ),
+      ~ if_else(. > 0, 1, 0, missing = 0),
+      .names = "{.col}_yn"
+    )) %>%
+    mutate(
+      any_ped = if_else(si_act_pea > 0, 1, 0),
+      pr_pedxwalk_yn = if_else(
+        pr_sign_crossing_yn == 1 | pr_crosswalk_yn == 1,
+        #pr_pedestrian_light not included (not sure if an_pedestrian is relevant)
+        true = 1,
+        false = 0
+      )
+    ) %>%
+    mutate(across(
+      c(
+        gis_sw,
+        gis_bike_lane,
+        gis_any_bus,
+        gis_median,
+        ends_with("_yn")
+      ),
+      ~ factor(.)
+    ))
+  return(pr_gis_calle)
+}
