@@ -1,0 +1,178 @@
+---
+title: "Pedestrian Collision, SES Level and Street Features"
+author: "Heli Xu"
+image: thumbnail.jpg
+date: 5/21/24
+format: 
+  html:
+    code-fold: true
+    toc: true
+    toc-depth: 4
+    self-contained: true
+editor: visual
+---
+
+The goal of this post is to visualize the relationship between pedestrian collision, socioeconomic status and street features, both at the street level and the neighborhood (ZAT) level.
+
+The table outputs are shared with Alex on Onedrive (`Analysis_output_HX2024/association_w_collision/`).
+
+```{r setup, warning=FALSE, message=FALSE}
+library(dplyr)
+library(ggplot2)
+```
+
+## 1. Street Level Analysis
+
+### 1.1 Collision and Road Type
+
+Using collision data from `Calles_datos` and road type data from `IDECA/GDR_V12.20.gdb`, we can construct a table of pedestrian collision count and road type by the street. Road type is categorized as "Arterial", "Collector", "Local", "Pedestrian", "Rural" and "Unknown". For our analysis, we'll group "Pedestrian", "Rural" and "Unknown" as "Other". All comparisons are relative to the "Arterial" type.
+
+```{r, echo = FALSE}
+road_type <- readRDS("../../../assoc_collision_street/rd_type-collision_RR.rds")
+st_feature <- readRDS("../../../assoc_collision_street/feature-collision_RR.rds")
+ses_collision <- readRDS("../../../assoc_collision_street/ses_collision_RR.rds")
+
+ses_col_zat <- readRDS("../../../assoc_collision_zat/ses_col_RR.rds")
+profile_col_zat <- readRDS("../../../assoc_collision_zat/profile_col_RR.rds")
+ses_prof_col <- readRDS("../../../assoc_collision_zat/ses_profile_col_RR.rds")
+
+```
+
+```{r}
+#| fig-height: 3
+
+source("../../../../functions/plot_RR.R")
+
+plot_RR(road_type, road_type2)+
+  labs(
+    title = "Pedestrian Collision and Road Type",
+    subtitle = "Street level, Bogotá, Colombia",
+    x = "RR (95%CI)",
+    y = "Road Type",
+    caption = "All comparisons are relative to the 'Arterial' road type."
+  )
+```
+
+### 1.2 Collision and Street Features
+
+Among the street features included in `Calles_datos`, we're selecting 20 individual features and assess their association with pedestrian collision. The street features are either count or continuous measures, and we're dividing the values into tertiles ("Low", "Medium", "High") to examine the effects of these variables at different levels.
+
+```{r}
+#| fig-height: 8
+
+feature_RR <- st_feature %>% 
+  filter(!term == "(Intercept)",
+    !term == "st_dir2") #st_dir2 no difference
+
+feature_RR %>% 
+  ggplot(aes(x = estimate, y = category))+
+  geom_rect(aes(xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, fill = predictor), alpha = 1) +
+  scale_fill_manual(values = rep(c("#ffffff00", "#f0f0f090"), 20), guide = "none")+ 
+  geom_errorbar(aes(xmax = conf.high, xmin = conf.low), linewidth = 0.5)+
+  geom_point(aes(x = estimate), size = 2)+
+  geom_vline(aes(xintercept = 1), linetype = 2) +
+  facet_grid(rows = vars(predictor), scales = "free_x", switch = "y")+
+  #scale_x_continuous(breaks = c(1, 4, 8, 12), labels = c("1","4", "8", "12"))+
+  scale_x_continuous(breaks = sort(round(c(seq(min(feature_RR$conf.low), max(feature_RR$conf.high), length.out = 4), 1), 0)))+
+  theme_bw()+
+ # scale_fill_manual(values = c("Medium" = "#ffffff00", "High" = "#f0f0f090"), guide = "none") +
+  labs(
+    title = "Pedestrian Collision and Street Features",
+    subtitle = "Street level, Bogotá, Colombia",
+    x = "RR (95%CI)",
+    y = "Street Features",
+    caption = "Tertiles of street feature values are used in analysis.\n All comparisons are relative to the 'Low' category."
+    )+
+  theme(
+    plot.title = element_text(size = 13, face = "bold", hjust = 0),
+    text = element_text(size = 11),
+    axis.title = element_text(size = 12),
+   # plot.title.position = "plot",
+    panel.spacing.y = unit(0, "points"),
+    panel.border = element_blank(),
+    #axis.text.y = element_blank(),
+    axis.ticks.length.y = unit(0, "points"),
+    strip.text.y.left = element_text(face = "bold", angle = 0),
+    strip.background.y = element_blank(),
+    strip.placement = "outside",
+    axis.line = element_line()
+  )
+```
+
+### 1.3 Collision and SES Level
+
+Using block-level data and street boundary buffers to assign SES level to street units (discussed in [previous post](../SES_street/SES_street.qmd)), we can study the association between pedestrian collision and SES level. SES levels range from 1-6 (categorical), with 1 being the lowest and 6 being the highest. The relative risks for collision at different SES level are shown below, where 100 and 500 represent the range street boundary buffers (in meters).
+
+```{r}
+plot_RR(ses_collision, predictor)+
+  facet_grid(vars(buffer_m), switch = "y")+
+  theme(
+    strip.text.y.left = element_text(face = "bold", angle = 90),
+    strip.background.y = element_rect(fill = "white"),
+    strip.placement = "outside",
+  )+
+  labs(
+    title = "Pedestrian Collision and Socioeconomic Status (SES)",
+    subtitle = "Street level, Bogotá, Colombia",
+    x = "RR (95%CI)",
+    y = "SES Level",
+    caption = "All comparisons are relative to the 'ses_6' (highest) level."
+  )
+
+```
+
+## 2. Neighborhood Level Analysis
+
+### 2.1 Collision and SES level
+
+At neighborhood (ZAT) level, pedestrian collision is aggregated from raw data (point) to each ZAT boundary. In addition to total pedestrian collision (`total`), we are including sub-categories of collision with injuries (`injury`) and collision with deaths(`death`). Block-level SES is also aggregated to ZAT level, using weighted mean of the percent of households in each SES category.
+
+```{r}
+plot_RR(ses_col_zat, predictor) +
+  facet_grid(vars(outcome), switch = "y")+
+  labs(
+    title = "Pedestrian Collision and Neighborhood SES Level",
+    subtitle = "ZAT level, Bogotá, Colombia",
+    x = "RR (95%CI)",
+    y = "SES Level",
+    caption = "All comparisons are relative to the SES 6 (highest) level."
+  )
+
+```
+
+### 2.2 Collision and Profiles
+
+Next, we are looking at the relationship between pedestrian collision and the [neighborhood profiles](../calle2zat_hclust_geo/calle2zat_hclust_geo.qmd) generated from hierarchical clustering using street- and ZAT-level BE features with spatial constraint.
+
+![](zat_profile.jpg){width="655"}
+
+```{r}
+plot_RR(profile_col_zat, predictor)+
+  facet_grid(vars(outcome), switch = "y")+
+  labs(
+    title = "Pedestrian Collision and Neighborhood Profiles",
+    subtitle = "ZAT level, Bogotá, Colombia",
+    x = "RR (95%CI)",
+    y = "ZAT Profile",
+    caption = "All comparisons are relative to the profile 1."
+  )
+
+
+```
+
+### 2.3 Collision, Profiles and SES Level
+
+At last, we'll assess the combined effect of the neighborhood profiles and SES level on pedestrian collision.
+
+```{r}
+#| fig-height: 7
+plot_RR(ses_prof_col, predictor)+
+  facet_grid(vars(outcome), switch = "y")+
+  labs(
+    title = "Pedestrian Collision, Neighborhood Profile and SES Level",
+    subtitle = "ZAT level, Bogotá, Colombia",
+    x = "RR (95%CI)",
+    y = "SES Level and Profile",
+    caption = "All comparisons are relative to the SES 6 (highest level) and profile 1."
+  )
+```
