@@ -210,6 +210,41 @@ df <- reliability_table(pr_variables, gis_variables, pr_gis_calle)
 
 write_csv(df, file = "predict24_gis_reliability_allyears.csv")
 
+## *Visualization ------------
+colors <- c("#800000", "#d62728","#FF69B4", "#f7b6d2", "#9c27b0", "#673ab7", "#6c579d","#3f51b5", "#0000FF", "#2196f3", "#03a9f4", "#00bcd4", "#009688", "#008000", "#8bc34a", "#ffc107", "#ff9800", "#ff5722")
+
+df %>%
+  mutate(var_plot = str_sub(var, 4, -4),
+    var_plot = fct_reorder(var_plot, kappa_est)) %>%
+  ggplot(aes(x = kappa_est, y = var_plot))+
+  geom_errorbar(aes(xmin = kappa_lower, xmax = kappa_upper), linewidth = 0.5)+
+  geom_point(aes(x = kappa_est), size = 2)+
+  geom_vline(aes(xintercept = 0.2), linetype = 2)+
+  theme_bw()+
+ # facet_grid(vars(year), switch = "y")+
+  theme(
+    plot.title = element_text(size = 13, face = "bold", hjust = 0),
+    text = element_text(size = 11),
+    axis.title = element_text(size = 12),
+    # plot.title.position = "plot",
+    panel.spacing.y = unit(0, "points"),
+    panel.border = element_blank(),
+    #axis.text.y = element_blank(),
+    axis.ticks.length.y = unit(0, "points"),
+    strip.text.y.left = element_text(face = "bold", angle = 0),
+    #strip.background.y = element_blank(),
+    strip.placement = "outside",
+    axis.line = element_line()
+  )+  
+  #below are outside of function
+  labs(
+    title = "Built Environment Features: Prediction2024 vs GIS",
+    subtitle = "Agreement between AI predictions and GIS data at the street level",
+    caption = "Interpretations for the kappa statistic: < 0.2 slight agreement, \n0.2 - 0.4 fair agreement, 0.4 - 0.6 moderate agreement.",
+    x = "Cohen's kappa (95%CI)",
+    y = "Street Features"
+  )
+
 # 5. Reliability by year group ---------------------
 ## 5.1 Split data by year group---------
 g1 <- c(2012:2015)
@@ -337,6 +372,9 @@ df_g3 <- reliability_table(pr_variables, gis_variables, pr_gis_g3) %>%
   mutate(year = "2020-2023")
 
 df_all <- bind_rows(df_g1, df_g2, df_g3)
+
+
+## 5.5 Visualization---------------
 
 df_all %>% 
   ggplot(aes(x = kappa_est, y = var))+
