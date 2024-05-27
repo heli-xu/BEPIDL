@@ -357,6 +357,7 @@ pr_gis_g2 <- link_gis(g2_st)
 pr_gis_g3 <- link_gis(g3_st)
 
 ## 5.4 Reliability Metrics------
+### ROC (not necessary)
 res_g1 <- map2(pr_variables, gis_variables, 
             \(x, y) roc(pr_gis_g1[[y]], as.numeric(pr_gis_g1[[x]])))
 
