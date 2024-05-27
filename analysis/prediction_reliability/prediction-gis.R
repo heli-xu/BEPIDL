@@ -208,6 +208,7 @@ df <- reliability_table(pr_variables, gis_variables, pr_gis_calle)
 # 
 # confusionMatrix(pr_gis_calle[["pr_traffic_light_yn"]], pr_gis_calle$gis_traffic_lights_yn)
 
+saveRDS(df, file = "predict24_gis_reliability.rds")
 write_csv(df, file = "predict24_gis_reliability_allyears.csv")
 
 ## *Visualization ------------

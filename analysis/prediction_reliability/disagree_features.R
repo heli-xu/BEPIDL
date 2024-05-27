@@ -78,6 +78,8 @@ prYgisN <- check2 %>%
   )
 #62k rows
 
+saveRDS(prYgisN, file = "predictY_gisN.rds")
+
 prYgisN_top250 <- prYgisN %>%
   arrange(desc(diff_all)) %>% 
   head(500) %>% 
@@ -105,6 +107,8 @@ gisYprN <- check2 %>%
     diff_all = sum(diff)
   )
 #9k rows
+
+saveRDS(gisYprN, file = "gisY_predictN.rds")
 
 gisYprN_top250 <- gisYprN %>% 
   arrange(diff_all) %>% 
