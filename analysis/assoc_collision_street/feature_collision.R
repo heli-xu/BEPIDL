@@ -5,140 +5,15 @@ library(broom)
 
 # 0.import data ----------------------------
 #collision and feature
+calle_rename_df <- readRDS("../../clean_data/calles/calle_rename_df.rds")
+#covariates
+covar_500 <- readRDS("../../clean_data/SES/covar_calle500m.rds")
+covar_100 <- readRDS("../../clean_data/SES/covar_calle100m.rds")
+
+
+## Rename (follow gis_clean) DON'T RUN----------------
 calle_df <- readRDS("../../clean_data/calles/calle_df.rds")
 
-# road type
-road_type_calle <- readRDS("../../clean_data/road_type/road_type_calle.rds") %>% 
-  mutate(
-    road_type = case_match(
-      MVITCla,
-     # 0 ~ "missing",
-      1 ~ "Arterial",
-      2 ~ "Collector",
-      3 ~ "Local",
-      4 ~ "Pedestrian",
-      5 ~ "Rural",
-      6 ~ "Unknown"
-     # 7 ~ "Projected"
-    ),
-    road_type2 = case_match(
-      road_type,
-      c("Pedestrian", "Rural","Unknown") ~ "Other",
-      .default = road_type
-    ))
-
-#saveRDS(road_type_calle, file = "../../clean_data/road_type/road_type_calle.rds")
-
-# 1. collision ~ road_type -----------
-## 1.1 distribution------------------
-source("../../functions/distr_stat.R")
-
-rd_dsitr <- road_type_calle %>% 
-  st_drop_geometry() %>% 
-  distr_stat(., CodigoCL, road_type2)
-
-## 1.2 join data, fit model---------
-collision_rd_type <- road_type_calle %>% 
-  left_join(calle_df, by = "CodigoCL") %>% 
-  dplyr::select(CodigoCL, road_type2, ped = si_act_pea) %>% 
-  mutate(road_type2 = factor(road_type2))
-
-levels(collision_rd_type$road_type2)
-
-fit_rd <- glm.nb(ped ~ road_type2, data = collision_rd_type)
-summary(fit_rd)
-
-## 1.3 summarise RR -------------------
-rd_type_RR <- tidy(fit_rd, conf.int = TRUE, exponentiate = TRUE) %>% 
-  mutate(
-    RR_95CI = paste0(round(estimate,2)," (", round(conf.low,2), ",", round(conf.high, 2), ")"),
-    road_type2 = case_match(
-      term,
-      "(Intercept)" ~ "Arterial",
-      "road_type2Collector" ~ "Collector",
-      "road_type2Local" ~ "Local",
-      "road_type2Other" ~ "Other"
-    )
-  ) %>% 
-  left_join(rd_dsitr, by = "road_type2") 
-
-saveRDS(rd_type_RR, file = "rd_type-collision_RR.rds")
-
-rd_type_RR_csv <- rd_type_RR %>% 
-  dplyr::select(
-    predictor = road_type2,
-    n, total,
-    percent_street = percent,
-    RR_95CI, 
-    p.value)
-
-write_csv(rd_type_RR, file = "rd_type-collision.csv")
-
-## 1.4 Visualize --------------
-data <- rd_type_RR %>% 
-  filter(!term == "(Intercept)") 
-
-data %>% 
-  ggplot(aes(x = estimate, y = road_type2))+
-  geom_errorbar(aes(xmin = conf.low, xmax = conf.high), linewidth = 0.5)+
-  geom_point(aes(x = estimate), size = 2)+
-  geom_vline(aes(xintercept = 1), linetype = 2) +
-  theme_bw()+
-  theme(
-    plot.title = element_text(size = 13, face = "bold", hjust = 0),
-    text = element_text(size = 11),
-    axis.title = element_text(size = 12),
-    # plot.title.position = "plot",
-    panel.spacing.y = unit(0, "points"),
-    panel.border = element_blank(),
-    #axis.text.y = element_blank(),
-    axis.ticks.length.y = unit(0, "points"),
-    strip.text.y.left = element_text(face = "bold", angle = 0),
-    strip.background.y = element_blank(),
-    strip.placement = "outside",
-    axis.line = element_line()
-  )+  
-  #below are outside of function
-  labs(
-    title = "Pedestrian Collision and Road Type",
-    x = "RR (95%CI)",
-    y = "Road Type",
-    caption = "All comparisons are relative to the 'Arterial' road type."
-  )+
-  scale_x_continuous(breaks = sort(round(c(seq(min(data$conf.low), max(data$conf.high), length.out = 3), 1), 2)))
-
-### function for basic plot --------------
-plot_RR <- function(data, group){
-  data2 <- data %>% 
-    filter(!term == "(Intercept)") %>% 
-    rename(predictor = {{group}})
-  
-  data2 %>% 
-    ggplot(aes(x = estimate, y = predictor))+
-    geom_errorbar(aes(xmin = conf.low, xmax = conf.high), linewidth = 0.5)+
-    geom_point(aes(x = estimate), size = 2)+
-    geom_vline(aes(xintercept = 1), linetype = 2) +
-    theme_bw()+
-    theme(
-      plot.title = element_text(size = 13, face = "bold", hjust = 0),
-      text = element_text(size = 11),
-      axis.title = element_text(size = 12),
-      # plot.title.position = "plot",
-      panel.spacing.y = unit(0, "points"),
-      panel.border = element_blank(),
-      #axis.text.y = element_blank(),
-      axis.ticks.length.y = unit(0, "points"),
-      #strip.text.y.left = element_text(face = "bold", angle = 0),
-      #strip.background.y = element_blank(),
-      #strip.placement = "outside",
-      axis.line = element_line()
-    )
-}
-
-plot_RR(rd_type_RR, road_type2)  
-
-# 2. collision ~ feature ---------------------------
-## 2.1 Rename feature (follow gis_clean)----------------
 calle_rename_df <- calle_df %>% 
   dplyr::select(-c(FID_EP_IND, CODIGO_IDE, Etiquetas, Etiqueta_1)) %>% 
   rename_with(~ tolower(.)) %>% 
@@ -193,7 +68,10 @@ calle_rename_df <- calle_df %>%
 
 saveRDS(calle_rename_df, file = "../../clean_data/calles/calle_rename_df.rds")
 
-## 2.2 feature descrp stat ------------------------------
+
+# 1. collision ~ feature ---------------------------
+
+## 1.1 feature descrp stat ------------------------------
 feature_stat <- calle_rename_df %>% 
   pivot_longer(cols = -codigocl, names_to = "feature", values_to = "value") %>% 
   #count(codigocl)
@@ -209,7 +87,7 @@ feature_stat <- calle_rename_df %>%
 
 write_csv(feature_stat, file = "st_feature_descrpt_stat.csv")
 
-## 2.3 choose features --------------
+## 1.2 Prepare features --------------
 ### features to tertile
 features <-  c(
   "trees",
@@ -269,8 +147,7 @@ calle_tertile <- calle_rename_df %>%
   )
 
 
-
-## 2.3 modeling -----------------
+## 1.3 modeling -----------------
 ### try one
 fit_feature <- glm.nb(ped_collision ~ area_median, data = calle_tertile)
 summary(fit_feature)
@@ -289,7 +166,7 @@ summary(test)
 ### iterate ---------
 fit_allfeatures <- map(all_features, fit_features)
 
-## 2.4 summarise RR ------------
+## 1.4 summarise RR ------------
 
 feature_df <- map_df(fit_allfeatures,
   \(x) tidy(x, conf.int = TRUE, exponentiate = TRUE))
@@ -320,7 +197,7 @@ feature_RR_csv <- feature_RR %>%
 
 write_csv(feature_RR_csv, file = "st_feature-collision.csv")
 
-## 2.5 xtra: all features --------------
+## 1.5 xtra: all features --------------
 ### tertile ------------
 calle_tertile2 <- calle_rename_df %>% 
   dplyr::select(-c(sini_total:si_act_tot,si_act_cic:si_veh_bic)) %>% 
@@ -344,7 +221,7 @@ saveRDS(feature_xtra, file = "all_features-collision.rds")
 sig <- feature_xtra %>% 
   filter(p.value < 0.05)
 
-## 2.6 Visualize ------------
+## 1.6 Visualize ------------
 feature_RR %>% 
   filter(!term == "(Intercept)",
     !term == "st_dir2") %>%  #st_dir2 no difference
@@ -381,74 +258,6 @@ feature_RR %>%
     axis.line = element_line()
   )
 
-
-# 3. collision~feature+covar -----------------
-calle_rename_df <- readRDS("../../clean_data/calles/calle_rename_df.rds")
-
-covar_500 <- readRDS("../../clean_data/SES/covar_calle500m.rds")
-covar_100 <- readRDS("../../clean_data/SES/covar_calle100m.rds")
-
-## Tertiles, factored, *scaled--------------
-calle_tertile <- calle_rename_df %>% 
-  dplyr::select(codigocl, st_dir, all_of(features), ped_collision) %>% 
-  mutate(
-    across(all_of(features), ~ntile(., 3), .names = "{.col}"),
-    across(-c(codigocl, ped_collision), ~factor(.))
-  ) 
-
-collision_covar_500 <- covar_500 %>%
-  mutate(
-    across(c(pop_density, starts_with("pct")), ~ scale(.x)[,1])
-  ) %>% 
-  rename(codigocl = CodigoCL) %>% 
-  left_join(calle_tertile, by = "codigocl") 
-
-
-## 3.1 500m buffer-------------
-fit_feature <- glm.nb(ped_collision ~ area_median + pct_apt + pct_home + pct_unoccu + pop_density + pct_male + pct_yr_0_9 + pct_yr_10_19 + pct_yr_30_39 + pct_yr_40_49 + pct_yr_50_59 + pct_yr_60_69 + pct_yr_70_79 + pct_yr_80_plus, data = collision_covar_500)
-
-summary(fit_feature)
-
-### function to interate----------------
-fit_features_x <- function(predictor, data){
-  formula <- as.formula(paste("ped_collision ~", predictor, "+ pct_apt + pct_home + pct_unoccu + pop_density + pct_male + pct_yr_0_9 + pct_yr_10_19 + pct_yr_30_39 + pct_yr_40_49 + pct_yr_50_59 + pct_yr_60_69 + pct_yr_70_79 + pct_yr_80_plus"))
-  
-  model <- glm.nb(formula,  data = data)
-  return(model)
-}
-
-test <- fit_features_x("area_median", collision_covar_500)
-summary(test)
-
-### iterate modeling--------------
-fit_allfeatures <- map(all_features, \(x) fit_features_x(x, data = collision_covar_500))
-
-feature_df <- map_df(fit_allfeatures,
-  \(x) tidy(x, conf.int = TRUE, exponentiate = TRUE))
-#took 20min or something
-
-feature_RR <- feature_df %>%
-  mutate(
-    RR_95CI = paste0(round(estimate,2)," (", round(conf.low,2), ",", round(conf.high, 2), ")"),
-    tertile = str_sub(term, -1),
-    predictor = str_sub(term, end = -2),
-    category = case_match(
-      tertile,
-      ")" ~ "Low (ref)",
-      "2" ~ "Medium",
-      "3" ~ "High",
-      .default = "(Covariates)"
-    ),
-    category = case_match(
-      term,
-      "st_dir2" ~ "double",
-      .default = category
-    )
-  ) 
-
-saveRDS(feature_RR, file = "st_feature_covar500_RR.rds")
-
-### *visualize -------------------
 plot_facet_RR <- function(data){
   data %>% 
     ggplot(aes(x = estimate, y = category))+
@@ -484,6 +293,72 @@ plot_facet_RR <- function(data){
     )
 }
 
+# 2. collision~feature+covar -----------------
+
+## 2.1 Prepare features---------------------
+### Tertiles, factored---------
+calle_tertile <- calle_rename_df %>% 
+  dplyr::select(codigocl, st_dir, all_of(features), ped_collision) %>% 
+  mutate(
+    across(all_of(features), ~ntile(., 3), .names = "{.col}"),
+    across(-c(codigocl, ped_collision), ~factor(.))
+  ) 
+
+### *scaled--------------
+collision_covar_500 <- covar_500 %>%
+  mutate(
+    across(c(pop_density, starts_with("pct")), ~ scale(.x)[,1])
+  ) %>% 
+  rename(codigocl = CodigoCL) %>% 
+  left_join(calle_tertile, by = "codigocl") 
+
+
+## 2.2 500m buffer-------------
+fit_feature <- glm.nb(ped_collision ~ area_median + pct_apt + pct_home + pct_unoccu + pop_density + pct_male + pct_yr_0_9 + pct_yr_10_19 + pct_yr_30_39 + pct_yr_40_49 + pct_yr_50_59 + pct_yr_60_69 + pct_yr_70_79 + pct_yr_80_plus, data = collision_covar_500)
+
+summary(fit_feature)
+
+### interate----------------
+fit_features_x <- function(predictor, data){
+  formula <- as.formula(paste("ped_collision ~", predictor, "+ pct_apt + pct_home + pct_unoccu + pop_density + pct_male + pct_yr_0_9 + pct_yr_10_19 + pct_yr_30_39 + pct_yr_40_49 + pct_yr_50_59 + pct_yr_60_69 + pct_yr_70_79 + pct_yr_80_plus"))
+  
+  model <- glm.nb(formula,  data = data)
+  return(model)
+}
+
+test <- fit_features_x("area_median", collision_covar_500)
+summary(test)
+
+
+fit_allfeatures <- map(all_features, \(x) fit_features_x(x, data = collision_covar_500))
+
+feature_df <- map_df(fit_allfeatures,
+  \(x) tidy(x, conf.int = TRUE, exponentiate = TRUE))
+#took 20min or something
+
+### summarise RR-----------------
+feature_RR <- feature_df %>%
+  mutate(
+    RR_95CI = paste0(round(estimate,2)," (", round(conf.low,2), ",", round(conf.high, 2), ")"),
+    tertile = str_sub(term, -1),
+    predictor = str_sub(term, end = -2),
+    category = case_match(
+      tertile,
+      ")" ~ "Low (ref)",
+      "2" ~ "Medium",
+      "3" ~ "High",
+      .default = "(Covariates)"
+    ),
+    category = case_match(
+      term,
+      "st_dir2" ~ "double",
+      .default = category
+    )
+  ) 
+
+saveRDS(feature_RR, file = "st_feature_covar500_RR.rds")
+
+### *visualize -------------------
 feature_RR %>% 
   filter(!term == "(Intercept)",
   !category == "(Covariates)") %>% 
@@ -495,7 +370,7 @@ feature_RR %>%
     plot.title.position = "plot"
   )
 
-## 3.2 100m buffer ---------------------
+## 2.3 100m buffer ---------------------
 collision_covar_100 <- covar_100 %>%
   mutate(
     across(c(pop_density, starts_with("pct")), ~ scale(.x)[,1])
@@ -510,6 +385,7 @@ feature100_df <- map_df(fit_allfeatures,
   \(x) tidy(x, conf.int = TRUE, exponentiate = TRUE))
 #took 20min or something
 
+### summarise RR---------------
 feature100_RR <- feature100_df %>%
   mutate(
     RR_95CI = paste0(round(estimate,2)," (", round(conf.low,2), ",", round(conf.high, 2), ")"),
@@ -535,6 +411,8 @@ saveRDS(feature100_RR, file = "st_feature_covar100_RR.rds")
 #     !category == "(Covariates)") %>% 
 #   filter(p.value < 0.05)
   
+
+### visualize-------------
 feature100_RR %>% 
   filter(!term == "(Intercept)",
     !category == "(Covariates)") %>% 
