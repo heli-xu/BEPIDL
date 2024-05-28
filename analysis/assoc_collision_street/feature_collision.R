@@ -355,7 +355,7 @@ feature_RR %>%
   geom_errorbar(aes(xmax = conf.high, xmin = conf.low), linewidth = 0.5)+
   geom_point(aes(x = estimate), size = 2)+
   geom_vline(aes(xintercept = 1), linetype = 2) +
-  facet_grid(rows = vars(predictor), scales = "free_x", switch = "y")+
+  facet_grid(rows = vars(predictor), scales = "free", switch = "y")+
   #scale_x_continuous(breaks = c(1, 4, 8, 12), labels = c("1","4", "8", "12"))+
   scale_x_continuous(breaks = sort(round(c(seq(min(feature_RR$conf.low), max(feature_RR$conf.high), length.out = 4), 1), 0)))+
   theme_bw()+
@@ -382,18 +382,169 @@ feature_RR %>%
   )
 
 
+# 3. collision~feature+covar -----------------
+calle_rename_df <- readRDS("../../clean_data/calles/calle_rename_df.rds")
+
+covar_500 <- readRDS("../../clean_data/SES/covar_calle500m.rds")
+covar_100 <- readRDS("../../clean_data/SES/covar_calle100m.rds")
+
+## Tertiles, factored, *scaled--------------
+calle_tertile <- calle_rename_df %>% 
+  dplyr::select(codigocl, st_dir, all_of(features), ped_collision) %>% 
+  mutate(
+    across(all_of(features), ~ntile(., 3), .names = "{.col}"),
+    across(-c(codigocl, ped_collision), ~factor(.))
+  ) 
+
+collision_covar_500 <- covar_500 %>%
+  mutate(
+    across(c(pop_density, starts_with("pct")), ~ scale(.x)[,1])
+  ) %>% 
+  rename(codigocl = CodigoCL) %>% 
+  left_join(calle_tertile, by = "codigocl") 
 
 
+## 3.1 500m buffer-------------
+fit_feature <- glm.nb(ped_collision ~ area_median + pct_apt + pct_home + pct_unoccu + pop_density + pct_male + pct_yr_0_9 + pct_yr_10_19 + pct_yr_30_39 + pct_yr_40_49 + pct_yr_50_59 + pct_yr_60_69 + pct_yr_70_79 + pct_yr_80_plus, data = collision_covar_500)
 
+summary(fit_feature)
 
+### function to interate----------------
+fit_features_x <- function(predictor, data){
+  formula <- as.formula(paste("ped_collision ~", predictor, "+ pct_apt + pct_home + pct_unoccu + pop_density + pct_male + pct_yr_0_9 + pct_yr_10_19 + pct_yr_30_39 + pct_yr_40_49 + pct_yr_50_59 + pct_yr_60_69 + pct_yr_70_79 + pct_yr_80_plus"))
+  
+  model <- glm.nb(formula,  data = data)
+  return(model)
+}
 
+test <- fit_features_x("area_median", collision_covar_500)
+summary(test)
 
+### iterate modeling--------------
+fit_allfeatures <- map(all_features, \(x) fit_features_x(x, data = collision_covar_500))
 
+feature_df <- map_df(fit_allfeatures,
+  \(x) tidy(x, conf.int = TRUE, exponentiate = TRUE))
+#took 20min or something
 
+feature_RR <- feature_df %>%
+  mutate(
+    RR_95CI = paste0(round(estimate,2)," (", round(conf.low,2), ",", round(conf.high, 2), ")"),
+    tertile = str_sub(term, -1),
+    predictor = str_sub(term, end = -2),
+    category = case_match(
+      tertile,
+      ")" ~ "Low (ref)",
+      "2" ~ "Medium",
+      "3" ~ "High",
+      .default = "(Covariates)"
+    ),
+    category = case_match(
+      term,
+      "st_dir2" ~ "double",
+      .default = category
+    )
+  ) 
 
+saveRDS(feature_RR, file = "st_feature_covar500_RR.rds")
 
+### *visualize -------------------
+plot_facet_RR <- function(data){
+  data %>% 
+    ggplot(aes(x = estimate, y = category))+
+    geom_rect(aes(xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, fill = predictor), alpha = 1) +
+    scale_fill_manual(values = rep(c("#ffffff00", "#f0f0f090"), 20), guide = "none")+ 
+    geom_errorbar(aes(xmax = conf.high, xmin = conf.low), linewidth = 0.5)+
+    geom_point(aes(x = estimate), size = 2)+
+    geom_vline(aes(xintercept = 1), linetype = 2) +
+    facet_grid(rows = vars(predictor), scales = "free", switch = "y")+
+    #use "free" because category not the same in each var (y axis)
+    scale_x_continuous(breaks = sort(round(c(seq(min(feature_RR$conf.low), max(feature_RR$conf.high), length.out = 4), 1), 0)))+
+    theme_bw()+
+    # scale_fill_manual(values = c("Medium" = "#ffffff00", "High" = "#f0f0f090"), guide = "none") +
+    labs(
+      title = "Pedestrian Collision and Street Features",
+      x = "RR (95%CI)",
+      y = "Street Features",
+      caption = "'st_dir' compares 'double' relative to 'one' direction. \nFor other street features, tertiles are used in analysis.\n Comparisons are relative to the 'Low' category."
+    )+
+    theme(
+      plot.title = element_text(size = 13, face = "bold", hjust = 0),
+      text = element_text(size = 11),
+      axis.title = element_text(size = 12),
+      # plot.title.position = "plot",
+      panel.spacing.y = unit(0, "points"),
+      panel.border = element_blank(),
+      #axis.text.y = element_blank(),
+      axis.ticks.length.y = unit(0, "points"),
+      strip.text.y.left = element_text(face = "bold", angle = 0),
+      strip.background.y = element_blank(),
+      strip.placement = "outside",
+      axis.line = element_line()
+    )
+}
 
+feature_RR %>% 
+  filter(!term == "(Intercept)",
+  !category == "(Covariates)") %>% 
+  plot_facet_RR()+  
+  labs(
+    subtitle = "Adjusted for types of dwellings, population density, age and sex (buffer range 500m)."
+  )+
+  theme(
+    plot.title.position = "plot"
+  )
 
+## 3.2 100m buffer ---------------------
+collision_covar_100 <- covar_100 %>%
+  mutate(
+    across(c(pop_density, starts_with("pct")), ~ scale(.x)[,1])
+  ) %>% 
+  rename(codigocl = CodigoCL) %>% 
+  left_join(calle_tertile, by = "codigocl") 
+
+### iterate --------------------
+fit_allfeatures <- map(all_features, \(x) fit_features_x(x, data = collision_covar_100))
+
+feature100_df <- map_df(fit_allfeatures,
+  \(x) tidy(x, conf.int = TRUE, exponentiate = TRUE))
+#took 20min or something
+
+feature100_RR <- feature100_df %>%
+  mutate(
+    RR_95CI = paste0(round(estimate,2)," (", round(conf.low,2), ",", round(conf.high, 2), ")"),
+    tertile = str_sub(term, -1),
+    predictor = str_sub(term, end = -2),
+    category = case_match(
+      tertile,
+      ")" ~ "Low (ref)",
+      "2" ~ "Medium",
+      "3" ~ "High",
+      .default = "(Covariates)"
+    ),
+    category = case_match(
+      term,
+      "st_dir2" ~ "double",
+      .default = category
+    )
+  ) 
+
+saveRDS(feature100_RR, file = "st_feature_covar100_RR.rds")
+# a <- feature100_RR %>% 
+#   filter(!term == "(Intercept)",
+#     !category == "(Covariates)") %>% 
+#   filter(p.value < 0.05)
+  
+feature100_RR %>% 
+  filter(!term == "(Intercept)",
+    !category == "(Covariates)") %>% 
+plot_facet_RR()+
+  labs(
+    subtitle = "Adjusted for types of dwellings, population density, age and sex (buffer range 100m)."
+  )+
+  theme(
+    plot.title.position = "plot"
+  )
 
 
 
