@@ -2,86 +2,38 @@ library(tidyverse)
 library(sf)
 library(broom)
 library(MASS)
+library(readxl)
 
 # 0. import data ----------------------
 col_ped_zat <- readRDS("../../clean_data/collision/collision_zat_df.rds")
-profile <- readRDS("../../clean_data/aggr_hclust_geo/calle2zat_geo.rds") %>% 
-  st_drop_geometry()
-
-profile %>% filter(is.na(clus))
 
 ses_zat <- readRDS("../../clean_data/ses/ses_zat.rds")
 ses_zat %>% filter(is.na(ses_cat))
 
-# 1. Profile distribution --------------------------------
-distr_stat <- function(data, unit, group){
-  data %>% 
-    dplyr::select({{unit}},{{group}}) %>% 
-    count({{group}}) %>% 
-    ungroup() %>% 
-    mutate(total = nrow(data), #MUST check no NA rows
-      percent = (n/total)*100)
-}
+# covar
+pop <- read_xlsx("../../data/pop_zat.xlsx")
+zat <- read_xlsx("../../data/ZAT/ZAT_INDICADORES.xlsx")
 
-profile_distr <- distr_stat(profile, ZAT, clus) %>% 
-  mutate(clus = factor(clus)) #match var type
+pop_density <- pop %>% 
+  left_join(zat %>% 
+              dplyr::select(ZAT, area_m2 = `Area M2`), 
+            by = "ZAT") %>% 
+  mutate(pop_density = (POBD2021 / area_m2)*100) %>% 
+  dplyr::select(ZAT, pop_density)
+  
+# offset
+traffic <- readRDS("../../data/zat_denom.rds")
 
-# 2. SES distribution ---------------------
+traffic <- traffic %>% 
+  mutate(walk_pubt = total_walk + total_pubt)
+
+# 1. SES distribution ---------------------
 #ses_zat %>% filter(is.na(ses_cat))
 
 ses_zat_distri <- distr_stat(ses_zat, ZAT, ses_cat)
 
-# 3. Collision ~ profile ----------------------------------
-profile_ped_zat <- col_ped_zat %>% 
-  left_join(profile, by = "ZAT") %>% 
-  mutate(clus = factor(clus)) %>% 
-  drop_na(clus)
 
-## pedestrian collision with injury --------------
-
-fit_injuryP <- glm.nb(injury ~ clus, data = profile_ped_zat)
-summary(fit_injuryP)
-injuryP_df <- tidy(fit_injuryP, conf.int = TRUE, exponentiate = TRUE) %>% 
-  mutate(outcome = 'injury')
-
-## pedestrian collision with death --------------
-fit_deathP <- glm.nb(death ~ clus, data = profile_ped_zat)
-summary(fit_deathP)
-
-deathP_df <- tidy(fit_deathP, conf.int = TRUE, exponentiate = TRUE) %>% 
-  mutate(outcome='death')
-
-## total pedestrian collision --------------
-fit_totalP <- glm.nb(total ~ clus, data = profile_ped_zat)
-summary(fit_totalP)
-
-## summarise RR -----------------------------
-RR_profile <- tidy(fit_totalP, conf.int = TRUE, exponentiate = TRUE) %>% 
-  mutate(outcome='total') %>% 
-  bind_rows(injuryP_df, deathP_df) %>% 
-  mutate(RR_95CI = paste0(round(estimate,2)," (", round(conf.low,2), ",", round(conf.high, 2), ")")) %>% 
-  mutate(clus = case_match(
-    term,
-    "(Intercept)" ~ "1",
-    "clus2" ~ "2",
-    "clus3" ~ "3",
-    "clus4" ~ "4"
-  )) %>% 
-  left_join(profile_distr, by = "clus") %>% 
-  mutate(predictor = paste0("profile_", clus)) 
-
-saveRDS(RR_profile, file = "profile_col_RR.rds")
-
-profile_collision_csv <- RR_profile %>% 
-  dplyr::select(
-    predictor, n, total, 
-    percent_zat = percent, 
-    RR_95CI, p.value, outcome)
-
-
-write_csv(profile_collision_csv, file = "collision-profile_zat.csv")
-
-# 4. Collision ~ SES --------------------------
+# 2. Collision ~ SES --------------------------
 ses_ped_zat <- col_ped_zat %>% 
   left_join(ses_zat %>% 
               dplyr::select(ZAT, ses_cat), by = "ZAT") %>% 
@@ -136,98 +88,7 @@ ses_collision_csv <- RR_ses %>%
 
 write_csv(ses_collision_csv, file = "collision-ses_zat.csv")
 
-# 5. Collision ~ SES + profile -------------------------------
-ses_profile_ped <- ses_zat %>% 
-  dplyr::select(ZAT, ses_cat) %>% 
-  mutate(ses_cat_r = factor(ses_cat, levels = rev(levels(ses_cat)))) %>% 
-  left_join(profile, by = "ZAT") %>% 
-  mutate(clus = factor(clus)) %>% 
-  #drop_na(clus) %>% 
-  left_join(col_ped_zat, by = "ZAT") %>% 
-  drop_na()
-
-## corr-----------------
-ses_profile <- ses_zat %>% 
-  dplyr::select(ZAT, ses_cat) %>% 
-  left_join(profile, by = "ZAT") %>% 
-  mutate(across(-ZAT, ~as.numeric(.), .names = "{.col}")) %>% 
-  drop_na()
-
-cor(ses_profile %>% dplyr::select(-ZAT))
-
-# library(corrplot) for plot
-# corrplot(mx, method = "number") 
-
-## injury ------------------
-fit_injury2 <- glm.nb(injury ~ clus + ses_cat_r, data = ses_profile_ped)
-summary(fit_injury2)
-
-## compare with or w/o profile ---------------
-BIC(fit_injury2, fit_injuryS)
-#about the same
-
-plot(residuals(fit_injury2))
-
-injury_df <- tidy(fit_injury2, conf.int = TRUE, exponentiate = TRUE) %>% 
-  #exponentiate->RR 
-  mutate(outcome = "injury")
-
-## death ---------------------------
-fit_death2 <- glm.nb(death ~ clus + ses_cat_r, data = ses_profile_ped)
-summary(fit_death2)
-
-death_df <- tidy(fit_death2, conf.int = TRUE, exponentiate = TRUE) %>% 
-  mutate(outcome = "death")
-
-## total --------------------------------
-fit_total2 <- glm.nb(total ~ clus + ses_cat_r, data = ses_profile_ped)
-summary(fit_total2)
-
-total_df <- tidy(fit_total2, conf.int = TRUE, exponentiate = TRUE) %>% 
-  mutate(outcome = "total")
-
-## summarise table and RR -------------------
-ses_prof_RR <- injury_df %>% 
-  bind_rows(death_df, total_df) %>% 
-  mutate(RR_95CI = paste0(round(estimate,2)," (", round(conf.low,2), ",", round(conf.high, 2), ")")) %>% 
-  mutate(predictor = case_match(
-    term,
-    "(Intercept)" ~ "profile_1+ses_6",
-    "clus2" ~ "profile_2",
-    "clus3" ~ "profile_3",
-    "clus4" ~ "profile_4",
-    "ses_cat_r5" ~ "ses_5",
-    "ses_cat_r4" ~ "ses_4",
-    "ses_cat_r3" ~ "ses_3",
-    "ses_cat_r2" ~ "ses_2",
-    "ses_cat_r1" ~ "ses_1"
-  )) 
-
-saveRDS(ses_prof_RR, file = "ses_profile_col_RR.rds")
-
-ses_prof_col_csv <- ses_prof_RR %>% 
-  dplyr::select(
-    predictor,
-    RR_95CI,
-    p.value,
-    outcome
-  )
-
-write_csv(ses_prof_col_csv, file = "collision-ses-profile_zat.csv" )
-
-# 6. Visualize ------------------------
-## profile-collision ------------
-plot_RR(RR_profile, predictor)+
-  facet_grid(vars(outcome), switch = "y")+
-  labs(
-    title = "Pedestrian Collision and Neighborhood Profiles",
-    subtitle = "ZAT level, Bogota, Colombia",
-    x = "RR (95%CI)",
-    y = "ZAT Profile",
-    caption = "All comparisons are relative to the profile 1."
-  )
-
-## ses-collision ---------------
+## visualize ---------------
 plot_RR(RR_ses, predictor) +
   facet_grid(vars(outcome), switch = "y")+
   labs(
@@ -238,16 +99,53 @@ plot_RR(RR_ses, predictor) +
     caption = "All comparisons are relative to the SES 6 (highest) level."
   )
 
-## ses+profile -col ----------
-plot_RR(ses_prof_RR, predictor)+
-  facet_grid(vars(outcome), switch = "y")+
-  labs(
-    title = "Pedestrian Collision, Neighborhood Profile and SES Level",
-    subtitle = "ZAT level, Bogota, Colombia",
-    x = "RR (95%CI)",
-    y = "SES Level or Profile",
-    caption = "All comparisons are relative to the SES 6 (highest level) and profile 1."
-  )+
-  theme(
-    plot.title.position = "plot"
-  )
+# 3. Collision~SES+covar+offset--------
+## 3.1 join col, ses, covar, offset-------
+ses_ped_covar <- col_ped_zat %>% 
+  left_join(ses_zat %>% 
+              dplyr::select(ZAT, ses_cat), by = "ZAT") %>% 
+  drop_na(ses_cat) %>%  #after join check NA
+  mutate(ses_cat_r = factor(ses_cat, levels = rev(levels(ses_cat)))) %>% 
+  left_join(pop_density, by = "ZAT") %>% 
+  left_join(traffic %>% 
+              dplyr::select(ZAT, walk_pubt),
+            by = "ZAT") %>% 
+  mutate(
+    across(pop_density, ~scale(.x)[, 1])
+  ) %>% 
+  drop_na() %>% 
+  filter(walk_pubt > 0) # cause the log()
+
+# ses_ped_covar %>% filter(is.na(walk_pubt))
+
+## 3.2 Model-------
+### injury ------
+fit_injury_covar <- glm.nb(injury ~ ses_cat_r+ offset(log(walk_pubt)) + pop_density, data = ses_ped_covar)
+summary(fit_injury_covar)
+
+injury_co_df <- tidy(fit_injury_covar, conf.int = TRUE, exponentiate = TRUE) %>%
+  mutate(outcome = "injury")
+### death -------
+fit_death_covar <- glm.nb(death ~ ses_cat_r + offset(log(walk_pubt)) + pop_density, data = ses_ped_covar)
+summary(fit_death_covar)
+
+### total ---------
+fit_total_covar <- glm.nb(total ~ ses_cat_r + offset(log(walk_pubt)) + pop_density, data = ses_ped_covar)
+summary(fit_total_covar)
+
+## 3.3 Summarize RR --------
+ses_covar_RR <-  %>%
+  
+  bind_rows(injuryS_df, deathS_df) %>%
+  mutate(RR_95CI = paste0(round(estimate,2)," (", round(conf.low,2), ",", round(conf.high, 2), ")")) %>% 
+  mutate(ses_cat = case_match(
+    term,
+    "(Intercept)" ~ "6",
+    "ses_cat_r5" ~ "5",
+    "ses_cat_r4" ~ "4",
+    "ses_cat_r3" ~ "3",
+    "ses_cat_r2" ~ "2",
+    "ses_cat_r1" ~ "1"
+  )) %>% 
+  left_join(ses_zat_distri, by = "ses_cat") %>%
+  mutate(predictor = paste0("ses_", ses_cat)) 
