@@ -223,6 +223,14 @@ ses_covar_RR <- bind_rows(ses_covar100_RR, ses_covar500_RR) %>%
 
 saveRDS(ses_covar_RR, file = "ses_covar_col_RR.rds")
 
+ses_covar_RR_csv <- ses_covar_RR %>% 
+  dplyr::select(
+    term, predictor, n, total, 
+    percent_street = percent, 
+    RR_95CI, p.value, buffer_m)
+
+write_csv(ses_covar_RR_csv, file = "ses_covar_collision.csv")
+
 ## 3.4 Visualization ---------
 source("../../functions/plot_RR.R")
 ses_covar_RR %>% 
