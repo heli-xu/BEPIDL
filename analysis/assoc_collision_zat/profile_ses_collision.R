@@ -29,6 +29,7 @@ traffic <- traffic %>%
 
 # 1. SES distribution ---------------------
 #ses_zat %>% filter(is.na(ses_cat))
+source("../../functions/distr_stat.R")
 
 ses_zat_distri <- distr_stat(ses_zat, ZAT, ses_cat)
 
@@ -125,18 +126,23 @@ summary(fit_injury_covar)
 
 injury_co_df <- tidy(fit_injury_covar, conf.int = TRUE, exponentiate = TRUE) %>%
   mutate(outcome = "injury")
+
 ### death -------
 fit_death_covar <- glm.nb(death ~ ses_cat_r + offset(log(walk_pubt)) + pop_density, data = ses_ped_covar)
 summary(fit_death_covar)
+
+death_co_df <- tidy(fit_death_covar, conf.int = TRUE, exponentiate = TRUE) %>%
+  mutate(outcome = "death")
 
 ### total ---------
 fit_total_covar <- glm.nb(total ~ ses_cat_r + offset(log(walk_pubt)) + pop_density, data = ses_ped_covar)
 summary(fit_total_covar)
 
+total_co_df <- tidy(fit_total_covar, conf.int = TRUE, exponentiate = TRUE) %>%
+  mutate(outcome = "total")
+
 ## 3.3 Summarize RR --------
-ses_covar_RR <-  %>%
-  
-  bind_rows(injuryS_df, deathS_df) %>%
+ses_covar_RR <- bind_rows(injury_co_df, death_co_df, total_co_df) %>% 
   mutate(RR_95CI = paste0(round(estimate,2)," (", round(conf.low,2), ",", round(conf.high, 2), ")")) %>% 
   mutate(ses_cat = case_match(
     term,
@@ -145,7 +151,32 @@ ses_covar_RR <-  %>%
     "ses_cat_r4" ~ "4",
     "ses_cat_r3" ~ "3",
     "ses_cat_r2" ~ "2",
-    "ses_cat_r1" ~ "1"
+    "ses_cat_r1" ~ "1",
+    .default = "(Covariates)"
   )) %>% 
   left_join(ses_zat_distri, by = "ses_cat") %>%
   mutate(predictor = paste0("ses_", ses_cat)) 
+
+saveRDS(ses_covar_RR, file = "ses_covar_col_RR.rds")
+
+ses_covar_RR_csv <- ses_covar_RR %>% 
+  dplyr::select(
+    term, predictor, n, total, 
+    percent_zat = percent, 
+    RR_95CI, p.value, outcome)
+
+write_csv(ses_covar_RR_csv, file = "ses_covar_col_RR.csv")
+
+## 3.4 Visualize --------------
+source("../../functions/plot_RR.R")
+ses_covar_RR %>% 
+  filter(!ses_cat == "(Covariates)") %>% 
+  plot_RR(., predictor) +
+  facet_grid(vars(outcome), switch = "y")+
+  labs(
+    title = "Pedestrian Collision and Neighborhood (ZAT) SES Level in Bogotá",
+    subtitle = "Adjusted for population density, age groups, sex composition and types of dwellings.",
+    x = "RR (95%CI)",
+    y = "SES Level",
+    caption = "All comparisons are relative to the SES 6 (highest) level."
+  )
