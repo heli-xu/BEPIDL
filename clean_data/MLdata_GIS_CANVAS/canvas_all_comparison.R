@@ -262,6 +262,8 @@ leaflet() %>%
     fillColor = 'purple', color = 'purple')
 
 ## Reliability metrics ---------------------------
+canvas_train <- readRDS("canvas_train.rds")
+
 tr_variables <- c(
   # "tr_sign_traffic_yn",
   # "tr_sign_traffic_yn",
@@ -318,6 +320,41 @@ title(main = "CANVAS-training comparison", line = 3)
 df <- reliability_table(var = tr_variables, var_ref = can_variables, canvas_train)
 
 write_csv(df, file = "MLdata_GIS_CANVAS/canvas_train_reliability.csv")
+
+### *visualize---------------
+df %>%
+  mutate(var_plot = str_sub(var, 4, -4),
+    var_plot = fct_reorder(var_plot, kappa_est)) %>%
+  ggplot(aes(x = kappa_est, y = var_plot))+
+  geom_errorbar(aes(xmin = kappa_lower, xmax = kappa_upper), linewidth = 0.5)+
+  geom_point(aes(x = kappa_est), size = 2)+
+  geom_vline(aes(xintercept = 0.2), linetype = 2)+
+  scale_x_continuous(breaks = sort(round(c(seq(min(df$kappa_lower), max(df$kappa_upper), length.out = 4), 0.2), 1)))+
+  theme_bw()+
+  # facet_grid(vars(year), switch = "y")+
+  theme(
+    plot.title = element_text(size = 13, face = "bold", hjust = 0),
+    plot.title.position = "plot",
+    text = element_text(size = 11),
+    axis.title = element_text(size = 12),
+    # plot.title.position = "plot",
+    panel.spacing.y = unit(0, "points"),
+    panel.border = element_blank(),
+    #axis.text.y = element_blank(),
+    axis.ticks.length.y = unit(0, "points"),
+    strip.text.y.left = element_text(face = "bold", angle = 0),
+    #strip.background.y = element_blank(),
+    strip.placement = "outside",
+    axis.line = element_line()
+  )+  
+  #below are outside of function
+  labs(
+    title = "Built Environment Features: Training data vs CANVAS",
+    subtitle = "Agreement between training data for AI and CANVAS data (n = 69) at the street level",
+    caption = "Interpretations for the kappa statistic: < 0.2 slight agreement, \n0.2 - 0.4 fair agreement, 0.4 - 0.6 moderate agreement.",
+    x = "Cohen's kappa (95%CI)",
+    y = "Street Features"
+  )
 
 # 3. CANVAS vs Predict --------------------------------------------
 ## joining predict-CANVAS -----------------------------
