@@ -129,7 +129,11 @@ ses_collision_csv <- ses_collision_RR %>%
 write_csv(total_df, file = "ses_collision_street.csv")
 
 ## Visualize ----------------------
-plot_RR(ses_collision_RR, predictor)+
+ses_RR <- readRDS("ses_collision_RR.rds")
+
+ses_RR %>% 
+  #filter(!ses_cat == "(Covariates)") %>% 
+  plot_RR(., predictor)+
   facet_grid(vars(buffer_m), switch = "y")+
   theme(
     strip.text.y.left = element_text(face = "bold", angle = 90),
@@ -138,7 +142,7 @@ plot_RR(ses_collision_RR, predictor)+
   )+
   labs(
     title = "Pedestrian Collision and Socioeconomic Status (SES)",
-    subtitle = "Street level, Bogotá, Colombia",
+    subtitle = "Unadjusted, Street level, Bogotá, Colombia",
     x = "RR (95%CI)",
     y = "SES Level",
     caption = "All comparisons are relative to the 'ses_6' (highest) level."
@@ -233,18 +237,20 @@ write_csv(ses_covar_RR_csv, file = "ses_covar_collision.csv")
 
 ## 3.4 Visualization ---------
 source("../../functions/plot_RR.R")
+ses_covar_RR <- readRDS("ses_covar_col_RR.rds")
 ses_covar_RR %>% 
   filter(!ses_cat == "(Covariates)") %>% 
 plot_RR(., predictor)+
   facet_grid(vars(buffer_m), switch = "y")+
   theme(
+    plot.title.position = "plot",
     strip.text.y.left = element_text(face = "bold", angle = 90),
     strip.background.y = element_rect(fill = "white"),
     strip.placement = "outside",
   )+
   labs(
-    title = "Pedestrian Collision and Socioeconomic Status (SES)",
-    subtitle = "Adjusted for age, sex and population density. Street level, Bogotá, Colombia",
+    title = "Pedestrian Collision and Socioeconomic Status (SES) in Bogotá",
+    subtitle = "Adjusted for types of dwellings, age groups, sex composition and population density",
     x = "RR (95%CI)",
     y = "SES Level",
     caption = "SES level and covariates are aggregated from block level data, \nconsidering the blocks intersecting with 100m and 500m buffer range of streets. \nAll comparisons are relative to the 'ses_6' (highest) level."

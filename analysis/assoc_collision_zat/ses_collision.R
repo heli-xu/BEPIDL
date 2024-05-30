@@ -94,11 +94,14 @@ ses_collision_csv <- RR_ses %>%
 write_csv(ses_collision_csv, file = "collision-ses_zat.csv")
 
 ## visualize ---------------
+RR_ses <- readRDS("ses_col_RR.rds")
+source("../../functions/plot_RR.R")
+
 plot_RR(RR_ses, predictor) +
   facet_grid(vars(outcome), switch = "y")+
   labs(
     title = "Pedestrian Collision and Neighborhood SES Level",
-    subtitle = "ZAT level, Bogota, Colombia",
+    subtitle = "Unadjusted, ZAT level, Bogotá, Colombia",
     x = "RR (95%CI)",
     y = "SES Level",
     caption = "All comparisons are relative to the SES 6 (highest) level."
@@ -172,15 +175,20 @@ ses_covar_RR_csv <- ses_covar_RR %>%
 write_csv(ses_covar_RR_csv, file = "ses_covar_col_RR.csv")
 
 ## 3.4 Visualize --------------
+ses_covar_RR <- readRDS("ses_covar_col_RR.rds")
 source("../../functions/plot_RR.R")
+
 ses_covar_RR %>% 
   filter(!ses_cat == "(Covariates)") %>% 
   plot_RR(., predictor) +
   facet_grid(vars(outcome), switch = "y")+
   labs(
     title = "Pedestrian Collision and Neighborhood (ZAT) SES Level in Bogotá",
-    subtitle = "Adjusted for population density, age groups, sex composition and types of dwellings.",
+    subtitle = "Adjusted for ZAT-level SES, walking/public transit trips and population density",
     x = "RR (95%CI)",
     y = "SES Level",
     caption = "All comparisons are relative to the SES 6 (highest) level."
+  )+
+  theme(
+    plot.title.position = "plot"
   )

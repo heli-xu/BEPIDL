@@ -222,11 +222,16 @@ sig <- feature_xtra %>%
   filter(p.value < 0.05)
 
 ## 1.6 Visualize ------------
+feature_RR <- readRDS("feature-collision_RR.rds") %>% 
+  mutate(category = case_match(
+    predictor,
+    "st_dir" ~ "double",
+    .default = category
+  ))
 
 #below has become a function plot_facet_RR()
 feature_RR %>% 
-  filter(!term == "(Intercept)",
-    !term == "st_dir2") %>%  #st_dir2 no difference
+  filter(!term == "(Intercept)") %>% 
   #mutate(category = factor(predictor)) %>% 
   ggplot(aes(x = estimate, y = category))+
   geom_rect(aes(xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, fill = predictor), alpha = 1) +
@@ -258,6 +263,16 @@ feature_RR %>%
     strip.background.y = element_blank(),
     strip.placement = "outside",
     axis.line = element_line()
+  )
+
+feature_RR %>% 
+  filter(!term == "(Intercept)") %>% 
+  plot_facet_RR()+
+  labs(
+    subtitle = "Unadjusted"
+  )+
+  theme(
+    plot.title.position = "plot"
   )
 
 # 2. collision~feature+covar -----------------
@@ -326,12 +341,15 @@ feature_RR <- feature_df %>%
 saveRDS(feature_RR, file = "st_feature_covar500_RR.rds")
 
 ### *visualize -------------------
-feature_RR %>% 
+feature_covar500 <- readRDS("st_feature_covar500_RR.rds")
+source("../../functions/plot_facet_RR.R")
+
+feature_covar500 %>% 
   filter(!term == "(Intercept)",
   !category == "(Covariates)") %>% 
   plot_facet_RR()+  
   labs(
-    subtitle = "Adjusted for types of dwellings, population density, age and sex (buffer range 500m)."
+    subtitle = "Adjusted for types of dwellings, population density, age groups and sex composition (500m)"
   )+
   theme(
     plot.title.position = "plot"
@@ -380,12 +398,13 @@ saveRDS(feature100_RR, file = "st_feature_covar100_RR.rds")
   
 
 ### visualize-------------
-feature100_RR %>% 
+feature_covar100 <- readRDS("st_feature_covar100_RR.rds")
+feature_covar100 %>% 
   filter(!term == "(Intercept)",
     !category == "(Covariates)") %>% 
 plot_facet_RR()+
   labs(
-    subtitle = "Adjusted for types of dwellings, population density, age and sex (buffer range 100m)."
+    subtitle = "Adjusted for types of dwellings, population density, age groups and sex composition (100m)"
   )+
   theme(
     plot.title.position = "plot"

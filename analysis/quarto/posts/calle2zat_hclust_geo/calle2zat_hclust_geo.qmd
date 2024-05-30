@@ -137,7 +137,7 @@ map_clust <- ggplot()+
 
 (cluster_plot(calle2zat_clust) | map_clust ) + 
   plot_annotation('Hierarchical Clustering with Indicators and Neighborhood Constraint', 
-    subtitle = 'ZAT level and aggregated calle level, Bogotá',
+    subtitle = 'Street features from ZAT level and aggregated calle level, Bogotá',
     theme=theme(plot.title=element_text(size=14, face = "bold", hjust=0.5),
                 plot.subtitle = element_text(size = 10, face = "bold", hjust = 0.5))) +
   plot_layout(width = c(1, 1.5), height = unit(20, "cm"))

@@ -77,6 +77,8 @@ rd_type_RR_csv <- rd_type_RR %>%
 write_csv(rd_type_RR, file = "rd_type-collision.csv")
 
 ## 1.4 Visualize --------------
+
+
 data <- rd_type_RR %>% 
   filter(!term == "(Intercept)") 
 
@@ -211,6 +213,8 @@ saveRDS(rd_covar500_RR, file = "rd_type_col_covar500_RR.rds")
 saveRDS(rd_covar100_RR, file = "rd_type_col_covar100_RR.rds")
 
 ## 2.4 Visualize -------------
+source("../../functions/plot_RR.R")
+
 rd_covar500_RR %>% 
   filter(!road_type2 == "(Covariates)") %>% 
   plot_RR(., road_type2)+

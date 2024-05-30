@@ -114,3 +114,13 @@ df %>%
     x = "Cohen's kappa (95%CI)",
     y = "Street Features"
   )
+
+plot_kappa(df) +
+  labs(
+    title = "Built Environment Features: Prediction2024 vs CANVAS",
+    subtitle = "Agreement between AI predictions and CANVAS data (n =350) at the street level",
+    caption = "Interpretations for the kappa statistic: < 0.2 slight agreement, \n0.2 - 0.4 fair agreement, 0.4 - 0.6 moderate agreement.",
+    x = "Cohen's kappa (95%CI)",
+    y = "Street Features"
+  )
+  

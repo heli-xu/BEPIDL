@@ -84,12 +84,13 @@ write_csv(profile_collision_csv, file = "collision-profile_zat.csv")
 
 ## visualize-----------
 source("../../functions/plot_RR.R")
+RR_profile <- readRDS("profile_col_RR.rds")
 
 plot_RR(RR_profile, predictor)+
   facet_grid(vars(outcome), switch = "y")+
   labs(
     title = "Pedestrian Collision and Neighborhood Profiles",
-    subtitle = "ZAT level, Bogota, Colombia",
+    subtitle = "Unadjusted, ZAT level, Bogotá, Colombia",
     x = "RR (95%CI)",
     y = "ZAT Profile",
     caption = "All comparisons are relative to the profile 1."
@@ -179,6 +180,8 @@ write_csv(ses_prof_col_csv, file = "collision-ses-profile_zat.csv" )
 
 ## visualize ----------
 ##SES as covariates, adjusted for
+ses_profile_col_RR <- readRDS("ses_profile_col_RR.rds")
+
 ses_profile_col_RR %>% 
   filter(!str_starts(predictor, "ses_")) %>% 
   plot_RR(., predictor)+
@@ -263,6 +266,8 @@ prof_ses_covar_RR_csv <- prof_ses_covar_RR %>%
 write_csv(prof_ses_covar_RR_csv, file = "prof_ses_cov_collision_RR.csv")
 
 ## 4.4 visualize --------
+prof_ses_covar_RR <- readRDS("prof_ses_covar_col_RR.rds")
+
 prof_ses_covar_RR %>% 
   filter(!predictor == "(Covariates)") %>% 
   plot_RR(., predictor)+

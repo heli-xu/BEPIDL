@@ -521,6 +521,8 @@ saveRDS(tr_gis_calle, file = "MLdata_GIS/tr_gis_calle.rds")
 ## Reliability metrics ---------------------------------------------------
 #colnames(tr_calle)
 
+tr_gis_calle <- readRDS("tr_gis_calle.rds")
+
 tr_variables <- c(
   "tr_sign_traffic_yn",
   "tr_sign_traffic_yn",
@@ -592,6 +594,18 @@ df <- reliability_table(tr_variables, gis_variables, tr_gis_calle)
 
 write_csv(df, file = "MLdata_GIS/train_gis_reliability.csv")
 
+## visualize ------------------
+source("../../functions/plot_kappa.R")
+
+plot_kappa(df)+
+  labs(
+    title = "Built Environment Features: Training data vs GIS",
+    subtitle = "Agreement between training data for AI and GIS data (n = 8132) at the street level",
+    caption = "Interpretations for the kappa statistic: < 0.2 slight agreement, \n0.2 - 0.4 fair agreement, 0.4 - 0.6 moderate agreement.",
+    x = "Cohen's kappa (95%CI)",
+    y = "Street Features"
+  )
+
 
 
 # overlap in predict and training ---------------
@@ -633,5 +647,5 @@ leaflet() %>%
   addPolygons(
     data = tr_pr_gis_calle %>% 
       st_transform(crs = st_crs("+proj=longlat +datum=WGS84")),
-    weight = 2, fillColor = "red", color = "red")
+    weight = 2, fillColor = "red", color = "red"
   )

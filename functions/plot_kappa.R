@@ -16,7 +16,14 @@
 #'
 #' @examples
 #' # Example usage:
-#' # plot_kappa(data)
+#' # plot_kappa(data)+
+#' #' labs(
+#' #' title = "Built Environment Features: Training data vs CANVAS",
+#' subtitle = "Agreement between training data for AI and CANVAS data (n = 69) at the street level",
+#' caption = "Interpretations for the kappa statistic: < 0.2 slight agreement, \n0.2 - 0.4 fair agreement, 0.4 - 0.6 moderate agreement.",
+#' x = "Cohen's kappa (95%CI)",
+#' y = "Street Features"
+#' )
 
 plot_kappa <- function(data){
   data %>%
