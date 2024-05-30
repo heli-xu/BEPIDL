@@ -2,7 +2,7 @@
 #'
 #' This function generates a plot of Kappa statistics with error bars.
 #'
-#' @param data A data frame containing the kappa statistics and related variables. Follow format of outcome of `reliability_table()`.
+#' @param data A data frame containing the kappa statistics and related variables. Follow format of outcome of `reliability_table()`. Remember to add your labs().
 #' @return A ggplot object (forrest plot) representing the Kappa estimate with 95%CI.
 #' @export
 #'
