@@ -252,6 +252,16 @@ prof_ses_covar_RR <- bind_rows(injury_co2_df, death_co2_df, total_co2_df) %>%
 
 saveRDS(prof_ses_covar_RR, file = "prof_ses_covar_col_RR.rds")
 
+prof_ses_covar_RR_csv <- prof_ses_covar_RR %>% 
+  dplyr::select(
+    term, predictor,
+    RR_95CI,
+    p.value,
+    outcome
+  )
+
+write_csv(prof_ses_covar_RR_csv, file = "prof_ses_cov_collision_RR.csv")
+
 ## 4.4 visualize --------
 prof_ses_covar_RR %>% 
   filter(!predictor == "(Covariates)") %>% 
