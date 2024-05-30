@@ -20,12 +20,16 @@ pop_density <- pop %>%
             by = "ZAT") %>% 
   mutate(pop_density = (POBD2021 / area_m2)*100) %>% 
   dplyr::select(ZAT, pop_density)
+
+saveRDS(pop_density, file = "../../clean_data/ZAT/pop_density2021.rds")
   
 # offset
 traffic <- readRDS("../../data/zat_denom.rds")
 
 traffic <- traffic %>% 
   mutate(walk_pubt = total_walk + total_pubt)
+
+saveRDS(traffic, file = "../../clean_data/ZAT/walk_pubt.rds")
 
 # 1. SES distribution ---------------------
 #ses_zat %>% filter(is.na(ses_cat))
