@@ -10,65 +10,6 @@ calle_rename_df <- readRDS("../../clean_data/calles/calle_rename_df.rds")
 covar_500 <- readRDS("../../clean_data/SES/covar_calle500m.rds")
 covar_100 <- readRDS("../../clean_data/SES/covar_calle100m.rds")
 
-
-## Rename (follow gis_clean) DON'T RUN----------------
-calle_df <- readRDS("../../clean_data/calles/calle_df.rds")
-
-calle_rename_df <- calle_df %>% 
-  dplyr::select(-c(FID_EP_IND, CODIGO_IDE, Etiquetas, Etiqueta_1)) %>% 
-  rename_with(~ tolower(.)) %>% 
-  rename(
-    area_calle = area,
-    trees = arboles,
-    grade = ave_pendie,
-    area_roadway = a_calzada,
-    road_width = p_ancho_cl, #added
-    area_median = a_separado,
-    vehicle_bridge = puente_vh,
-    ped_bridge = puente_pt,
-    area_sidewalk = a_andenes,
-    brt_routes = rutas_trm,
-    bus_routes = rutas_sitp,
-    bus_stops = parad_sitp,
-    bus_lanes = caril_sitp,
-    bike_length = largo_cicl,
-    road_marks = sen_horizo,
-    warning_signs = se_hor_seg,
-    road_signs = sen_vert,
-    traffic_lights = semaforo,
-    road_segments = segme_via,
-    speed_limit = velcidad,
-    num_lanes_total = sum_carril,
-    num_lanes_avg = av_carrile,
-    road_signs_inv = sen_v_inv, #inventory only
-    stop_signs_v = s_pare_inv, #vertical
-    traffic_fines_tot = comp_cl,
-    lturn_sign = x1_girar_iz,
-    bike_signs = x2_ciclov.,
-    bus_signs = x3bus_o_tra,
-    pedxwalk_signs = x4peatonale,
-    speed_bump_signs = x5policiasa,
-    stop_signs = x6pare, #stop sign related
-    parking_signs = x7estaciona,
-    school_zone_signs = x8zonas_esc,
-    yield_signs = x9ceder_el,
-    total_st_signs = total_ge_1,
-    ped_collision = si_act_pea
-  ) %>% 
-  mutate(
-    st_dir = case_when(
-      sent_vial == "sinD*" ~ NA,
-      sent_vial == "doble" ~ 2,
-      sent_vial == "uno" ~ 1
-    ),
-    veh_br = if_else(vehicle_bridge == "vehicular", 1, 0, missing = 0),
-    ped_br = if_else(ped_bridge == "Peatonal", 1, 0, missing = 0)
-  ) %>% 
-  dplyr::select(-c(vehicle_bridge, ped_bridge, sent_vial, oid_))
-
-saveRDS(calle_rename_df, file = "../../clean_data/calles/calle_rename_df.rds")
-
-
 # 1. collision ~ feature ---------------------------
 
 ## 1.1 feature descrp stat ------------------------------
