@@ -3,66 +3,15 @@ library(sf)
 library(leaflet)
 library(patchwork)
 
-#join collision with road type, shapefile ------------------------
-road_type <- st_read("../../data/GDR_V12.20.gdb/", layer = "MVI")
-calle_geo <- readRDS("../calles/calle_shapefile.rds")
+# import data -------------
+road_type <- readRDS("../road_type/road_type_calle.rds")
+calle_clean_df <- readRDS("calles/calle_clean_df.rds")
 
-#calza <- st_read("../data/GDR_V12.20.gdb/", layer = "Calz")
-#multisurfaces shapes, tricky, and no ID anyway
-
-# there's joining problem for non-line shape:
-road_type %>% filter(!st_geometry_type(road_type)=="MULTILINESTRING")
-#236 MUlticurve...remove here
-
-road_type2 <- road_type %>% 
-  filter(st_geometry_type(road_type)=="MULTILINESTRING") %>% 
-  select(MVITCla) %>% 
-  st_transform(crs = st_crs(calle_geo)) %>%
-  st_join(calle_geo, st_within) %>% 
-  drop_na(CodigoCL) 
-
-#quite many multi match
-road_type2 %>% st_drop_geometry() %>% 
-  count(CodigoCL) %>% filter(n > 1)
-
-leaflet() %>% 
-  addTiles() %>% 
-  addPolylines(
-    data = road_type2 %>% 
-      filter(CodigoCL == "CL75425") %>% 
-      ## arterial
-      filter(MVITCla == 1) %>% 
-      st_transform(crs = st_crs("+proj=longlat +datum=WGS84")),
-    weight = 3, fillColor = 'blue', color = 'blue') %>% 
-  addPolylines(
-    data = road_type2 %>% 
-      filter(CodigoCL == "CL75425") %>% 
-      ## collector
-      filter(MVITCla == 2) %>% 
-      st_transform(crs = st_crs("+proj=longlat +datum=WGS84")),
-    weight = 3, fillColor = 'red', color = 'red') %>%
-  addPolygons(
-    data = calle_geo %>% 
-      filter(CodigoCL == "CL75425") %>% 
-      st_transform(crs = st_crs("+proj=longlat +datum=WGS84")),
-    fillColor = "purple", color = "purple")
-#at intersection, the line of the horizontal road sit inside the vertical road polygon, should be 1.
-
-
-road_type_geo <- road_type2 %>% 
-  st_drop_geometry() %>% 
+# Join collision  
+road_type_geo <- road_type %>% 
   left_join(calle_geo, by= "CodigoCL") %>% 
   st_as_sf()
 
-calle_clean_df <- readRDS("calles/calle_clean_df.rds")
-
-
-road_type_geo %>% 
-  st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>% 
-  leaflet() %>% 
-  addTiles() %>% 
-  addPolylines(
-    weight = 3, fillColor = 'blue', color = 'blue')
   
 injury <- calle_clean_df %>% 
   select(CodigoCL, sini_herid, sini_muert, si_act_pea) %>% 

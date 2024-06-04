@@ -10,27 +10,6 @@ calle_df <- readRDS("../../clean_data/calles/calle_df.rds")
 # road type
 road_type_calle <- readRDS("../../clean_data/road_type/road_type_calle.rds") 
 
-# %>% 
-#   mutate(
-#     road_type = case_match(
-#       MVITCla,
-#      # 0 ~ "missing",
-#       1 ~ "Arterial",
-#       2 ~ "Collector",
-#       3 ~ "Local",
-#       4 ~ "Pedestrian",
-#       5 ~ "Rural",
-#       6 ~ "Unknown"
-#      # 7 ~ "Projected"
-#     ),
-#     road_type2 = case_match(
-#       road_type,
-#       c("Pedestrian", "Rural","Unknown") ~ "Other",
-#       .default = road_type
-#     ))
-
-#saveRDS(road_type_calle, file = "../../clean_data/road_type/road_type_calle.rds")
-
 # 1. collision ~ road_type -----------
 ## 1.1 distribution------------------
 source("../../functions/distr_stat.R")
