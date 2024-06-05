@@ -13,8 +13,14 @@
 
 
 get_cluster <- function(data, clus_list){
+  #NOTE cluster vector is same order as ZAT column in D0 data, NOT the names of the vector
+  zat_cluster <- data.frame(
+    ZAT = data$ZAT,
+    clus = clus_list
+  ) 
+  
   data %>% 
-    mutate(clus = clus_list) %>% 
+    left_join(zat_cluster, by = "ZAT") %>% 
     group_by(clus) %>% 
     summarise(across(-1, ~mean(.x),.names = "mean_{.col}"), .groups = "drop") %>%
     #remember not to 'exclude' the group var
