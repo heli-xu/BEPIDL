@@ -166,11 +166,11 @@ road_type_calle <- road_type %>%
       4 ~ "Pedestrian",
       5 ~ "Rural",
       6 ~ "Unknown"
-     # 7 ~ "Projected"
+      7 ~ "Projected"
     ),
     road_type2 = case_match(
       road_type,
-      c("Pedestrian", "Rural","Unknown") ~ "Other",
+      c("Pedestrian", "Rural","Unknown", "Projected") ~ "Other",
       .default = road_type
     ))
 
