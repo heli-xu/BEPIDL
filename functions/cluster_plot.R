@@ -22,13 +22,16 @@
 #'
 
 cluster_plot <- function(cluster_data) {
+  pal <- c("#225ea8","#41b6c4","#a1dab4","#fecb3e") 
+  
   cluster_data %>% 
     ggplot() +
-    geom_col(aes(x = factor(indicator), y = scaled), fill = pal[cluster_data$clus]) +
+    geom_col(aes(x = factor(indicator), y = scaled, fill = factor(clus))) +  ##modified `fill`
+    scale_fill_manual(values = pal)+
     coord_flip() + 
     geom_hline(yintercept = 0, linetype = "dotted")+ #still set as y (although it's after flipping)
     theme_minimal() +
-    labs(y = "Relative Less   Relative More",
+    labs(y = "Less     More               Less      More",
       x = "") +
     scale_x_discrete(expand = expansion(mult = 0.002),
       labels = c(
@@ -44,23 +47,28 @@ cluster_plot <- function(cluster_data) {
         "mean_bus_length_log" ="Bus route length",
         "mean_brt_length_log"="Bus route length",
         "mean_road_width"="Road width (st)",
-       # "mean_av_carrile"="Average lane",
+        # "mean_av_carrile"="Average lane",
         "mean_area_roadway"="Roadway area (st)",
         "mean_area_median"="Median area (st)",
         "mean_area_sidewalk"="Sidewalk area (st)",
         "mean_INTDENS"="Intersection density",
         "mean_road_marks" ="Road marks (st)",
         "mean_road_signs" = "Road signs (st)",
-        "mean_pedxwalk_signs"="Ped crosswalk sign (st)"
+        "mean_pedxwalk_signs"="Ped crosswalk sign (st)",
+        "mean_pct_Collector" = "Collector (st)",
+        "mean_pct_Arterial" = "Arterial (st)",
+        "mean_pct_Local" = "Local (st)",
+        "mean_pct_other" = "Other road types (st)"
       ))+
     theme(panel.grid = element_blank(),
+      legend.position = "none", ## added
       axis.text.x = element_blank(),
-      axis.text.y = element_text(size = 8),
+      axis.text.y = element_text(size = 9),
       axis.line.x = element_line(arrow = grid::arrow(length = unit(0.3, "cm"), 
         ends = "both")),
       plot.margin=grid::unit(c(0,0,0,0), "mm"),
       strip.text = element_text(face = "bold", size = 10),
       strip.background = element_rect(fill = "grey", color = "white"),
       panel.spacing.x = unit(1, "lines")) +
-    facet_wrap(~clus, ncol = 1)
+    facet_wrap(~clus, ncol = 2) # changed ncol
 }
