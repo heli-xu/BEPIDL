@@ -1,6 +1,6 @@
 library(tidyverse)
 library(leaflet)
-
+library(ggplot2)
 
 # 0. import data -------
 calle_geo <- readRDS("../../clean_data/calles/calle_shapefile.rds")
@@ -131,14 +131,58 @@ gisYprN_top250 %>%
 
 # 4. diff by category-------
 check_cat <- check2 %>% 
+  rename_with(~str_sub(.x, start = 6), .cols = -codigocl) %>% 
   pivot_longer(cols = -codigocl, names_to = "feature", values_to = "diff") %>% 
   group_by(feature) %>% 
   summarise(match = sum(diff ==0),
             prYgisN = sum(diff == 1),
             gisYprN = sum(diff == -1)) %>% 
   mutate(
+    feature = case_match(
+      feature,
+      "sign_stop...5"~"sign_stop1",
+      "sign_stop...6" ~"sign_stop2",
+      "sign_traffic...1"~"sign_traffic1",
+      "sign_traffic...2"~"sign_traffic2",
+      .default = feature
+    )
+  ) %>% 
+  mutate(
     total_street = 63391,
-    across(match:gisYprN, ~(.x/total)*100, .names = "pct_{.col}")
+    across(match:gisYprN, ~(.x/total_street)*100, .names = "pct_{.col}")
   )
 
+df_plot <- check_cat %>% 
+  select(feature, starts_with("pct_")) %>% 
+  pivot_longer(cols = -feature, names_to = "compare", values_to = "pct") %>% 
+  mutate(compare = factor(compare, levels = c("pct_match", "pct_prYgisN", "pct_gisYprN")))
+
+## visualize ----------
+pal = c("#146b3a","#1c2859","#f89c31")
+ggplot(df_plot)+
+  geom_col(aes(x = pct, y = compare, fill = compare))+
+  scale_fill_manual(values = pal)+
+  facet_grid(rows = vars(feature), scales = "free", switch = "y")+
+  theme_bw()+
+  labs(
+    title = "AI prediction 2024 vs GIS data",
+    subtitle = "Agreement by feature across all streets (~63k)",
+    x = "Percent of Streets",
+    y = "Street Features",
+    caption = "match = prediction and GIS match; \nprYgisN = prediction YES, GIS NO; \ngisYprN = GIS YES, prediction NO"
+  )+
+  theme(
+    plot.title = element_text(size = 13, face = "bold", hjust = 0),
+    text = element_text(size = 11),
+    axis.title = element_text(size = 12),
+    # plot.title.position = "plot",
+    panel.spacing.y = unit(0, "points"),
+    panel.border = element_blank(),
+    #axis.text.y = element_blank(),
+    axis.ticks.length.y = unit(0, "points"),
+    strip.text.y.left = element_text(face = "bold", angle = 0),
+    strip.background.y = element_blank(),
+    strip.placement = "outside",
+    axis.line = element_line()
+  )
       
