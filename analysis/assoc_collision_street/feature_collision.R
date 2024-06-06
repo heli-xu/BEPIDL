@@ -79,14 +79,25 @@ all_features <-  c(
   "traffic_fines_tot"
 )
 
-### Take Tertiles, factored--------------
+### Zeroes, nonzero Tertiles, factored--------------
+#interesting how NAs are useful here
 calle_tertile <- calle_rename_df %>% 
   dplyr::select(codigocl, st_dir, all_of(features), ped_collision) %>% 
   mutate(
+    across(all_of(features), ~na_if(., 0)), #turn to NA so that it doesn't get computed
     across(all_of(features), ~ntile(., 3), .names = "{.col}"),
+    across(all_of(features), ~replace_na(., 0)), #turn it back 0
     across(-c(codigocl, ped_collision), ~factor(.))
   )
 
+### zeros in feature count --------
+count_zero <- calle_tertile %>% 
+  summarise(across(everything(), ~ sum(. == 0))) %>% 
+  pivot_longer(cols = -codigocl, names_to = "feature", values_to = "zero_count") %>% 
+  mutate(total = 100819,
+         percent = (zero_count/total)*100)
+
+calle_rename_df %>% filter(grade == 0)
 
 ## 1.3 modeling -----------------
 ### try one
@@ -219,13 +230,17 @@ feature_RR %>%
 # 2. collision~feature+covar -----------------
 
 ## 2.1 Prepare features---------------------
-### Tertiles, factored---------
+### Zeros, nonzero Tertiles, factored---------
 calle_tertile <- calle_rename_df %>% 
   dplyr::select(codigocl, st_dir, all_of(features), ped_collision) %>% 
   mutate(
+    across(all_of(features), ~na_if(., 0)), #turn to NA so that it doesn't get computed
     across(all_of(features), ~ntile(., 3), .names = "{.col}"),
-    across(-c(codigocl, ped_collision), ~factor(.))
-  ) 
+    across(all_of(features), ~replace_na(., 0)), #turn it back 0
+    across(-c(codigocl, ped_collision), ~factor(., levels = c("1", "0", "2", "3")))
+  )
+
+levels(calle_tertile$trees)
 
 ### *scaled--------------
 collision_covar_500 <- covar_500 %>%
@@ -268,13 +283,14 @@ feature_RR <- feature_df %>%
     category = case_match(
       tertile,
       ")" ~ "Low (ref)",
+      "0" ~ "Zero",
       "2" ~ "Medium",
       "3" ~ "High",
       .default = "(Covariates)"
     ),
     category = case_match(
       term,
-      "st_dir2" ~ "double",
+      "st_dir2" ~ "Double",
       .default = category
     )
   ) 
@@ -320,13 +336,14 @@ feature100_RR <- feature100_df %>%
     category = case_match(
       tertile,
       ")" ~ "Low (ref)",
+      "0" ~ "Zero",
       "2" ~ "Medium",
       "3" ~ "High",
       .default = "(Covariates)"
     ),
     category = case_match(
       term,
-      "st_dir2" ~ "double",
+      "st_dir2" ~ "Double",
       .default = category
     )
   ) 
@@ -340,7 +357,7 @@ saveRDS(feature100_RR, file = "st_feature_covar100_RR.rds")
 
 ### visualize-------------
 feature_covar100 <- readRDS("st_feature_covar100_RR.rds")
-feature_covar100 %>% 
+feature100_RR %>% 
   filter(!term == "(Intercept)",
     !category == "(Covariates)") %>% 
 plot_facet_RR()+
