@@ -69,7 +69,7 @@ check2 <- map2_dfc(new_col, prYgisN_expr, function(new_col, prYgisN_expr){
 
 colnames(check2)
 
-# 2. prYES, gisNO --------------  
+# 2. street w prYES, gisNO --------------  
 prYgisN <- check2 %>% 
   pivot_longer(cols = -codigocl, names_to = "variable", values_to = "diff") %>% 
   filter(diff > 0) %>% 
@@ -99,7 +99,7 @@ prYgisN_top250 %>%
     fillColor = "purple"
   )
 
-# 3. gisYes, prNO-------------------
+# 3. street w gisYes, prNO-------------------
 gisYprN <- check2 %>% 
   pivot_longer(cols = -codigocl, names_to = "variable", values_to = "diff") %>% 
   filter(diff < 0) %>% 
@@ -129,6 +129,16 @@ gisYprN_top250 %>%
     fillColor = "blue"
   )
 
-
+# 4. diff by category-------
+check_cat <- check2 %>% 
+  pivot_longer(cols = -codigocl, names_to = "feature", values_to = "diff") %>% 
+  group_by(feature) %>% 
+  summarise(match = sum(diff ==0),
+            prYgisN = sum(diff == 1),
+            gisYprN = sum(diff == -1)) %>% 
+  mutate(
+    total_street = 63391,
+    across(match:gisYprN, ~(.x/total)*100, .names = "pct_{.col}")
+  )
 
       
