@@ -50,11 +50,12 @@ gis_variables <- c(
 
 # 1. Diff (pr vs gis) -------------------
 new_col <- paste0("pYgN_", str_sub(pr_variables, 4, -4))
+pr_gis_calle <- readRDS("predict_gis_calle.rds")
 
 prYgisN_expr <- paste(pr_variables, "-", gis_variables)
 
 check_yn <- pr_gis_calle %>%
-  select(codigocl, all_of(pr_variables), all_of(gis_variables)) %>% 
+  dplyr::select(codigocl, all_of(pr_variables), all_of(gis_variables)) %>% 
   mutate(across(-codigocl, ~as.numeric(.x)))
 
 check2 <- map2_dfc(new_col, prYgisN_expr, function(new_col, prYgisN_expr){
@@ -64,7 +65,7 @@ check2 <- map2_dfc(new_col, prYgisN_expr, function(new_col, prYgisN_expr){
     )
 }) %>% 
   bind_cols(check_yn) %>% 
-  select(codigocl, starts_with("pYgN_"))
+  dplyr::select(codigocl, starts_with("pYgN_"))
 
 colnames(check2)
 
