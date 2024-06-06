@@ -152,6 +152,8 @@ check_cat <- check2 %>%
     across(match:gisYprN, ~(.x/total_street)*100, .names = "pct_{.col}")
   )
 
+saveRDS(check_cat, file = "check_by_cat.rds")
+
 df_plot <- check_cat %>% 
   select(feature, starts_with("pct_")) %>% 
   pivot_longer(cols = -feature, names_to = "compare", values_to = "pct") %>% 
