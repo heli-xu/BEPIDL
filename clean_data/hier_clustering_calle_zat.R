@@ -136,7 +136,7 @@ p4_nbdist <- cutree(tree, 4)
 
 source("../functions/get_cluster.R")
 source("../functions/cluster_plot.R")
-pal <- c("#225ea8","#41b6c4","#a1dab4","#fecb3e") 
+
 
 ## df of zat-cluster, 
 ## NOTE cluster vector is same order as ZAT column in D0 data, NOT the names of the vector
@@ -145,14 +145,15 @@ zat_cluster <- data.frame(
   clus = p4_nbdist
 ) 
 
+saveRDS(zat_cluster, file = "ZAT/zat_cluster_w_calle_rd_type.rds")
+
 ## 4.1 scaled data by cluster------
 calle2zat_clust <- get_cluster(calle2zat_rep_rd, p4_nbdist)
 
-clust_zat <- calle2zat_rep_rd %>% 
-  left_join(zat_cluster, by = "ZAT") 
-
-x2 <- clust_zat %>% filter(clus == 2) %>% 
-  mutate()
+# clust_zat <- calle2zat_rep_rd %>% 
+#   left_join(zat_cluster, by = "ZAT") 
+# 
+# x2 <- clust_zat %>% filter(clus == 2) 
 
 ## 4.2 cluster geo-----------
 calle2zat_geo <- zat_shapefile %>% 
@@ -165,7 +166,7 @@ saveRDS(calle2zat_geo, file = "aggr_hclust_geo/rd_type/calle2zat_geo2.rds")
 
 
 ## 4.3 assemble plots------------
-## note the `fill` below, tho we ended up using a different route
+## NOT used: note the `fill` below, tho we ended up using a different route
 map <- ggplot()+
   geom_sf(data = zat_shapefile %>% st_zm())+
   geom_sf(data = calle2zat_geo, fill = pal[calle2zat_geo$clus])
@@ -178,10 +179,11 @@ map <- ggplot()+
 #read in files above
 
 source("../functions/cluster_plot.R")
+pal <- c("#225ea8","#41b6c4","#a1dab4","#fecb3e") 
 
 map <- ggplot()+
-  geom_sf(data = zat_shapefile %>% st_zm())+
-  geom_sf(data = calle2zat_geo, aes(fill = factor(clus)))+
+  geom_sf(data = zat_shapefile %>% st_zm(), linewidth = 0.1)+
+  geom_sf(data = calle2zat_geo, color = "grey", linewidth = 0.1, aes(fill = factor(clus)))+
   scale_fill_manual(values = pal)+
   labs(fill = "Cluster")+
   theme_minimal()+
@@ -195,7 +197,7 @@ map <- ggplot()+
     subtitle = 'ZAT level and aggregated calle level, Bogotá',
     theme=theme(plot.title=element_text(size=14, face = "bold", hjust=0.5),
       plot.subtitle = element_text(size = 10, face = "bold", hjust = 0.5)))+
-  plot_layout(widths = c(1.5, 1), heights = unit(12, units = "cm"))
+  plot_layout(widths = c(1.5, 1), heights = unit(10, units = "cm"))
 
 
 # Extra: traffic flow (total trips) -----------
