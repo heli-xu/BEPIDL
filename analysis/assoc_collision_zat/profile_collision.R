@@ -5,8 +5,10 @@ library(MASS)
 
 # 0. import data ----------------------
 col_ped_zat <- readRDS("../../clean_data/collision/collision_zat_df.rds")
-profile <- readRDS("../../clean_data/aggr_hclust_geo/calle2zat_geo.rds") %>% 
-  st_drop_geometry()
+# profile <- readRDS("../../clean_data/aggr_hclust_geo/calle2zat_geo.rds") %>% 
+#   st_drop_geometry()
+
+profile <- readRDS("../../clean_data/ZAT/zat_cluster_w_calle_rd_type.rds")
 
 profile %>% filter(is.na(clus))
 
@@ -124,11 +126,11 @@ cor(ses_profile %>% dplyr::select(-ZAT))
 fit_injury2 <- glm.nb(injury ~ clus + ses_cat_r, data = ses_profile_ped)
 summary(fit_injury2)
 
-### compare with or w/o profile ---------------
-BIC(fit_injury2, fit_injuryS)
-#about the same
+# ### compare with or w/o profile 
+# BIC(fit_injury2, fit_injuryS)
+# #about the same
 
-plot(residuals(fit_injury2))
+# plot(residuals(fit_injury2))
 
 injury_df <- tidy(fit_injury2, conf.int = TRUE, exponentiate = TRUE) %>% 
   #exponentiate->RR 
@@ -182,7 +184,7 @@ write_csv(ses_prof_col_csv, file = "collision-ses-profile_zat.csv" )
 ##SES as covariates, adjusted for
 ses_profile_col_RR <- readRDS("ses_profile_col_RR.rds")
 
-ses_profile_col_RR %>% 
+ses_prof_RR %>% 
   filter(!str_starts(predictor, "ses_")) %>% 
   plot_RR(., predictor)+
   facet_grid(vars(outcome), switch = "y")+
@@ -267,6 +269,7 @@ write_csv(prof_ses_covar_RR_csv, file = "prof_ses_cov_collision_RR.csv")
 
 ## 4.4 visualize --------
 prof_ses_covar_RR <- readRDS("prof_ses_covar_col_RR.rds")
+source("../../functions/plot_RR.R")
 
 prof_ses_covar_RR %>% 
   filter(!predictor == "(Covariates)") %>% 
