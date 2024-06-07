@@ -184,7 +184,7 @@ write_csv(ses_prof_col_csv, file = "collision-ses-profile_zat.csv" )
 ##SES as covariates, adjusted for
 ses_profile_col_RR <- readRDS("ses_profile_col_RR.rds")
 
-ses_prof_RR %>% 
+ses_profile_col_RR %>% 
   filter(!str_starts(predictor, "ses_")) %>% 
   plot_RR(., predictor)+
   facet_grid(vars(outcome), switch = "y")+
@@ -196,6 +196,7 @@ ses_prof_RR %>%
     caption = "All comparisons are relative to the profile 1."
   )+
   theme(
+    plot.title = element_text(size = 12),
     plot.title.position = "plot"
   )
 

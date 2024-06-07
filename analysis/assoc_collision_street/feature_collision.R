@@ -95,7 +95,8 @@ count_zero <- calle_tertile %>%
   summarise(across(everything(), ~ sum(. == 0))) %>% 
   pivot_longer(cols = -codigocl, names_to = "feature", values_to = "zero_count") %>% 
   mutate(total = 100819,
-         percent = (zero_count/total)*100)
+         percent = (zero_count/total)*100) %>% 
+  select(-codigocl)
 
 calle_rename_df %>% filter(grade == 0)
 
@@ -357,7 +358,8 @@ saveRDS(feature100_RR, file = "st_feature_covar100_RR.rds")
 
 ### visualize-------------
 feature_covar100 <- readRDS("st_feature_covar100_RR.rds")
-feature100_RR %>% 
+
+feature_covar100 %>% 
   filter(!term == "(Intercept)",
     !category == "(Covariates)") %>% 
 plot_facet_RR()+

@@ -177,6 +177,9 @@ map <- ggplot()+
 
 
 #read in files above
+zat_shapefile <- readRDS("ZAT/zat_shapefile.rds")
+calle2zat_clust <- readRDS("aggr_hclust_geo/rd_type/calle2zat_clust2.rds")
+calle2zat_geo <- readRDS("aggr_hclust_geo/rd_type/calle2zat_geo2.rds")
 
 source("../functions/cluster_plot.R")
 pal <- c("#225ea8","#41b6c4","#a1dab4","#fecb3e") 
@@ -197,7 +200,7 @@ map <- ggplot()+
     subtitle = 'ZAT level and aggregated calle level, Bogotá',
     theme=theme(plot.title=element_text(size=14, face = "bold", hjust=0.5),
       plot.subtitle = element_text(size = 10, face = "bold", hjust = 0.5)))+
-  plot_layout(widths = c(1.5, 1), heights = unit(10, units = "cm"))
+  plot_layout(widths = c(1.5, 1), heights = unit(12, units = "cm"))
 
 
 # Extra: traffic flow (total trips) -----------

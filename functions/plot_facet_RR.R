@@ -27,7 +27,7 @@ plot_facet_RR <- function(data){
     geom_vline(aes(xintercept = 1), linetype = 2) +
     facet_grid(rows = vars(predictor), scales = "free", switch = "y")+
     #use "free" because category not the same in each var (y axis)
-    scale_x_continuous(breaks = sort(round(c(seq(min(feature_RR$conf.low), max(feature_RR$conf.high), length.out = 4), 1), 0)))+
+    scale_x_continuous(breaks = sort(round(c(seq(min(data$conf.low), max(data$conf.high), length.out = 4), 1), 0)))+
     theme_bw()+
     # scale_fill_manual(values = c("Medium" = "#ffffff00", "High" = "#f0f0f090"), guide = "none") +
     labs(
