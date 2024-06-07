@@ -81,6 +81,9 @@ prYgisN <- check2 %>%
 
 saveRDS(prYgisN, file = "predictY_gisN.rds")
 
+#csv deleted
+#write_csv(predictY_gisN, file = "st_predictY_gisN.csv")
+
 prYgisN_top250 <- prYgisN %>%
   arrange(desc(diff_all)) %>% 
   head(500) %>% 
@@ -110,6 +113,9 @@ gisYprN <- check2 %>%
 #9k rows
 
 saveRDS(gisYprN, file = "gisY_predictN.rds")
+
+#csv deleted
+#write_csv(gisY_predictN, file = "st_gisY_predictN.csv")
 
 gisYprN_top250 <- gisYprN %>% 
   arrange(diff_all) %>% 
@@ -153,6 +159,9 @@ check_cat <- check2 %>%
   )
 
 saveRDS(check_cat, file = "check_by_cat.rds")
+
+#csv deleted
+#write_csv(check_by_cat, file = "check_by_category.csv")
 
 df_plot <- check_cat %>% 
   select(feature, starts_with("pct_")) %>% 
