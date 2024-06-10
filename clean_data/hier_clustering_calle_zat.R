@@ -11,7 +11,8 @@ library(patchwork)
 sf_use_s2(FALSE)
 
 # import data --------------------
-calle_zat_xwalk <- readRDS("calle_zat_xwalk.rds")
+
+#calle_zat_xwalk <- readRDS("calle_zat_xwalk.rds")
 # NA is removed from xwalk
 # calle_zat_xwalk <- calle_zat_xwalk %>% 
 #   filter(!is.na(ZAT))
@@ -22,8 +23,8 @@ calle2_zat_rep <- readRDS("aggr_hclust_geo/calle_2_zat_rep.rds")
 
 zat_shapefile <- readRDS("ZAT/zat_shapefile.rds")
 
-#road type
-road_type <- readRDS("road_type/road_type_calle.rds") 
+#road type count pct in zat
+road_type_zat_pct <- readRDS("road_type/road_type_zat_pct.rds") 
 
 # 1. Neighborhood distances -------------------------
 zat_shape_sub <- calle_2_zat_rep %>% 
@@ -67,31 +68,8 @@ dist_link <- get_distance_matrix(Graph=graph,
 
 #dist_lin2.rds saved##
 
-# 2. Join rd type-ZAT data-----------------
-## 2.1 road type in zat--------
-road_type_zat <- road_type %>% 
-  left_join(calle_zat_xwalk, by = "CodigoCL") %>% 
-  mutate(count = 1) %>% 
-  group_by(ZAT, MVITCla, road_type) %>% 
-  summarize(
-    sum = sum(count), .groups = "drop") %>% 
-  pivot_wider(id_cols = -MVITCla, 
-    names_from = "road_type", 
-    values_from = "sum")
 
-road_type %>% filter(is.na(road_type))
-
-road_type_zat_pct <- road_type_zat %>% 
-  mutate(across(everything(), ~replace_na(.x, 0))) %>% 
-  mutate(
-    total = rowSums(pick(Collector:Projected)),
-    across(Collector:Projected, ~(.x/total) * 100, .names = "pct_{.col}"),
-    pct_other = rowSums(pick(c(pct_Rural, pct_Pedestrian, pct_Unknown, pct_Projected)))
-  )
-
-saveRDS(road_type_zat_pct, file = "road_type/road_type_zat_pct.rds")
-
-## 2.2 add to zat data ----------------
+# 2. Join road type to zat data ----------------
 calle2zat_rep_rd <- calle2_zat_rep %>% 
   left_join(road_type_zat_pct, by = "ZAT") %>% 
   select(-c(Collector:total, pct_Rural, pct_Pedestrian, pct_Unknown, pct_Projected, pct_other)) %>% 
