@@ -26,6 +26,7 @@ zat_shapefile <- readRDS("ZAT/zat_shapefile.rds")
 #road type count pct in zat
 road_type_zat_pct <- readRDS("road_type/road_type_zat_pct.rds") 
 
+
 # 1. Neighborhood distances -------------------------
 zat_shape_sub <- calle_2_zat_rep %>% 
   pull(ZAT)
@@ -70,6 +71,7 @@ dist_link <- get_distance_matrix(Graph=graph,
 
 
 # 2. Join road type to zat data ----------------
+## 2.1 for profiles with road type--------------
 calle2zat_rep_rd <- calle2_zat_rep %>% 
   left_join(road_type_zat_pct, by = "ZAT") %>% 
   select(-c(Collector:total, pct_Rural, pct_Pedestrian, pct_Unknown, pct_Projected, pct_other)) %>% 
@@ -78,9 +80,13 @@ calle2zat_rep_rd <- calle2_zat_rep %>%
 
 saveRDS(calle2zat_rep_rd, file = "aggr_hclust_geo/rd_type/calle2zat_rep_rd.rds")
 
+## 2.2 for profiles without road type-------------
+#use calle2_zat_rep.rds
+
 # 3. clustering --------------------
 ## 3.1 cluster number ------------------
-D0 <- dist(calle2zat_rep_rd)
+#D0 <- dist(calle2zat_rep_rd)
+D0 <- dist(calle2_zat_rep)
 
 tree <- hclustgeo(D0)
 
@@ -107,7 +113,7 @@ plot(cr)
 # 0.35 - yes road type - with or wo pct_other
 
 
-tree <- hclustgeo(D0, D1, alpha = 0.35)
+tree <- hclustgeo(D0, D1, alpha = 0.25)
 p4_nbdist <- cutree(tree, 4)
 
 # 4. visualization ---------------
@@ -116,7 +122,7 @@ source("../functions/get_cluster.R")
 source("../functions/cluster_plot.R")
 
 
-## df of zat-cluster, 
+## df of zat-cluster w road type 
 ## NOTE cluster vector is same order as ZAT column in D0 data, NOT the names of the vector
 zat_cluster <- data.frame(
   ZAT = calle2zat_rep_rd$ZAT,
@@ -125,18 +131,30 @@ zat_cluster <- data.frame(
 
 saveRDS(zat_cluster, file = "ZAT/zat_cluster_w_calle_rd_type.rds")
 
+## df of zat_cluster w/o road type
+zat_cluster2 <- data.frame(
+  ZAT = calle2_zat_rep$ZAT,
+  clus = p4_nbdist
+) 
+
+saveRDS(zat_cluster2, file = "ZAT/zat_cluster_wo_rd_type.rds")
+
+
 ## 4.1 scaled data by cluster------
 calle2zat_clust <- get_cluster(calle2zat_rep_rd, p4_nbdist)
+
+calle2zat_clust <- get_cluster(calle2_zat_rep, p4_nbdist)
 
 # clust_zat <- calle2zat_rep_rd %>% 
 #   left_join(zat_cluster, by = "ZAT") 
 # 
 # x2 <- clust_zat %>% filter(clus == 2) 
 
+## NOTE: BELOW SAME NAME FOR W, W/O ROAD TYPE 
 ## 4.2 cluster geo-----------
 calle2zat_geo <- zat_shapefile %>% 
   st_zm() %>% 
-  left_join(zat_cluster, by = "ZAT") %>% 
+  left_join(zat_cluster2, by = "ZAT") %>% 
   drop_na(clus)
 
 saveRDS(calle2zat_clust, file = "aggr_hclust_geo/rd_type/calle2zat_clust2.rds")
