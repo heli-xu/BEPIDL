@@ -55,10 +55,14 @@ cluster_plot <- function(cluster_data) {
         "mean_road_marks" ="Road marks (st)",
         "mean_road_signs" = "Road signs (st)",
         "mean_pedxwalk_signs"="Ped crosswalk sign (st)",
-        "mean_pct_Collector" = "Collector (st)",
-        "mean_pct_Arterial" = "Arterial (st)",
-        "mean_pct_Local" = "Local (st)",
-        "mean_pct_other" = "Other road types (st)"
+        "mean_pct_Collector" = "Collector rd (st)",
+        "mean_pct_Arterial" = "Arterial rd (st)",
+        "mean_pct_Local" = "Local rd (st)",
+        "mean_pct_other" = "Other rd (st)",
+        "mean_pcta_Collector" = "Collector rd area (st)",
+        "mean_pcta_Arterial" = "Arterial rd area (st)",
+        "mean_pcta_Local" = "Local rd area (st)",
+        "mean_pcta_other" = "Other rd area (st)"
       ))+
     theme(panel.grid = element_blank(),
       legend.position = "none", ## added
