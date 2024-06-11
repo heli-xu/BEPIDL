@@ -78,8 +78,11 @@ pr_variables <- c(
 )
 
 source("../../functions/reliability_table.R")
+predict_canvas <- readRDS("predict24_canvas.rds")
 
 df <- reliability_table(pr_variables, can_variables, predict_canvas)
+
+write_csv(df, file = "predict24_canvas_reliability_allyears.csv")
 
 df %>%
   mutate(var_plot = str_sub(var, 4, -4),
