@@ -9,7 +9,7 @@ col_ped_zat <- readRDS("../../clean_data/collision/collision_zat_df.rds")
 #   st_drop_geometry()
 
 # profile with road type count
-profile <- readRDS("../../clean_data/ZAT/zat_cluster_w_calle_rd_type.rds")
+profile <- readRDS("../../clean_data/ZAT/zat_cluster_w_rd_type_count.rds")
 
 profile %>% filter(is.na(clus))
 
@@ -17,9 +17,13 @@ profile %>% filter(is.na(clus))
 profile <- readRDS("../../clean_data/ZAT/zat_cluster_w_rd_type_area.rds")
 
 # profile without road type
+## a = 0.25
 profile <- readRDS("../../clean_data/ZAT/zat_cluster_wo_rd_type_a25.rds")
 
-# road type area as covar
+## a =0.35
+profile <- readRDS("../../clean_data/ZAT/zat_cluster_wo_rd_type_a35.rds")
+
+# if not in profile, road type area as covar
 road_type <- readRDS("../../clean_data/road_type/rd_type_area_zat.rds")
 
 #ses
@@ -83,7 +87,10 @@ RR_profile <- tidy(fit_totalP, conf.int = TRUE, exponentiate = TRUE) %>%
   left_join(profile_distr, by = "clus") %>% 
   mutate(predictor = paste0("profile_", clus)) 
 
-saveRDS(RR_profile, file = "profile_wo_rd_type/profile_a25_RR.rds")
+#saveRDS(RR_profile, file = "profile_wo_rd_type/profile_a25_RR.rds")
+#saveRDS(RR_profile, file = "profile_wo_rd_type/profile_a35_RR.rds")
+#saveRDS(RR_profile, file = "profile_w_rd_type/profile_count_RR.rds")
+saveRDS(RR_profile, file = "profile_w_rd_type/profile_area_RR.rds")
 
 profile_collision_csv <- RR_profile %>% 
   dplyr::select(
@@ -92,7 +99,10 @@ profile_collision_csv <- RR_profile %>%
     RR_95CI, p.value, outcome)
 
 
-write_csv(profile_collision_csv, file = "profile_wo_rd_type/collision-profile_zat.csv")
+#write_csv(profile_collision_csv, file = "profile_wo_rd_type/collision-profile_zat.csv")
+#write_csv(profile_collision_csv, file = "profile_wo_rd_type/collision_profile_a35_zat.csv")
+#write_csv(profile_collision_csv, file = "profile_w_rd_type/collision_profile_count_zat.csv")
+write_csv(profile_collision_csv, file = "profile_w_rd_type/collision_profile_area_zat.csv")
 
 ## visualize-----------
 source("../../functions/plot_RR.R")
@@ -109,9 +119,7 @@ plot_RR(RR_profile, predictor)+
   )
 
 
-
-# 3. Collision ~ profile + SES -------------------------------
-## FYI: ses ~ profile -----------------
+#FYI: ses ~ profile -----------------
 
 #not continuous, can't do corr
 # ses_profile <- ses_zat %>% 
@@ -137,6 +145,7 @@ summary(fit_ses_p)
 
 df <- tidy(fit_ses_p)
 
+# 3. Collision ~ profile + SES -------------------------------
 ## join data-----------
 ses_profile_ped <- ses_zat %>% 
   dplyr::select(ZAT, ses_cat) %>% 
@@ -183,18 +192,20 @@ ses_prof_RR <- injury_df %>%
   mutate(RR_95CI = paste0(round(estimate,2)," (", round(conf.low,2), ",", round(conf.high, 2), ")")) %>% 
   mutate(predictor = case_match(
     term,
-    "(Intercept)" ~ "profile_1+ses_6",
+    "(Intercept)" ~ "profile_1",
     "clus2" ~ "profile_2",
     "clus3" ~ "profile_3",
     "clus4" ~ "profile_4",
-    "ses_cat_r5" ~ "ses_5",
-    "ses_cat_r4" ~ "ses_4",
-    "ses_cat_r3" ~ "ses_3",
-    "ses_cat_r2" ~ "ses_2",
-    "ses_cat_r1" ~ "ses_1"
+    # "ses_cat_r5" ~ "ses_5",
+    # "ses_cat_r4" ~ "ses_4",
+    # "ses_cat_r3" ~ "ses_3",
+    # "ses_cat_r2" ~ "ses_2",
+    # "ses_cat_r1" ~ "ses_1"
+    .default = "(Covariates)"
   )) 
 
-saveRDS(ses_prof_RR, file = "ses_profile_col_RR.rds")
+saveRDS(ses_prof_RR, file = "profile_w_rd_type/profile_area_ses_RR.rds")
+
 
 ses_prof_col_csv <- ses_prof_RR %>% 
   dplyr::select(
@@ -204,7 +215,7 @@ ses_prof_col_csv <- ses_prof_RR %>%
     outcome
   )
 
-write_csv(ses_prof_col_csv, file = "collision-ses-profile_zat.csv" )
+write_csv(ses_prof_col_csv, file = "profile_w_rd_type/ses_profile_area_zat.csv" )
 
 
 ## visualize ----------
@@ -271,7 +282,7 @@ prof_ses_covar_RR <- bind_rows(injury_co2_df, death_co2_df, total_co2_df) %>%
   mutate(RR_95CI = paste0(round(estimate,2)," (", round(conf.low,2), ",", round(conf.high, 2), ")")) %>%
   mutate(predictor = case_match(
     term,
-    "(Intercept)" ~ "profile_1+ses_6",
+    "(Intercept)" ~ "profile_1",
     "clus2" ~ "profile_2",
     "clus3" ~ "profile_3",
     "clus4" ~ "profile_4",
@@ -283,7 +294,10 @@ prof_ses_covar_RR <- bind_rows(injury_co2_df, death_co2_df, total_co2_df) %>%
     .default = "(Covariates)"
   )) 
 
-saveRDS(prof_ses_covar_RR, file = "profile_wo_rd_type/prof_a25_ses_covar_RR.rds")
+#saveRDS(prof_ses_covar_RR, file = "profile_wo_rd_type/prof_a25_ses_covar_RR.rds")
+#saveRDS(prof_ses_covar_RR, file = "profile_wo_rd_type/prof_a35_ses_covar_RR.rds")
+#saveRDS(prof_ses_covar_RR, file = "profile_w_rd_type/prof_count_ses_covar_RR.rds")
+saveRDS(prof_ses_covar_RR, file = "profile_w_rd_type/prof_area_ses_covar_RR.rds")
 
 prof_ses_covar_RR_csv <- prof_ses_covar_RR %>% 
   dplyr::select(
@@ -293,7 +307,10 @@ prof_ses_covar_RR_csv <- prof_ses_covar_RR %>%
     outcome
   )
 
-write_csv(prof_ses_covar_RR_csv, file = "profile_wo_rd_type/prof_a25_ses_cov_RR.csv")
+#write_csv(prof_ses_covar_RR_csv, file = "profile_wo_rd_type/prof_a25_ses_cov_RR.csv")
+#write_csv(prof_ses_covar_RR_csv, file = "profile_wo_rd_type/prof_a35_ses_cov_RR.csv")
+#write_csv(prof_ses_covar_RR_csv, file = "profile_w_rd_type/prof_count_ses_cov_RR.csv")
+write_csv(prof_ses_covar_RR_csv, file = "profile_w_rd_type/prof_area_ses_cov_RR.csv")
 
 ## 4.4 visualize --------
 prof_ses_covar_RR <- readRDS("prof_ses_covar_col_RR.rds")
@@ -315,6 +332,7 @@ prof_ses_covar_RR %>%
   )
 
 # 5. Collision~everything+rd_type--------
+# for profiles wo road types...
 ## 5.1 Join data ---------------
 rd_type_zat <- road_type %>% 
   dplyr::select(-c(Collector:total, pcta_Arterial, pcta_Rural, pcta_Pedestrian, pcta_Unknown, pcta_Projected))  
@@ -369,7 +387,7 @@ prof_ses_covar_rd_RR <- bind_rows(injury_co3_df, death_co3_df, total_co3_df) %>%
   mutate(RR_95CI = paste0(round(estimate,2)," (", round(conf.low,2), ",", round(conf.high, 2), ")")) %>%
   mutate(predictor = case_match(
     term,
-    "(Intercept)" ~ "profile_1+ses_6",
+    "(Intercept)" ~ "profile_1",
     "clus2" ~ "profile_2",
     "clus3" ~ "profile_3",
     "clus4" ~ "profile_4",
@@ -381,9 +399,9 @@ prof_ses_covar_rd_RR <- bind_rows(injury_co3_df, death_co3_df, total_co3_df) %>%
     .default = "(Covariates)"
   )) 
 
-saveRDS(prof_ses_covar_rd_RR, file = "profile_wo_rd_type/prof_a25_ses_cov_rd_RR.rds")
+saveRDS(prof_ses_covar_rd_RR, file = "profile_wo_rd_type/prof_a35_ses_cov_rd_RR.rds")
 
-prof_ses_covar_RR_csv <- prof_ses_covar_RR %>% 
+prof_ses_covar_rd_RR_csv <- prof_ses_covar_rd_RR %>% 
   dplyr::select(
     term, predictor,
     RR_95CI,
@@ -391,7 +409,7 @@ prof_ses_covar_RR_csv <- prof_ses_covar_RR %>%
     outcome
   )
 
-write_csv(prof_ses_covar_RR_csv, file = "profile_wo_rd_type/prof_a25_ses_cov_RR.csv")
+write_csv(prof_ses_covar_rd_RR_csv, file = "profile_wo_rd_type/prof_a35_ses_cov_rd_RR.csv")
 
 ## 5.4 visualize --------
 prof_ses_covar_rd_RR <- readRDS("prof_ses_covar_rd_RR.rds")
