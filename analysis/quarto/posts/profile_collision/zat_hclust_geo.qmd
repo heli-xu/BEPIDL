@@ -1,0 +1,51 @@
+---
+title: "Neighborhood Profiles and Pedestrian Collision"
+subtitle: "with profiles derived from street- and ZAT-level indicators in Bogotá"
+author: "Heli Xu"
+image: thumbnail.png
+date: 6/10/24
+format: 
+  html:
+    code-fold: true
+    toc: true
+    toc-depth: 4
+    self-contained: true
+editor: visual
+---
+
+This post is used to summarize some of the findings related to the association between neighborhood (ZAT) profiles and pedestrian collision in Bogotá. Note that indicator values are from GIS data.
+
+```{r setup, warning=FALSE, message=FALSE}
+library(dplyr)
+library(sf)
+library(ClustGeo)
+library(ggplot2)
+library(tidyr)
+library(patchwork)
+```
+
+## ZAT Profiles
+
+With road types
+
+Without road types
+
+## Relationship between Collision and Profiles
+
+### Road Types incorporated in Profiles
+
+### Road Types added as Covariates
+
+""map
+
+### Profile Map
+
+### Collision \~ Profiles
+
+unadjusted, adjusted
+
+## ZAT Profiles with Road Types
+
+Profile Map
+
+Collision \~ Profiles
