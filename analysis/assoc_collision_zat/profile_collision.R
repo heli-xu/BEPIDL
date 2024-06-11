@@ -8,10 +8,13 @@ col_ped_zat <- readRDS("../../clean_data/collision/collision_zat_df.rds")
 # profile <- readRDS("../../clean_data/aggr_hclust_geo/calle2zat_geo.rds") %>% 
 #   st_drop_geometry()
 
-# profile with road type
+# profile with road type count
 profile <- readRDS("../../clean_data/ZAT/zat_cluster_w_calle_rd_type.rds")
 
 profile %>% filter(is.na(clus))
+
+# profile with road type area
+profile <- readRDS("../../clean_data/ZAT/zat_cluster_w_rd_type_area.rds")
 
 # profile without road type
 profile <- readRDS("../../clean_data/ZAT/zat_cluster_wo_rd_type.rds")
@@ -279,7 +282,7 @@ prof_ses_covar_RR <- bind_rows(injury_co2_df, death_co2_df, total_co2_df) %>%
     .default = "(Covariates)"
   )) 
 
-saveRDS(prof_ses_covar_RR, file = "prof_ses_covar_col_RR.rds")
+saveRDS(prof_ses_covar_RR, file = "profRdArea_ses_covar_RR.rds")
 
 prof_ses_covar_RR_csv <- prof_ses_covar_RR %>% 
   dplyr::select(
