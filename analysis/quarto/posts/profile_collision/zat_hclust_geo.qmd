@@ -13,7 +13,7 @@ format:
 editor: visual
 ---
 
-This post is used to summarize some of the findings related to the association between neighborhood (ZAT) profiles and pedestrian collision in Bogotá. Note that indicator values are from GIS data.
+This post is used to summarize some of the findings related to the association between neighborhood (ZAT) profiles and pedestrian collision in Bogotá. Note that indicator values are from GIS data. We'll include 4 different profiles with minor differences in terms of mixing parameters and variables included, and explore the association using unadjusted and adjusted models.
 
 ```{r setup, warning=FALSE, message=FALSE}
 library(dplyr)
@@ -24,28 +24,214 @@ library(tidyr)
 library(patchwork)
 ```
 
-## ZAT Profiles
+## 1. Profile without Road Type (a = 0.25)
 
-With road types
+### Visualization of the profile
 
-Without road types
+```{r}
+zat_shapefile <- readRDS("../../../../clean_data/ZAT/zat_shapefile.rds")
+cluster1 <- readRDS("../../../../clean_data/aggr_hclust_geo/calle2zat_clust.rds")
+cluster_geo1 <- readRDS("../../../../clean_data/aggr_hclust_geo/calle2zat_geo.rds")
 
-## Relationship between Collision and Profiles
+source("../../../../functions/cluster_plot.R")
+pal <- c("#225ea8","#41b6c4","#a1dab4","#fecb3e") 
 
-### Road Types incorporated in Profiles
+map <- ggplot()+
+  geom_sf(data = zat_shapefile %>% st_zm(), linewidth = 0.1)+
+  geom_sf(data = cluster_geo1, color = "grey", linewidth = 0.1, aes(fill = factor(clus)))+
+  scale_fill_manual(values = pal)+
+  labs(fill = "Cluster")+
+  theme_minimal()+
+  theme(
+    panel.grid = element_blank(),
+    axis.text = element_blank()
+  )
 
-### Road Types added as Covariates
+(cluster_plot(cluster1) | map ) + 
+  plot_annotation('Hierarchical Clustering with Indicators and Neighborhood Constraint', 
+    subtitle = 'Mixing parameter a = 0.25; ZAT level and aggregated calle level, Bogotá',
+    theme=theme(plot.title=element_text(size=14, face = "bold", hjust=0.5),
+      plot.subtitle = element_text(size = 10, face = "bold", hjust = 0.5)))+
+  plot_layout(widths = c(1.5, 1), heights = unit(10, units = "cm"))
+```
 
-""map
+### Relationship with collision risk
 
-### Profile Map
+```{r}
+source("../../../../functions/plot_RR.R")
 
-### Collision \~ Profiles
+RR_plots <- function(data1, data2, data3){
 
-unadjusted, adjusted
+  unadjust <- plot_RR(data1, predictor)+
+    facet_grid(vars(outcome), switch = "y")+
+    labs(
+    #title = "Pedestrian Collision and Neighborhood Profiles",
+    title = "Unadjusted, ZAT level, Bogotá, Colombia",
+    x = "RR (95%CI)",
+    y = "ZAT Profile"
+    #caption = "All comparisons are relative to the profile 1."
+    )+
+    theme(
+      plot.title = element_text(size = 10, face = "plain"),
+      plot.title.position = "plot")
 
-## ZAT Profiles with Road Types
+  adjusted <- data2 %>%
+    filter(!predictor == "(Covariates)") %>%
+    plot_RR(., predictor) +
+    facet_grid(vars(outcome), switch = "y") +
+    labs(
+      title = "Adjusted for ZAT-level walking/public transit trips, \nSES level, and population density",
+      x = "RR (95%CI)",
+      y = "ZAT Profile"
+      ) +
+      theme(plot.title = element_text(size = 10, face = "plain"),
+        plot.title.position = "plot")
 
-Profile Map
+  adjusted_rd <- data3 %>%
+    filter(!predictor == "(Covariates)") %>%
+    plot_RR(., predictor) +
+    facet_grid(vars(outcome), switch = "y") +
+    labs(
+      title = "Adjusted for ZAT-level walking/public transit trips, \nSES level, road types, and population density",
+      x = "RR (95%CI)",
+      y = "ZAT Profile",
+      caption = "All comparisons are relative to the profile 1."
+    ) +
+    theme(plot.title = element_text(size = 10, face = "plain"),
+      plot.title.position = "plot")
 
-Collision \~ Profiles
+(unadjust | adjusted | adjusted_rd)+
+  plot_annotation('Pedestrian Collision and Neighborhood (ZAT) Profiles in Bogotá',
+    theme=theme(plot.title=element_text(size=14, face = "bold", hjust=0.5)))
+}
+
+profile25_RR <- readRDS("../../../assoc_collision_zat/profile_wo_rd_type/profile_a25_RR.rds")
+
+profile25_adj_RR <- readRDS("../../../assoc_collision_zat/profile_wo_rd_type/prof_a25_ses_covar_RR.rds")
+
+profile25_adj_rd_RR <- readRDS("../../../assoc_collision_zat/profile_wo_rd_type/prof_a25_ses_cov_rd_RR.rds")
+
+
+RR_plots(profile25_RR, profile25_adj_RR, profile25_adj_rd_RR)
+
+
+```
+
+## 2. Profile without Road Type (a = 0.35)
+
+### Visualization of the profile
+
+```{r}
+cluster2 <- readRDS("../../../../clean_data/aggr_hclust_geo/calle2zat_clust_a35.rds")
+cluster_geo2 <- readRDS("../../../../clean_data/aggr_hclust_geo/calle2zat_geo_a35.rds")
+
+map2 <- ggplot()+
+  geom_sf(data = zat_shapefile %>% st_zm(), linewidth = 0.1)+
+  geom_sf(data = cluster_geo2, color = "grey", linewidth = 0.1, aes(fill = factor(clus)))+
+  scale_fill_manual(values = pal)+
+  labs(fill = "Cluster")+
+  theme_minimal()+
+  theme(
+    panel.grid = element_blank(),
+    axis.text = element_blank()
+  )
+
+(cluster_plot(cluster2) | map2 ) + 
+  plot_annotation('Hierarchical Clustering with Indicators and Neighborhood Constraint', 
+    subtitle = 'Mixing parameter a = 0.35; ZAT level and aggregated calle level, Bogotá',
+    theme=theme(plot.title=element_text(size=14, face = "bold", hjust=0.5),
+      plot.subtitle = element_text(size = 10, face = "bold", hjust = 0.5)))+
+  plot_layout(widths = c(1.5, 1), heights = unit(10, units = "cm"))
+```
+
+### Relationship with collision risk
+
+```{r}
+profile35_RR <- readRDS("../../../assoc_collision_zat/profile_wo_rd_type/profile_a35_RR.rds")
+
+profile35_adj_RR <- readRDS("../../../assoc_collision_zat/profile_wo_rd_type/prof_a35_ses_covar_RR.rds")
+
+profile35_adj_rd_RR <- readRDS("../../../assoc_collision_zat/profile_wo_rd_type/prof_a35_ses_cov_rd_RR.rds")
+
+RR_plots(profile35_RR, profile35_adj_RR, profile35_adj_rd_RR) 
+```
+
+## 3. Profile with Road Type Count
+
+In addition to the variables included in the previous profiles, the following two profiles also incorporate percent of different road types in each ZAT. First, we are using the number of different road types (percent of each type).
+
+### Visualization of the profile
+
+```{r}
+cluster3 <- readRDS("../../../../clean_data/aggr_hclust_geo/rd_type_count/calle2zat_clust2.rds")
+cluster_geo3 <- readRDS("../../../../clean_data/aggr_hclust_geo/rd_type_count/calle2zat_geo2.rds")
+
+map3 <- ggplot()+
+  geom_sf(data = zat_shapefile %>% st_zm(), linewidth = 0.1)+
+  geom_sf(data = cluster_geo3, color = "grey", linewidth = 0.1, aes(fill = factor(clus)))+
+  scale_fill_manual(values = pal)+
+  labs(fill = "Cluster")+
+  theme_minimal()+
+  theme(
+    panel.grid = element_blank(),
+    axis.text = element_blank()
+  )
+
+(cluster_plot(cluster3) | map3 ) + 
+  plot_annotation('Hierarchical Clustering with Indicators and Neighborhood Constraint', 
+    subtitle = 'Additional %count of road types included; ZAT level and aggregated calle level, Bogotá',
+    theme=theme(plot.title=element_text(size=14, face = "bold", hjust=0.5),
+      plot.subtitle = element_text(size = 10, face = "bold", hjust = 0.5)))+
+  plot_layout(widths = c(1.5, 1), heights = unit(10, units = "cm"))
+```
+
+### Relationship with collision risk
+
+```{r}
+profileRd1_RR <- readRDS("../../../assoc_collision_zat/profile_w_rd_type/profile_count_RR.rds")
+
+profileRd1_adj_RR <- readRDS("../../../assoc_collision_zat/profile_w_rd_type/prof_count_ses_covar_RR.rds")
+
+RR_2plots(profileRd1_RR, profileRd1_adj_RR)
+```
+
+## 4. Profile with Road Type Area
+
+Next, we're using the area of different road types in each ZAT (percent of each type in the total road area).
+
+### Visualization of the profile
+
+```{r}
+cluster4 <- readRDS("../../../../clean_data/aggr_hclust_geo/rd_type_area/calle2zat_clust3.rds")
+cluster_geo4 <- readRDS("../../../../clean_data/aggr_hclust_geo/rd_type_area/calle2zat_geo3.rds")
+
+map4 <- ggplot()+
+  geom_sf(data = zat_shapefile %>% st_zm(), linewidth = 0.1)+
+  geom_sf(data = cluster_geo4, color = "grey", linewidth = 0.1, aes(fill = factor(clus)))+
+  scale_fill_manual(values = pal)+
+  labs(fill = "Cluster")+
+  theme_minimal()+
+  theme(
+    panel.grid = element_blank(),
+    axis.text = element_blank()
+  )
+
+(cluster_plot(cluster4) | map4 ) + 
+  plot_annotation('Hierarchical Clustering with Indicators and Neighborhood Constraint', 
+    subtitle = 'Additional %count of road types included; ZAT level and aggregated calle level, Bogotá',
+    theme=theme(plot.title=element_text(size=14, face = "bold", hjust=0.5),
+      plot.subtitle = element_text(size = 10, face = "bold", hjust = 0.5)))+
+  plot_layout(widths = c(1.5, 1), heights = unit(10, units = "cm"))
+```
+
+### Relationship with collision risk
+
+```{r}
+profileRd2_RR <- readRDS("../../../assoc_collision_zat/profile_w_rd_type/profile_area_RR.rds")
+
+profileRd2_ses_RR <- readRDS("../../../assoc_collision_zat/profile_w_rd_type/profile_area_ses_RR.rds")
+
+profileRd2_adj_RR <- readRDS("../../../assoc_collision_zat/profile_w_rd_type/prof_area_ses_covar_RR.rds")
+
+RR_plots(profileRd2_RR, profileRd2_ses_RR, profileRd2_adj_RR)
+```
