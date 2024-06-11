@@ -76,7 +76,7 @@ dist_link <- get_distance_matrix(Graph=graph,
 ## 2.1 profiles with road type count--------------
 calle2zat_rep_rd <- calle2_zat_rep %>% 
   left_join(road_type_zat_pct, by = "ZAT") %>% 
-  select(-c(Collector:total, pct_Rural, pct_Pedestrian, pct_Unknown, pct_Projected, pct_other)) %>% 
+  dplyr::select(-c(Collector:total, pct_Rural, pct_Pedestrian, pct_Unknown, pct_Projected, pct_other)) %>% 
   ## NOTE to leave out one pct_group to avoid collinearity
   drop_na()
 
@@ -94,7 +94,7 @@ calle2zat_rep_rd2 <- calle2_zat_rep %>%
 
 # 3. clustering --------------------
 ## 3.1 cluster number ------------------
-#D0 <- dist(calle2zat_rep_rd)
+D0 <- dist(calle2zat_rep_rd)
 D0 <- dist(calle2_zat_rep)
 D0 <- dist(calle2zat_rep_rd2)
 
@@ -131,6 +131,16 @@ p4_nbdist <- cutree(tree, 4)
 tree2 <- hclustgeo(D0, D1, alpha = 0.35)
 p4_nbdist2 <- cutree(tree2, 4)
 
+### w rd_type count----------
+tree <- hclustgeo(D0, D1, alpha = 0.35)
+p4_nbdist <- cutree(tree, 4)
+#actually this is the same with wo rd_type a = 0.35
+
+### w rd_type area ---------
+tree <- hclustgeo(D0, D1, alpha = 0.25)
+p4_nbdist <- cutree(tree, 4)
+#this is different from wo rd_type a = 0.25
+
 ## 3.3 Summarise zat_cluster tables---------------
 
 ### i. cluster w road type count ------------
@@ -140,7 +150,7 @@ zat_cluster <- data.frame(
   clus = p4_nbdist
 ) 
 
-saveRDS(zat_cluster, file = "ZAT/zat_cluster_w_calle_rd_type.rds")
+saveRDS(zat_cluster, file = "ZAT/zat_cluster_w_rd_type_count.rds")
 
 ### ii. cluster w road type area -----------------
 zat_cluster3 <- data.frame(
