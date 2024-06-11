@@ -298,3 +298,31 @@ ggplot()+
     plot.title = element_text(hjust = 0.5)
   )
 
+# Extra: thumbnail---------
+library(leaflet)
+col_values <- c("#225ea8","#41b6c4","#a1dab4","#fecb3e") 
+pal <- colorFactor(
+  palette = col_values,
+  domain = zat_cluster$clus
+)
+
+zat_shapefile %>% 
+  st_zm() %>% 
+  #must use join, since the ZAT order is based on zat_shapefile here, but clus order is based on D0.
+  left_join(zat_cluster, by = "ZAT") %>% 
+  drop_na(clus) %>% 
+  st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>%
+  leaflet() %>%
+  addTiles()  %>%
+  addPolygons(color = "white", 
+    weight = 0.5,
+    smoothFactor = 0.5,
+    opacity = 0.5,
+    fillColor = ~pal(clus),
+    fillOpacity = 0.5,
+    highlightOptions = highlightOptions(
+      weight = 5,
+      color = "#666",
+      fillOpacity = 0.8,
+      bringToFront = TRUE)
+  )
