@@ -119,17 +119,21 @@ k <- 4
 cr <- choicealpha(D0, D1, range.alpha, k, graph = FALSE)
 
 plot(cr)
-# 0.25 - no road type
+# 0.25 - no road type --actually 0.35 would work too
 # 0.35 - yes road type count - with or wo pct_other
 # 0.25 - yes road type area
 
-
+### a=0.25 -------------
 tree <- hclustgeo(D0, D1, alpha = 0.25)
 p4_nbdist <- cutree(tree, 4)
 
+### a = 0.35 -------------------
+tree2 <- hclustgeo(D0, D1, alpha = 0.35)
+p4_nbdist2 <- cutree(tree2, 4)
+
 ## 3.3 Summarise zat_cluster tables---------------
 
-### df of zat-cluster w road type count ------------
+### i. cluster w road type count ------------
 ## NOTE cluster vector is same order as ZAT column in D0 data, NOT the names of the vector
 zat_cluster <- data.frame(
   ZAT = calle2zat_rep_rd$ZAT,
@@ -138,7 +142,7 @@ zat_cluster <- data.frame(
 
 saveRDS(zat_cluster, file = "ZAT/zat_cluster_w_calle_rd_type.rds")
 
-### df of zat_cluster w road type area -----------------
+### ii. cluster w road type area -----------------
 zat_cluster3 <- data.frame(
   ZAT = calle2zat_rep_rd2$ZAT,
   clus = p4_nbdist
@@ -146,13 +150,22 @@ zat_cluster3 <- data.frame(
 
 saveRDS(zat_cluster3, file = "ZAT/zat_cluster_w_rd_type_area.rds")
 
-### df of zat_cluster w/o road type--------------
+### iii. cluster w/o road type--------------
+#### a = 0.25 -------------
 zat_cluster2 <- data.frame(
   ZAT = calle2_zat_rep$ZAT,
   clus = p4_nbdist
 ) 
 
 saveRDS(zat_cluster2, file = "ZAT/zat_cluster_wo_rd_type.rds")
+
+#### a = 0.35 ---------------
+zat_cluster35 <- data.frame(
+  ZAT = calle2_zat_rep$ZAT,
+  clus = p4_nbdist2
+) 
+
+saveRDS(zat_cluster35, file = "ZAT/zat_cluster_wo_rd_type_a35.rds")
 
 # 4. visualization ---------------
 
@@ -163,9 +176,11 @@ source("../functions/cluster_plot.R")
 ## 4.1 scaled data by cluster------
 calle2zat_clust <- get_cluster(calle2zat_rep_rd, p4_nbdist)
 
+calle2zat_clust <- get_cluster(calle2zat_rep_rd2, p4_nbdist)
+
 calle2zat_clust <- get_cluster(calle2_zat_rep, p4_nbdist)
 
-calle2zat_clust <- get_cluster(calle2zat_rep_rd2, p4_nbdist)
+calle2zat_clust2 <- get_cluster(calle2_zat_rep, p4_nbdist2)
 
 # clust_zat <- calle2zat_rep_rd %>% 
 #   left_join(zat_cluster, by = "ZAT") 
@@ -174,10 +189,17 @@ calle2zat_clust <- get_cluster(calle2zat_rep_rd2, p4_nbdist)
 
 ## NOTE: BELOW SAME NAME FOR W, W/O ROAD TYPE 
 ## 4.2 cluster geo-----------
-calle2zat_geo <- zat_shapefile %>% 
+calle2zat_geo2 <- zat_shapefile %>% 
   st_zm() %>% 
-  left_join(zat_cluster3, by = "ZAT") %>% 
+  #must use join, since the ZAT order is based on zat_shapefile here, but clus order is based on D0.
+  left_join(zat_cluster35, by = "ZAT") %>% 
   drop_na(clus)
+
+saveRDS(calle2zat_clust, file = "aggr_hclust_geo/calle2zat_clust.rds")
+saveRDS(calle2zat_geo, file = "aggr_hclust_geo/calle2zat_geo.rds")
+
+saveRDS(calle2zat_clust2, file = "aggr_hclust_geo/calle2zat_clust_a35.rds")
+saveRDS(calle2zat_geo2, file = "aggr_hclust_geo/calle2zat_geo_a35.rds")
 
 saveRDS(calle2zat_clust, file = "aggr_hclust_geo/rd_type_area/calle2zat_clust3.rds")
 saveRDS(calle2zat_geo, file = "aggr_hclust_geo/rd_type_area/calle2zat_geo3.rds")
@@ -195,16 +217,13 @@ map <- ggplot()+
 
 
 #read in files above
-zat_shapefile <- readRDS("ZAT/zat_shapefile.rds")
-calle2zat_clust <- readRDS("aggr_hclust_geo/rd_type/calle2zat_clust2.rds")
-calle2zat_geo <- readRDS("aggr_hclust_geo/rd_type/calle2zat_geo2.rds")
 
 source("../functions/cluster_plot.R")
 pal <- c("#225ea8","#41b6c4","#a1dab4","#fecb3e") 
 
 map <- ggplot()+
   geom_sf(data = zat_shapefile %>% st_zm(), linewidth = 0.1)+
-  geom_sf(data = calle2zat_geo, color = "grey", linewidth = 0.1, aes(fill = factor(clus)))+
+  geom_sf(data = calle2zat_geo2, color = "grey", linewidth = 0.1, aes(fill = factor(clus)))+
   scale_fill_manual(values = pal)+
   labs(fill = "Cluster")+
   theme_minimal()+
@@ -213,12 +232,12 @@ map <- ggplot()+
     axis.text = element_blank()
   )
 
-(cluster_plot(calle2zat_clust) | map ) + 
+(cluster_plot(calle2zat_clust2) | map ) + 
   plot_annotation('Hierarchical Clustering with Indicators and Neighborhood Constraint', 
     subtitle = 'ZAT level and aggregated calle level, Bogotá',
     theme=theme(plot.title=element_text(size=14, face = "bold", hjust=0.5),
       plot.subtitle = element_text(size = 10, face = "bold", hjust = 0.5)))+
-  plot_layout(widths = c(1.5, 1), heights = unit(12, units = "cm"))
+  plot_layout(widths = c(1.5, 1), heights = unit(10, units = "cm"))
 
 
 # Extra: traffic flow (total trips) -----------
