@@ -17,9 +17,9 @@ profile %>% filter(is.na(clus))
 profile <- readRDS("../../clean_data/ZAT/zat_cluster_w_rd_type_area.rds")
 
 # profile without road type
-profile <- readRDS("../../clean_data/ZAT/zat_cluster_wo_rd_type.rds")
+profile <- readRDS("../../clean_data/ZAT/zat_cluster_wo_rd_type_a25.rds")
 
-# road type as covar
+# road type area as covar
 road_type <- readRDS("../../clean_data/road_type/rd_type_area_zat.rds")
 
 #ses
@@ -83,7 +83,7 @@ RR_profile <- tidy(fit_totalP, conf.int = TRUE, exponentiate = TRUE) %>%
   left_join(profile_distr, by = "clus") %>% 
   mutate(predictor = paste0("profile_", clus)) 
 
-saveRDS(RR_profile, file = "profile_col_RR.rds")
+saveRDS(RR_profile, file = "profile_wo_rd_type/profile_a25_RR.rds")
 
 profile_collision_csv <- RR_profile %>% 
   dplyr::select(
@@ -92,7 +92,7 @@ profile_collision_csv <- RR_profile %>%
     RR_95CI, p.value, outcome)
 
 
-write_csv(profile_collision_csv, file = "collision-profile_zat.csv")
+write_csv(profile_collision_csv, file = "profile_wo_rd_type/collision-profile_zat.csv")
 
 ## visualize-----------
 source("../../functions/plot_RR.R")
@@ -283,7 +283,7 @@ prof_ses_covar_RR <- bind_rows(injury_co2_df, death_co2_df, total_co2_df) %>%
     .default = "(Covariates)"
   )) 
 
-saveRDS(prof_ses_covar_RR, file = "profRdArea_ses_covar_RR.rds")
+saveRDS(prof_ses_covar_RR, file = "profile_wo_rd_type/prof_a25_ses_covar_RR.rds")
 
 prof_ses_covar_RR_csv <- prof_ses_covar_RR %>% 
   dplyr::select(
@@ -293,7 +293,7 @@ prof_ses_covar_RR_csv <- prof_ses_covar_RR %>%
     outcome
   )
 
-write_csv(prof_ses_covar_RR_csv, file = "prof_ses_cov_collision_RR.csv")
+write_csv(prof_ses_covar_RR_csv, file = "profile_wo_rd_type/prof_a25_ses_cov_RR.csv")
 
 ## 4.4 visualize --------
 prof_ses_covar_RR <- readRDS("prof_ses_covar_col_RR.rds")
@@ -381,7 +381,7 @@ prof_ses_covar_rd_RR <- bind_rows(injury_co3_df, death_co3_df, total_co3_df) %>%
     .default = "(Covariates)"
   )) 
 
-saveRDS(prof_ses_covar_rd_RR, file = "prof_ses_covar_rd_RR.rds")
+saveRDS(prof_ses_covar_rd_RR, file = "profile_wo_rd_type/prof_a25_ses_cov_rd_RR.rds")
 
 prof_ses_covar_RR_csv <- prof_ses_covar_RR %>% 
   dplyr::select(
@@ -391,7 +391,7 @@ prof_ses_covar_RR_csv <- prof_ses_covar_RR %>%
     outcome
   )
 
-write_csv(prof_ses_covar_RR_csv, file = "prof_ses_cov_collision_RR.csv")
+write_csv(prof_ses_covar_RR_csv, file = "profile_wo_rd_type/prof_a25_ses_cov_RR.csv")
 
 ## 5.4 visualize --------
 prof_ses_covar_rd_RR <- readRDS("prof_ses_covar_rd_RR.rds")
