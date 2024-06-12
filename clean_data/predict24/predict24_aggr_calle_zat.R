@@ -8,6 +8,7 @@ sf_use_s2(FALSE)
 predict_200k <- read_csv("../../data/AI_prediction2024/predictions_200k.csv")
 calle_geo <- readRDS("../../clean_data/calles/calle_shapefile.rds")
 calle_zat_xwalk <- readRDS("../calle_zat_xwalk.rds")
+zat_shapefile <- readRDS("../../clean_data/ZAT/zat_shapefile.rds") 
 
 # 1. Link image coordinates ------------------
 predict_sf <- st_as_sf(predict_200k, coords = c("Latitude", "Longitude"),  
@@ -15,6 +16,7 @@ predict_sf <- st_as_sf(predict_200k, coords = c("Latitude", "Longitude"),
                        #note confusing column names
                        crs = st_crs(4326)) 
 
+#make sure they're at right places
 predict_sf %>% 
   st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>% 
   leaflet() %>% 
@@ -64,11 +66,18 @@ calle_predict24 <- calle_predict_sf %>%
 saveRDS(calle_predict24, file = "calle_predict24.rds")
 #gitignored, need rerunning for new device
 
-# 3. Aggregate to ZAT w replicates -----------------------
-predict24_zat_rep <- calle_predict24 %>% 
-  left_join(calle_zat_xwalk, by = "CodigoCL") %>% 
-  drop_na(ZAT) %>% #still need to remove NA here
-  uncount(match_n) %>% ## make replicates for multimatching zat
+# 3. Aggregate to ZAT  -----------------------
+zat_geo <- zat_shapefile %>% st_zm()
+
+predict24_zat <- predict_sf %>% 
+  st_transform(crs = st_crs(zat_geo)) %>% 
+  st_join(zat_geo,join= st_within) 
+## NO NEED to create replicates! use point to zat
+
+predict24_zat2 <- predict24_zat %>% 
+  st_drop_geometry() %>% 
+  drop_na(ZAT) %>% 
+  rename_with(~ tolower(.x), .cols = -ZAT) %>% 
   group_by(ZAT) %>% 
   summarise(
     across(sign_traffic:potholes, ~sum(.x), .names = "{.col}"),
@@ -79,11 +88,11 @@ predict24_zat_rep <- calle_predict24 %>%
 zat_area <- readRDS("../ZAT/zat_std2n.rds") %>% 
   select(ZAT, areakm2)
 
-predict24_zat_rep2 <- predict24_zat_rep %>% 
+predict24_zat3 <- predict24_zat2 %>% 
   left_join(zat_area, by = "ZAT") %>% 
   mutate(
     across(sign_traffic:potholes, ~.x/areakm2)
   ) %>% 
   select(-areakm2)
 
-saveRDS(predict24_zat_rep2, file = "predict24_zat_rep2.rds")  
+saveRDS(predict24_zat3, file = "zat_predict24.rds")  
