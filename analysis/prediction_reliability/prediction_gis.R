@@ -9,27 +9,15 @@ library(epiR)
 
 # 0. import data -----------------------
 gis_clean <- readRDS("../../clean_data/MLdata_GIS_CANVAS/gis_clean.rds")
-predict_200k <- read_csv("../../data/AI_prediction2024/predictions_200k.csv")
+
+#prediction by street
+calle_predict24 <- readRDS("../../clean_data/predict24/calle_predict24.rds")
 
 calle_geo <- readRDS("../../clean_data/calles/calle_shapefile.rds")
 
-# 1. Link image coordinates ------------------
-predict_sf <- st_as_sf(predict_200k, coords = c("Latitude", "Longitude"),  
-                        #googlemap api use lat first, but longitude is x, lat is y
-                        #note confusing column names
-                        crs = st_crs(4326)) 
+# 1. Year of image (optional) --------------
+predict_200k <- read_csv("../../data/AI_prediction2024/predictions_200k.csv")
 
-predict_sf %>% 
-  st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>% 
-  leaflet() %>% 
-    addTiles() %>% 
-    addCircles(
-      radius =0.5,
-      color = "#D37506",
-      opacity = 0.6)
-
-
-## Year of image --------------
 image_year <- predict_200k %>% 
   count(Date)
 
@@ -39,46 +27,10 @@ ggplot()+
   theme(axis.text = element_blank(),
         axis.ticks = element_blank())
 
-# 2. Aggregate to street ---------
-calle_predict_sf <- predict_sf %>% 
-  st_transform(crs = st_crs(calle_geo)) %>% 
-  st_join(calle_geo,join= st_within) 
-
-## unmatched points ------------------
-#before drop_na()
-leaflet() %>% 
-  addTiles() %>% 
-  addCircles(
-    data = calle_predict_sf %>% 
-      filter(is.na(CodigoCL)) %>% 
-      st_transform(crs = st_crs("+proj=longlat +datum=WGS84")),
-    radius =0.5,
-    color = "purple",
-    opacity = 0.6) %>% 
-  addPolygons(
-    data = calle_geo %>% 
-      st_transform(crs = st_crs("+proj=longlat +datum=WGS84")),
-    fillColor = "blue"
-  )
-
-count <- calle_predict_sf %>%
-  st_drop_geometry() %>%
-  count(CodigoCL)
-#9900 NA
-
-## summarise------------------
-calle_predict_sf2 <- calle_predict_sf %>% 
-  drop_na(CodigoCL)
-
-calle_predict <- calle_predict_sf2 %>% 
-  st_drop_geometry() %>% 
+# 2. Add prefix to prediction -------------------
+calle_predict <- calle_predict24 %>% 
   rename_all(~paste0("pr_", .)) %>% 
-  rename(CodigoCL = pr_CodigoCL) %>% 
-  group_by(CodigoCL) %>% 
-  summarise(
-    across(pr_Sign_traffic:pr_Potholes, ~sum(.x), .names = "{.col}")
-  ) %>% 
-  rename_with(~ tolower(.x))
+  rename(codigocl = pr_CodigoCL) 
 
 # 3. Join GIS to prediction ----------
 pr_gis_calle <- gis_clean %>% 

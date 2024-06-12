@@ -72,3 +72,4 @@ clean_data/SES/covar_calle500m.rds
 clean_data/SES/covar_calle100m.rds
 analysis/prediction_reliability/gisY_predictN.rds
 analysis/prediction_reliability/predictY_gisN.rds
+clean_data/predict24/calle_predict24.rds
