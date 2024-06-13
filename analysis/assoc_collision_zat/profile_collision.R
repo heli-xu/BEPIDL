@@ -204,8 +204,8 @@ ses_prof_RR <- injury_df %>%
     .default = "(Covariates)"
   )) 
 
-saveRDS(ses_prof_RR, file = "profile_w_rd_type/profile_area_ses_RR.rds")
-
+#saveRDS(ses_prof_RR, file = "profile_w_rd_type/profile_area_ses_RR.rds")
+saveRDS(ses_prof_RR, file = "profile_w_rd_type/profile_count_ses_RR.rds")
 
 ses_prof_col_csv <- ses_prof_RR %>% 
   dplyr::select(
@@ -216,7 +216,7 @@ ses_prof_col_csv <- ses_prof_RR %>%
   )
 
 write_csv(ses_prof_col_csv, file = "profile_w_rd_type/ses_profile_area_zat.csv" )
-
+write_csv(ses_prof_col_csv, file = "profile_w_rd_type/ses_profile_count_zat.csv" )
 
 ## visualize ----------
 ##SES as covariates, adjusted for
