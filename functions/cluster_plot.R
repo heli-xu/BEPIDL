@@ -31,7 +31,7 @@ cluster_plot <- function(cluster_data) {
     coord_flip() + 
     geom_hline(yintercept = 0, linetype = "dotted")+ #still set as y (although it's after flipping)
     theme_minimal() +
-    labs(y = "Less     More                     Less      More",
+    labs(y = "Less     More                   Less      More",
       x = "") +
     scale_x_discrete(expand = expansion(mult = 0.002),
       labels = c(

@@ -2,7 +2,7 @@
 title: "Neighborhood Profiles and Pedestrian Collision"
 subtitle: "with profiles derived from street- and ZAT-level indicators in Bogotá"
 author: "Heli Xu"
-image: thumbnail.png
+image: thumbnail.jpg
 date: 6/10/24
 format: 
   html:
@@ -66,13 +66,13 @@ RR_plots <- function(data1, data2, data3){
     facet_grid(vars(outcome), switch = "y")+
     labs(
     #title = "Pedestrian Collision and Neighborhood Profiles",
-    title = "Unadjusted, ZAT level, Bogotá, Colombia",
+    title = "Unadjusted, ZAT level",
     x = "RR (95%CI)",
     y = "ZAT Profile"
     #caption = "All comparisons are relative to the profile 1."
     )+
     theme(
-      plot.title = element_text(size = 10, face = "plain"),
+      plot.title = element_text(size = 8, face = "plain"),
       plot.title.position = "plot")
 
   adjusted <- data2 %>%
@@ -80,11 +80,11 @@ RR_plots <- function(data1, data2, data3){
     plot_RR(., predictor) +
     facet_grid(vars(outcome), switch = "y") +
     labs(
-      title = "Adjusted for ZAT-level walking/public transit trips, \nSES level, and population density",
+      title = "Adjusted for ZAT-level walking/public transit \ntrips, SES level, and population density",
       x = "RR (95%CI)",
       y = "ZAT Profile"
       ) +
-      theme(plot.title = element_text(size = 10, face = "plain"),
+      theme(plot.title = element_text(size = 8, face = "plain"),
         plot.title.position = "plot")
 
   adjusted_rd <- data3 %>%
@@ -97,7 +97,7 @@ RR_plots <- function(data1, data2, data3){
       y = "ZAT Profile",
       caption = "All comparisons are relative to the profile 1."
     ) +
-    theme(plot.title = element_text(size = 10, face = "plain"),
+    theme(plot.title = element_text(size = 8, face = "plain"),
       plot.title.position = "plot")
 
 (unadjust | adjusted | adjusted_rd)+
@@ -188,11 +188,58 @@ map3 <- ggplot()+
 ### Relationship with collision risk
 
 ```{r}
+RR_plots2 <- function(data1, data2, data3){
+
+  unadjust <- plot_RR(data1, predictor)+
+    facet_grid(vars(outcome), switch = "y")+
+    labs(
+    #title = "Pedestrian Collision and Neighborhood Profiles",
+    title = "Unadjusted, ZAT level",
+    x = "RR (95%CI)",
+    y = "ZAT Profile"
+    #caption = "All comparisons are relative to the profile 1."
+    )+
+    theme(
+      plot.title = element_text(size = 8, face = "plain"),
+      plot.title.position = "plot")
+
+  adjusted <- data2 %>%
+    filter(!predictor == "(Covariates)") %>%
+    plot_RR(., predictor) +
+    facet_grid(vars(outcome), switch = "y") +
+    labs(
+      title = "Adjusted for ZAT-level SES",
+      x = "RR (95%CI)",
+      y = "ZAT Profile"
+      ) +
+      theme(plot.title = element_text(size = 8, face = "plain"),
+        plot.title.position = "plot")
+
+  adjusted_rd <- data3 %>%
+    filter(!predictor == "(Covariates)") %>%
+    plot_RR(., predictor) +
+    facet_grid(vars(outcome), switch = "y") +
+    labs(
+      title = "Adjusted for ZAT-level walking/public transit \ntrips, SES, and population density",
+      x = "RR (95%CI)",
+      y = "ZAT Profile",
+      caption = "All comparisons are relative to the profile 1."
+    ) +
+    theme(plot.title = element_text(size = 8, face = "plain"),
+      plot.title.position = "plot")
+
+(unadjust | adjusted | adjusted_rd)+
+  plot_annotation('Pedestrian Collision and Neighborhood (ZAT) Profiles in Bogotá',
+    theme=theme(plot.title=element_text(size=14, face = "bold", hjust=0.5)))
+}
+
 profileRd1_RR <- readRDS("../../../assoc_collision_zat/profile_w_rd_type/profile_count_RR.rds")
+
+profileRd1_ses_RR <- readRDS("../../../assoc_collision_zat/profile_w_rd_type/profile_count_ses_RR.rds")
 
 profileRd1_adj_RR <- readRDS("../../../assoc_collision_zat/profile_w_rd_type/prof_count_ses_covar_RR.rds")
 
-RR_2plots(profileRd1_RR, profileRd1_adj_RR)
+RR_plots2(profileRd1_RR, profileRd1_ses_RR, profileRd1_adj_RR)
 ```
 
 ## 4. Profile with Road Type Area
@@ -233,5 +280,5 @@ profileRd2_ses_RR <- readRDS("../../../assoc_collision_zat/profile_w_rd_type/pro
 
 profileRd2_adj_RR <- readRDS("../../../assoc_collision_zat/profile_w_rd_type/prof_area_ses_covar_RR.rds")
 
-RR_plots(profileRd2_RR, profileRd2_ses_RR, profileRd2_adj_RR)
+RR_plots2(profileRd2_RR, profileRd2_ses_RR, profileRd2_adj_RR)
 ```
