@@ -22,7 +22,6 @@
 #'
 
 cluster_plot <- function(cluster_data) {
-  pal <- c("#225ea8","#41b6c4","#a1dab4","#fecb3e") 
   
   cluster_data %>% 
     ggplot() +
@@ -62,7 +61,35 @@ cluster_plot <- function(cluster_data) {
         "mean_pcta_Collector" = "Collector rd area (st)",
         "mean_pcta_Arterial" = "Arterial rd area (st)",
         "mean_pcta_Local" = "Local rd area (st)",
-        "mean_pcta_other" = "Other rd area (st)"
+        "mean_pcta_other" = "Other rd area (st)",
+        #for prediction data
+        "mean_sign_traffic" = "sign_traffic",
+        "mean_traffic_light" = "traffic_light",
+        "mean_sign_crossing" = "sign_crossing",
+        "mean_pedestrian_light" = "pedestrian_light",
+        "mean_sign_stop" = "sign_stop",
+        "mean_sign_yield" = "sign_yield",
+        "mean_sign_school_zone" = "sign_school_zone",
+        "mean_sidewalk" = "sidewalk",
+        "mean_crosswalk" = "crosswalk",
+        "mean_lane_marking" = "lane_marking",
+        "mean_lane_bike" = "lane_bike",
+        "mean_lane_bus" = "lane_bus",
+        "mean_roundabout" = "roundabout",
+        "mean_curb" = "curb",
+        "mean_bollards" = "bollards",
+        "mean_median" = "median",
+        "mean_median_barrier" = "median_barrier",
+        "mean_speed_bump" = "speed_bump",
+        "mean_trees" = "trees",
+        "mean_bus_stop" = "bus_stop",
+        "mean_street_lights" = "street_lights",
+        "mean_kiosks" = "kiosks",
+        "mean_parked_vehicles" = "parked_vehicles",
+        "mean_sidewalk_obstruction" = "sidewalk_obstruction",
+        "mean_lane_parking" = "lane_parking",
+        "mean_brt_station" = "brt_station",
+        "mean_potholes" = "potholes"        
       ))+
     theme(panel.grid = element_blank(),
       legend.position = "none", ## added
