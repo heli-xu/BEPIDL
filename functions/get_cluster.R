@@ -22,7 +22,7 @@ get_cluster <- function(data, clus_list){
   data %>% 
     left_join(zat_cluster, by = "ZAT") %>% 
     group_by(clus) %>% 
-    summarise(across(-1, ~mean(.x),.names = "mean_{.col}"), .groups = "drop") %>%
+    summarise(across(-1, ~mean(.x, na.rm = TRUE),.names = "mean_{.col}"), .groups = "drop") %>%
     #remember not to 'exclude' the group var
     mutate(across(-clus, ~scale(.x)[, 1])) %>% 
     pivot_longer(-clus, names_to = "indicator", values_to = "scaled")
