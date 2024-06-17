@@ -13,7 +13,14 @@ predict24_zat <- readRDS("zat_predict24.rds")
 
 zat_shapefile <- readRDS("../ZAT/zat_shapefile.rds")
 
+## with some var from calle
+calle_indicators <- readRDS("../aggr_hclust_geo/calle_2_zat_rep.rds")
+## with some var from zat
+zat_indicators <- readRDS("../ZAT/zat_std2n.rds")
 
+dist_link3 <- readRDS("dist_link3.rds")
+
+# if loading dist_link3.rds, skip 1.
 # 1. Neighborhood Distance -------------------
 ## D0 D1 have to be same size, so distance matrix has to follow data dimension
 zat_shape_sub <- predict24_zat %>% 
@@ -56,9 +63,16 @@ saveRDS(dist_link3, file = "dist_link3.rds")
 
 #dist_link3.rds saved##
 
-# 1. Clustering ---------------
-## D0 ----------
-D0 <- dist(predict24_zat)
+# 2. Add road characteristics---------------------
+predict24_road_zat <- predict24_zat %>% 
+  left_join(calle_indicators %>% 
+      select(ZAT, road_width, area_roadway), by = "ZAT") %>% 
+  left_join(zat_indicators %>% 
+      select(ZAT, road_length_log, INTDENS), by = "ZAT")
+
+# 3. Clustering ---------------
+## D0: indicators ----------
+D0 <- dist(predict24_road_zat)
 
 tree <- hclustgeo(D0)
 
@@ -70,7 +84,7 @@ rect.hclust(tree, k = 5, border = 1:5)
 legend("topright", legend = paste("cluster", 1:5),
        fill = 1:5, bty = "n", border = "white")
 
-## D1 ---------------
+## D1: nb distance---------------
 D1 <- as.dist(dist_link3)
 
 range.alpha <- seq(0,1, 0.05)
@@ -79,33 +93,33 @@ k <- 5
 cr <- choicealpha(D0, D1, range.alpha, k, graph = FALSE)
 
 plot(cr)
-# a = 0.4
+# a = 0.4 (or a = 0.45)
 
 ## Mix -------
 tree <- hclustgeo(D0, D1, alpha = 0.4)
 p5_nbdist <- cutree(tree, 5)
 
-# 2. Summarize zat_cluster -------------------------
+# 4. Summarize zat_cluster -------------------------
 pr_zat_cluster <- data.frame(
-  ZAT = predict24_zat$ZAT,
+  ZAT = predict24_road_zat$ZAT,
   clus = p5_nbdist
 )
 
-saveRDS(pr_zat_cluster, file = "pr_zat_cluster.rds")
+saveRDS(pr_zat_cluster, file = "pr_zat_cluster_rd.rds")
 
-# 3. Visualize ----------------------
-## 3.1 prep data ------------
+# 5. Visualize ----------------------
+## 5.1 prep data ------------
 source("../../functions/get_cluster.R")
 source("../../functions/cluster_plot.R")
 
-predict_cluster <- get_cluster(predict24_zat, p5_nbdist)
+predict_cluster <- get_cluster(predict24_road_zat, p5_nbdist)
 
 predict_cluster_geo <- zat_shapefile %>% 
   st_zm() %>% 
   left_join(pr_zat_cluster, by = "ZAT") %>% 
   drop_na(clus)
 
-## 3.2 assemble plots -----------------
+## 5.2 assemble plots -----------------
 pal <- c("#225ea8","#41b6c4","#a1dab4", "#ffdb00","orange")
 map <- ggplot()+
   geom_sf(data = zat_shapefile %>% st_zm(), linewidth = 0.1)+
