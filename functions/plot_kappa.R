@@ -34,7 +34,7 @@ plot_kappa <- function(data){
     geom_point(aes(x = kappa_est), size = 2) +
     geom_vline(aes(xintercept = 0.2), linetype = 2) +
     scale_x_continuous(breaks = sort(round(c(
-      seq(min(df$kappa_lower), max(df$kappa_upper), length.out = 4), 0.2
+      seq(min(data$kappa_lower), max(data$kappa_upper), length.out = 4), 0.2
     ), 1))) +
     theme_bw() +
     # facet_grid(vars(year), switch = "y")+

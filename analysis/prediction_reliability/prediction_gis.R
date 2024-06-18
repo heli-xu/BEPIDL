@@ -7,6 +7,8 @@ library(caret)
 library(pROC)
 library(epiR)
 
+sf_use_s2(FALSE)
+
 # 0. import data -----------------------
 gis_clean <- readRDS("../../clean_data/MLdata_GIS_CANVAS/gis_clean.rds")
 
@@ -20,6 +22,12 @@ predict_200k <- read_csv("../../data/AI_prediction2024/predictions_200k.csv")
 
 image_year <- predict_200k %>% 
   count(Date)
+
+
+predict_sf <- st_as_sf(predict_200k, coords = c("Latitude", "Longitude"),  
+  #googlemap api use lat first, but longitude is x, lat is y
+  #note confusing column names
+  crs = st_crs(4326)) 
 
 ggplot()+
   geom_sf(data = predict_sf, color = "navy")+
@@ -292,6 +300,7 @@ pr_gis_g3 <- link_gis(g3_st)
 res_g1 <- map2(pr_variables, gis_variables, 
             \(x, y) roc(pr_gis_g1[[y]], as.numeric(pr_gis_g1[[x]])))
 
+### summary table
 source("../../functions/reliability_table.R")
 
 df_g1 <- reliability_table(pr_variables, gis_variables, pr_gis_g1) %>% 
@@ -307,31 +316,20 @@ df_all <- bind_rows(df_g1, df_g2, df_g3)
 
 
 ## 5.5 Visualization---------------
+source("../../functions/plot_kappa.R")
 
-df_all %>% 
-  ggplot(aes(x = kappa_est, y = var))+
-  geom_errorbar(aes(xmin = kappa_lower, xmax = kappa_upper), linewidth = 0.5)+
+plot_kappa(df_all)+
   geom_point(aes(x = kappa_est, color = var), size = 2)+
   scale_color_manual(values = colors)+
-  theme_bw()+
   facet_grid(vars(year), switch = "y")+
-  theme(
-    plot.title = element_text(size = 13, face = "bold", hjust = 0),
-    text = element_text(size = 11),
-    axis.title = element_text(size = 12),
-    # plot.title.position = "plot",
-    panel.spacing.y = unit(0, "points"),
-    panel.border = element_blank(),
-    #axis.text.y = element_blank(),
-    axis.ticks.length.y = unit(0, "points"),
-    strip.text.y.left = element_text(face = "bold", angle = 0),
-    #strip.background.y = element_blank(),
-    strip.placement = "outside",
-    axis.line = element_line()
-  )+  
-  #below are outside of function
   labs(
-    title = "Prediction2024 vs GIS",
+    title = "Prediction2024 vs GIS by Year Groups",
+    subtitle = "Agreement between AI predictions and GIS data at the street level",
+    caption = "Interpretations for the kappa statistic: < 0.2 slight agreement, \n0.2 - 0.4 fair agreement, 0.4 - 0.6 moderate agreement.",
     x = "Cohen's kappa (95%CI)",
     y = "Variables"
+  )+
+  theme(
+    legend.position = "none"
   )
+
