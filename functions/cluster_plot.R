@@ -101,5 +101,5 @@ cluster_plot <- function(cluster_data) {
       strip.text = element_text(face = "bold", size = 10),
       strip.background = element_rect(fill = "grey", color = "white"),
       panel.spacing.x = unit(1, "lines")) +
-    facet_wrap(~clus, ncol = 2) # changed ncol
+    facet_wrap(~clus, ncol = 3) # changed ncol
 }

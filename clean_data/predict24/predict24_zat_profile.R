@@ -70,6 +70,7 @@ predict24_road_zat <- predict24_zat %>%
   left_join(zat_indicators %>% 
       select(ZAT, road_length_log, INTDENS), by = "ZAT")
 
+saveRDS(predict24_road_zat, file = "w_road_info/predict24_road_info_zat.rds")
 # 3. Clustering ---------------
 ## D0: indicators ----------
 D0 <- dist(predict24_road_zat)
@@ -119,6 +120,10 @@ predict_cluster_geo <- zat_shapefile %>%
   left_join(pr_zat_cluster, by = "ZAT") %>% 
   drop_na(clus)
 
+saveRDS(predict_cluster, file = "w_road_info/predict24_road_info_cluster.rds")
+saveRDS(predict_cluster_geo, file = "w_road_info/predict24_road_clus_geo.rds")
+#clus_geo ignored, need rerunning for new device
+
 ## 5.2 assemble plots -----------------
 pal <- c("#225ea8","#41b6c4","#a1dab4", "#ffdb00","orange")
 map <- ggplot()+
@@ -129,14 +134,18 @@ map <- ggplot()+
   theme_minimal()+
   theme(
     panel.grid = element_blank(),
-    axis.text = element_blank()
+    axis.text = element_blank(),
+    legend.position = "inside",
+    legend.position.inside = c(0.9,0.2),
+    legend.title.position = "top"
   )
 
 (cluster_plot(predict_cluster) | map ) + 
   plot_annotation('Hierarchical Clustering with Indicators and Neighborhood Constraint', 
-                  subtitle = 'AI-detected Street Features, Bogotá',
+                  subtitle = 'AI-detected Street Features and Selected Road Network Characteristics, Bogotá',
                   theme=theme(plot.title=element_text(size=14, face = "bold", hjust=0.5),
                               plot.subtitle = element_text(size = 10, face = "bold", hjust = 0.5)))+
   plot_layout(widths = c(1.5, 1), heights = unit(18, units = "cm"))
+
 
 
