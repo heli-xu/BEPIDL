@@ -4,11 +4,16 @@ library(MASS)
 library(broom)
 
 # 0. import data----------------
+#features
 calle_rename_df <- readRDS("../../clean_data/calles/calle_rename_df.rds")
+#collision from raw (need to populate 0)
+collision_calle <- readRDS("../../clean_data/collision/collision_calle_df.rds")
 #covariates
 covar_100 <- readRDS("../../clean_data/SES/covar_calle100m.rds")
 #road_type
 road_type <- readRDS("../../clean_data/road_type/road_type_calle.rds")
+
+ses_100 <- readRDS("../../clean_data/SES/ses_calle100m.rds")
 
 # 1. collision~feature+cov+rd_type------------
 
@@ -63,35 +68,54 @@ all_features <-  c(
   "traffic_fines_tot"
 )
 
+##  (choose one below)-------
 ### Zeros, nonzero Tertiles, factored------
 calle_tertile <- calle_rename_df %>% 
-  dplyr::select(codigocl, st_dir, all_of(features), ped_collision) %>% 
+  dplyr::select(codigocl, st_dir, all_of(features)) %>% 
   mutate(
     across(all_of(features), ~na_if(., 0)), #turn to NA so that it doesn't get computed
     across(all_of(features), ~ntile(., 3), .names = "{.col}"),
     across(all_of(features), ~replace_na(., 0)), #turn it back 0
     across(-c(codigocl, ped_collision), ~factor(., levels = c("1", "0", "2", "3")))
+  ) 
+
+### Binary ------------------
+calle_yn <- calle_rename_df %>% 
+  dplyr::select(codigocl, st_dir, all_of(features)) %>%
+  mutate(
+    across(all_of(features), ~if_else(. >0, 1, 0)),
+    across(-codigocl, ~factor(.))
+  ) %>% 
+  left_join(collision_calle 
+    %>% rename(codigocl = CodigoCL), 
+    by = "codigocl") %>% 
+  mutate(
+    across(injury:total, ~replace_na(., 0))
   )
 
-levels(calle_tertile$trees)
+levels(calle_yn$trees)
 
-### *rd_type + 100m buffer covar --------------
+## 3.2 Covar (100m buffer) + rd_type + SES--------------
 collision_covar_rd_100 <- covar_100 %>%
   mutate(
     across(c(pop_density, starts_with("pct")), ~ scale(.x)[,1])
   ) %>% 
+  left_join(ses_100, by = "CodigoCL") %>% 
+  mutate(ses_cat_r = factor(ses_cat, levels = rev(levels(ses_cat)))) %>% 
   left_join(road_type, by = "CodigoCL") %>% 
   mutate(road_type2 = factor(road_type2, levels = c("Local", "Arterial", "Collector", "Other"))) %>% 
   rename(codigocl = CodigoCL) %>% 
-  left_join(calle_tertile, by = "codigocl") %>% 
+  left_join(calle_yn, by = "codigocl") %>% 
   drop_na(road_type2)
 
 
-## 3.2 Model ---------------
+## 3.3 Model ---------------
 ### function -------------
-fit_feature <- glm.nb(ped_collision ~ area_median + pct_apt + pct_home + pct_unoccu + pop_density + pct_male + pct_yr_0_9 + pct_yr_10_19 + pct_yr_30_39 + pct_yr_40_49 + pct_yr_50_59 + pct_yr_60_69 + pct_yr_70_79 + pct_yr_80_plus + road_type2, data = collision_covar_rd_100)
+fit_feature <- glm.nb(death ~ trees + pct_apt + pct_home + pct_unoccu + pop_density + pct_male + pct_yr_0_9 + pct_yr_10_19 + pct_yr_30_39 + pct_yr_40_49 + pct_yr_50_59 + pct_yr_60_69 + pct_yr_70_79 + pct_yr_80_plus + road_type2 +ses_cat_r, data = collision_covar_rd_100)
 
 summary(fit_feature)
+
+df <- tidy(fit_feature, conf.int = TRUE, exponentiate = TRUE)
 
 fit_features_x <- function(predictor, data){
   formula <- as.formula(paste("ped_collision ~", predictor, "+ pct_apt + pct_home + pct_unoccu + pop_density + pct_male + pct_yr_0_9 + pct_yr_10_19 + pct_yr_30_39 + pct_yr_40_49 + pct_yr_50_59 + pct_yr_60_69 + pct_yr_70_79 + pct_yr_80_plus + road_type2"))
