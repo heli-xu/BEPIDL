@@ -10,6 +10,7 @@ calle_rename_df <- readRDS("../../clean_data/calles/calle_rename_df.rds")
 covar_500 <- readRDS("../../clean_data/SES/covar_calle500m.rds")
 covar_100 <- readRDS("../../clean_data/SES/covar_calle100m.rds")
 
+
 # 1. collision ~ feature ---------------------------
 
 ## 1.1 feature descrp stat ------------------------------
@@ -369,18 +370,6 @@ plot_facet_RR()+
   theme(
     plot.title.position = "plot"
   )
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
