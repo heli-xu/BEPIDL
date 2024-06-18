@@ -5,9 +5,63 @@ library(patchwork)
 
 # import data -------------
 road_type <- readRDS("../road_type/road_type_calle.rds")
-calle_clean_df <- readRDS("calles/calle_clean_df.rds")
 
-# Join collision  
+raw_collision <- readRDS("../../data/collision/atropello_point_sf.rds")
+
+calle_geo <- readRDS("../../clean_data/calles/calle_shapefile.rds")
+
+# 1. Join to calle---------
+collision_calle <- raw_collision %>% 
+  st_transform(crs = st_crs(calle_geo)) %>% 
+  st_join(calle_geo, .predicate = st_intersects) #st_within the same
+
+## unmatched points -----------------
+unmatched <- collision_calle %>% 
+  filter(is.na(CodigoCL))
+
+leaflet() %>% 
+  addTiles() %>% 
+  addPolygons(
+    data = calle_geo %>% 
+      st_transform(crs = st_crs("+proj=longlat +datum=WGS84")),
+    fillColor = "blue", color = "blue"
+  ) %>% 
+  addCircleMarkers(
+    data = unmatched %>% 
+      st_transform(crs = st_crs("+proj=longlat +datum=WGS84")),
+    radius = 1, fillColor = "purple", color = "purple"
+  )
+
+## remove NA, clean------------------
+colli_calle_df <- collision_calle %>%
+  st_drop_geometry() %>% 
+  drop_na(CodigoCL) %>% 
+  dplyr::select(CodigoCL, CODIGO_ACCIDENTE, GRAVEDAD) %>% 
+  mutate(count = 1)
+
+# 2. summarise by street --------------
+colli_calle_df2 <- colli_calle_df %>% 
+  group_by(CodigoCL, GRAVEDAD) %>% 
+  summarise(count = sum(count), .groups = "drop") %>%
+  pivot_wider(id_cols = CodigoCL, names_from = GRAVEDAD, values_from = count) %>% 
+  rename(injury = "CON HERIDOS",
+    death = "CON MUERTOS",
+    damage = "SOLO DANOS") %>% 
+  mutate(across(injury:damage, ~replace_na(., 0))) %>% 
+  mutate(total = injury + death + damage)
+
+saveRDS(colli_calle_df2, file = "collision_calle_df.rds")
+
+## add in zeros --------------
+colli_calle_geo <- calle_geo %>% 
+  left_join(colli_calle_df2, by = "CodigoCL") %>% 
+  mutate(across(injury:total, ~replace_na(., 0)))
+
+colli_calle_df3 <- colli_calle_geo %>% 
+  st_drop_geometry()
+
+
+# joining road_type (not sure..) -----------
 road_type_geo <- road_type %>% 
   left_join(calle_geo, by= "CodigoCL") %>% 
   st_as_sf()
