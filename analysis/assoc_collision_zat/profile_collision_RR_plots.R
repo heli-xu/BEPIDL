@@ -1,5 +1,6 @@
 #plots for profiles and collision
-
+library(tidyverse)
+library(patchwork)
 source("../../functions/plot_RR.R")
 #modified from quarto post zat_hclust_geo.qmd
 RR_plots <- function(data1, data2, data3){
@@ -37,7 +38,7 @@ RR_plots <- function(data1, data2, data3){
       title = "Adjusted for ZAT-level walking/public transit \ntrips, SES, road types, and population density",
       x = "RR (95%CI)",
       y = "ZAT Profile",
-      caption = "All comparisons are relative to the profile 4."
+      caption = "All comparisons are relative to the profile 5."
     ) +
     theme(plot.title = element_text(size = 8, face = "plain"),
       plot.title.position = "plot")
@@ -48,9 +49,9 @@ RR_plots <- function(data1, data2, data3){
 }
 
 # 1. predict24+road info - derived profiles--------
-profile_RR <- readRDS("predict24_profile/profile_rd_RR.rds")
-profile_ses_RR <- readRDS("predict24_profile/profile_rd_ses_RR.rds")
-profile_covar_RR <- readRDS("predict24_profile/profile_rd_covar2_RR.rds")
+profile_RR <- readRDS("predict24_profile/profile_rd_RR_ref5.rds")
+profile_ses_RR <- readRDS("predict24_profile/profile_rd_ses_RR_ref5.rds")
+profile_covar_RR <- readRDS("predict24_profile/profile_rd_covar2_RR_ref5.rds")
 
 RR_plots(profile_RR, profile_ses_RR, profile_covar_RR)
 

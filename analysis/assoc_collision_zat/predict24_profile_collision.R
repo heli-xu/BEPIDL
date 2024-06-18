@@ -9,7 +9,7 @@ col_ped_zat <- readRDS("../../clean_data/collision/collision_zat_df.rds")
 #   st_drop_geometry()
 
 # predict24_profile with road network characteristics
-profile <- readRDS("../../clean_data/predict24/pr_zat_cluster_rd.rds")
+profile <- readRDS("../../clean_data/predict24/w_road_info/pr_zat_cluster_rd.rds")
 
 # if not in profile, road type area as covar
 road_type <- readRDS("../../clean_data/road_type/rd_type_area_zat.rds")
@@ -27,13 +27,13 @@ pop_density <- readRDS("../../clean_data/ZAT/pop_density2021.rds")
 source("../../functions/distr_stat.R")
 
 profile_distr <- distr_stat(profile, ZAT, clus) %>% 
-  mutate(clus = factor(clus, levels = c(4, 1, 2, 3, 5)))
+  mutate(clus = factor(clus, levels = c(5, 1, 2, 3, 4)))
 
 # 2. Collision ~ profile ----------------------------------
 ## 2.1 join data -------------
 profile_ped_zat <- col_ped_zat %>% 
   left_join(profile, by = "ZAT") %>% 
-  mutate(clus = factor(clus, levels = c(4, 1, 2, 3, 5))) %>% 
+  mutate(clus = factor(clus, levels = c(5, 1, 2, 3, 4))) %>% 
   drop_na(clus)
 
 ## 2.2 injury --------------
@@ -61,16 +61,16 @@ RR_profile <- tidy(fit_totalP, conf.int = TRUE, exponentiate = TRUE) %>%
   mutate(RR_95CI = paste0(round(estimate,2)," (", round(conf.low,2), ",", round(conf.high, 2), ")")) %>% 
   mutate(clus = case_match(
     term,
-    "(Intercept)" ~ "4",
+    "(Intercept)" ~ "5",
     "clus1" ~ "1",
     "clus2" ~ "2",
     "clus3" ~ "3",
-    "clus5" ~ "5"
+    "clus4" ~ "4"
   )) %>% 
   left_join(profile_distr, by = "clus") %>% 
   mutate(predictor = paste0("profile_", clus)) 
 
-saveRDS(RR_profile, file = "predict24_profile/profile_rd_RR.rds")
+saveRDS(RR_profile, file = "predict24_profile/profile_rd_RR_ref5.rds")
 
 ## 2.6 visualize-----------
 source("../../functions/plot_RR.R")
@@ -92,7 +92,7 @@ ses_profile_ped <- ses_zat %>%
   dplyr::select(ZAT, ses_cat) %>% 
   mutate(ses_cat_r = factor(ses_cat, levels = rev(levels(ses_cat)))) %>% 
   left_join(profile, by = "ZAT") %>% 
-  mutate(clus = factor(clus, levels = c(4, 1, 2, 3, 5))) %>% 
+  mutate(clus = factor(clus, levels = c(5, 1, 2, 3, 4))) %>% 
   #drop_na(clus) %>% 
   left_join(col_ped_zat, by = "ZAT") %>% 
   drop_na()
@@ -132,11 +132,11 @@ prof_ses_RR <- injury_df %>%
   mutate(RR_95CI = paste0(round(estimate,2)," (", round(conf.low,2), ",", round(conf.high, 2), ")")) %>% 
   mutate(predictor = case_match(
     term,
-    "(Intercept)" ~ "profile_4",
+    "(Intercept)" ~ "profile_5",
     "clus1" ~ "profile_1",
     "clus2" ~ "profile_2",
     "clus3" ~ "profile_3",
-    "clus5" ~ "profile_5",
+    "clus4" ~ "profile_4",
     # "ses_cat_r5" ~ "ses_5",
     # "ses_cat_r4" ~ "ses_4",
     # "ses_cat_r3" ~ "ses_3",
@@ -145,7 +145,7 @@ prof_ses_RR <- injury_df %>%
     .default = "(Covariates)"
   )) 
 
-saveRDS(prof_ses_RR, file = "predict24_profile/profile_rd_ses_RR.rds")
+saveRDS(prof_ses_RR, file = "predict24_profile/profile_rd_ses_RR_ref5.rds")
 
 ses_prof_col_csv <- prof_ses_RR %>% 
   dplyr::select(
@@ -274,7 +274,7 @@ profile_covar_rd <- ses_zat %>%
   dplyr::select(ZAT, ses_cat) %>% 
   mutate(ses_cat_r = factor(ses_cat, levels = rev(levels(ses_cat)))) %>% 
   left_join(profile, by = "ZAT") %>% 
-  mutate(clus = factor(clus, levels = c(4, 1, 2, 3, 5))) %>% 
+  mutate(clus = factor(clus, levels = c(5, 1, 2, 3, 4))) %>% 
   #drop_na(clus) %>% 
   left_join(col_ped_zat, by = "ZAT") %>% 
   left_join(traffic %>% 
@@ -318,11 +318,11 @@ prof_ses_covar_rd_RR <- bind_rows(injury_co3_df, death_co3_df, total_co3_df) %>%
   mutate(RR_95CI = paste0(round(estimate,2)," (", round(conf.low,2), ",", round(conf.high, 2), ")")) %>%
   mutate(predictor = case_match(
     term,
-    "(Intercept)" ~ "profile_4",
+    "(Intercept)" ~ "profile_5",
     "clus1" ~ "profile_1",
     "clus2" ~ "profile_2",
     "clus3" ~ "profile_3",
-    "clus5" ~ "profile_5",
+    "clus4" ~ "profile_4",
     # "ses_cat_r5" ~ "ses_5",
     # "ses_cat_r4" ~ "ses_4",
     # "ses_cat_r3" ~ "ses_3",
@@ -331,7 +331,7 @@ prof_ses_covar_rd_RR <- bind_rows(injury_co3_df, death_co3_df, total_co3_df) %>%
     .default = "(Covariates)"
   )) 
 
-saveRDS(prof_ses_covar_rd_RR, file = "predict24_profile/profile_rd_covar2_RR.rds")
+saveRDS(prof_ses_covar_rd_RR, file = "predict24_profile/profile_rd_covar2_RR_ref5.rds")
 
 prof_ses_covar_RR_csv <- prof_ses_covar_RR %>% 
   dplyr::select(
