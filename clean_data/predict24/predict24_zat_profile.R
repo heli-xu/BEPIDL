@@ -9,7 +9,11 @@ library(patchwork)
 sf_use_s2(FALSE)
 
 # 0. import data-----------------
+#prediction data only
 predict24_zat <- readRDS("zat_predict24.rds")
+
+#prediction with road network characteristics
+predict24_road_zat <- readRDS("w_road_info/predict24_road_info_zat.rds")
 
 zat_shapefile <- readRDS("../ZAT/zat_shapefile.rds")
 
@@ -140,7 +144,11 @@ map <- ggplot()+
     legend.title.position = "top"
   )
 
-(cluster_plot(predict_cluster) | map ) + 
+#modify ncol for cluster_plot()
+var_plot <- cluster_plot(predict_cluster)+
+  facet_wrap(~clus, ncol = 3)
+
+(var_plot | map ) + 
   plot_annotation('Hierarchical Clustering with Indicators and Neighborhood Constraint', 
                   subtitle = 'AI-detected Street Features and Selected Road Network Characteristics, Bogotá',
                   theme=theme(plot.title=element_text(size=14, face = "bold", hjust=0.5),
