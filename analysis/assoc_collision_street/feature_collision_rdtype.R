@@ -76,8 +76,14 @@ calle_tertile <- calle_rename_df %>%
     across(all_of(features), ~na_if(., 0)), #turn to NA so that it doesn't get computed
     across(all_of(features), ~ntile(., 3), .names = "{.col}"),
     across(all_of(features), ~replace_na(., 0)), #turn it back 0
-    across(-c(codigocl, ped_collision), ~factor(., levels = c("1", "0", "2", "3")))
-  ) 
+    across(-codigocl, ~factor(., levels = c("1", "0", "2", "3")))
+  ) %>% 
+  left_join(collision_calle 
+            %>% rename(codigocl = CodigoCL), 
+            by = "codigocl") %>% 
+  mutate(
+    across(injury:total, ~replace_na(., 0))
+  )
 
 ### Binary ------------------
 calle_yn <- calle_rename_df %>% 
@@ -105,7 +111,7 @@ collision_covar_rd_100 <- covar_100 %>%
   left_join(road_type, by = "CodigoCL") %>% 
   mutate(road_type2 = factor(road_type2, levels = c("Local", "Arterial", "Collector", "Other"))) %>% 
   rename(codigocl = CodigoCL) %>% 
-  left_join(calle_yn, by = "codigocl") %>% 
+  left_join(calle_tertile, by = "codigocl") %>% 
   drop_na(road_type2)
 
 
@@ -115,7 +121,14 @@ fit_feature <- glm.nb(death ~ trees + pct_apt + pct_home + pct_unoccu + pop_dens
 
 summary(fit_feature)
 
+fit_feature <- glm.nb(injury ~ trees + pct_apt + pct_home + pct_unoccu + pop_density + pct_male + pct_yr_0_9 + pct_yr_10_19 + pct_yr_30_39 + pct_yr_40_49 + pct_yr_50_59 + pct_yr_60_69 + pct_yr_70_79 + pct_yr_80_plus + road_type2 +ses_cat_r, data = collision_covar_rd_100)
+
+
 df <- tidy(fit_feature, conf.int = TRUE, exponentiate = TRUE)
+df_RR <- df %>% 
+  mutate(
+    RR_95CI = paste0(round(estimate,2)," (", round(conf.low,2), ",", round(conf.high, 2), ")")
+  )
 
 fit_features_x <- function(predictor, data){
   formula <- as.formula(paste("ped_collision ~", predictor, "+ pct_apt + pct_home + pct_unoccu + pop_density + pct_male + pct_yr_0_9 + pct_yr_10_19 + pct_yr_30_39 + pct_yr_40_49 + pct_yr_50_59 + pct_yr_60_69 + pct_yr_70_79 + pct_yr_80_plus + road_type2"))
