@@ -5,6 +5,8 @@ library(ggplot2)
 # 0. import data -------
 calle_geo <- readRDS("../../clean_data/calles/calle_shapefile.rds")
 
+pr_gis_calle <- readRDS("predict_gis_calle.rds")
+
 pr_variables <- c(
   "pr_sign_traffic_yn",
   "pr_sign_traffic_yn",
@@ -50,7 +52,6 @@ gis_variables <- c(
 
 # 1. Diff (pr vs gis) -------------------
 new_col <- paste0("pYgN_", str_sub(pr_variables, 4, -4))
-pr_gis_calle <- readRDS("predict_gis_calle.rds")
 
 prYgisN_expr <- paste(pr_variables, "-", gis_variables)
 
@@ -84,7 +85,7 @@ saveRDS(prYgisN, file = "predictY_gisN.rds")
 #csv deleted
 #write_csv(predictY_gisN, file = "st_predictY_gisN.csv")
 
-prYgisN_top250 <- prYgisN %>%
+prYgisN_top500 <- prYgisN %>%
   arrange(desc(diff_all)) %>% 
   head(500) %>% 
   #slice_max(diff_all, n = 250) %>%  
@@ -93,7 +94,7 @@ prYgisN_top250 <- prYgisN %>%
     by = "codigocl") %>% 
   st_as_sf()
 
-prYgisN_top250 %>% 
+prYgisN_top500 %>% 
   st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>% 
   leaflet() %>% 
   addTiles() %>% 
@@ -117,7 +118,7 @@ saveRDS(gisYprN, file = "gisY_predictN.rds")
 #csv deleted
 #write_csv(gisY_predictN, file = "st_gisY_predictN.csv")
 
-gisYprN_top250 <- gisYprN %>% 
+gisYprN_top500 <- gisYprN %>% 
   arrange(diff_all) %>% 
   head(500) %>% 
   #slice_min(diff_all, n = 250) %>% 
@@ -126,7 +127,7 @@ gisYprN_top250 <- gisYprN %>%
     by = "codigocl") %>% 
   st_as_sf()
 
-gisYprN_top250 %>% 
+gisYprN_top500 %>% 
   st_transform(crs = st_crs("+proj=longlat +datum=WGS84")) %>% 
   leaflet() %>% 
   addTiles() %>% 
@@ -135,7 +136,51 @@ gisYprN_top250 %>%
     fillColor = "blue"
   )
 
-# 4. diff by category-------
+# 4. street w both YES or NO-----------
+matching <- check2 %>% 
+  pivot_longer(cols = -codigocl, names_to = "variable", values_to = "diff") %>% 
+  filter(diff == 0) %>% 
+  pivot_wider(id_cols = codigocl, names_from = "variable", values_from = "diff")
+
+matching_YN <- matching %>% 
+  left_join(pr_gis_calle %>% 
+      dplyr::select(codigocl, pr_sign_traffic_yn), 
+    by = "codigocl")
+
+##select based on the pr_variable, since pr and gis are matching
+
+prYgisY <- matching_YN %>% 
+  filter(pr_sign_traffic_yn == 1) %>% 
+  dplyr::select(-pr_sign_traffic_yn) %>% 
+  pivot_longer(cols = -codigocl, names_to = "variable", values_to = "diff") %>% 
+  drop_na(diff) %>% #important! removing the non matching
+  mutate(count = 1) %>% 
+  group_by(codigocl) %>% 
+  summarise(
+    match_count = sum(count)
+  )
+  
+prNgisN <- matching_YN %>% 
+  filter(pr_sign_traffic_yn == 0) %>% 
+  dplyr::select(-pr_sign_traffic_yn) %>% 
+  pivot_longer(cols = -codigocl, names_to = "variable", values_to = "diff") %>% 
+  drop_na(diff) %>% 
+  mutate(count = 1) %>% 
+  group_by(codigocl) %>% 
+  summarise(
+    match_count = sum(count)
+  )
+  
+#did not save rds to save space  
+#saveRDS(prYgisY, file = "predictY_gisY.rds")  
+
+#csv deleted after moving to onedrive
+#write_csv(prYgisY, file = "prYgisY.csv") 
+
+# saveRDS(prNgisN, file = "predictN_gisN.rds")
+# write_csv(prNgisN, file = "prNgisN.csv")
+  
+# 5. diff by category-------
 check_cat <- check2 %>% 
   rename_with(~str_sub(.x, start = 6), .cols = -codigocl) %>% 
   pivot_longer(cols = -codigocl, names_to = "feature", values_to = "diff") %>% 
@@ -154,14 +199,14 @@ check_cat <- check2 %>%
     )
   ) %>% 
   mutate(
-    total_street = 63391,
+    total_street = nrow(check2),
     across(match:gisYprN, ~(.x/total_street)*100, .names = "pct_{.col}")
   )
 
 saveRDS(check_cat, file = "check_by_cat.rds")
 
 #csv deleted
-#write_csv(check_by_cat, file = "check_by_category.csv")
+#write_csv(check_cat, file = "check_by_category.csv")
 
 df_plot <- check_cat %>% 
   select(feature, starts_with("pct_")) %>% 
