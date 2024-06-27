@@ -214,7 +214,8 @@ calle_rename_df <- readRDS("calles/calle_rename_df.rds")
 calle_rename_adj_df <- calle_rename_df %>% 
   filter(
     if_all(everything(), ~.x >= 0),
-    !area_roadway == 0
+    !area_roadway == 0,
+    !road_width == 0
     )%>% #remember! otherwise will generate NaN/Inf
   mutate(across(-c(codigocl, area_calle, trees, grade, road_width, st_dir), ~.x/area_roadway))
 
