@@ -204,6 +204,19 @@ calle_rename_df <- calle_df %>%
   ) %>% 
   dplyr::select(-c(vehicle_bridge, ped_bridge, sent_vial, oid_))
 
-saveRDS(calle_rename_df, file = "../../clean_data/calles/calle_rename_df.rds")
+saveRDS(calle_rename_df, file = "calles/calle_rename_df.rds")
 
 
+# Adjust by roadway area -------------------------
+## calle_rename_adj_df.rds--------------------
+calle_rename_df <- readRDS("calles/calle_rename_df.rds")
+
+calle_rename_adj_df <- calle_rename_df %>% 
+  filter(
+    if_all(everything(), ~.x >= 0),
+    !area_roadway == 0
+    )%>% #remember! otherwise will generate NaN/Inf
+  mutate(across(-c(codigocl, area_calle, trees, grade, road_width, st_dir), ~.x/area_roadway))
+
+saveRDS(calle_rename_adj_df, file = "calles/calle_rename_adj_df.rds")
+#ignored, need rerun
