@@ -4,8 +4,8 @@ library(MASS)
 library(broom)
 
 # 0. import data----------------
-#features
-calle_rename_df <- readRDS("../../clean_data/calles/calle_rename_df.rds")
+#features(area adjusted)
+calle_rename_adj_df <- readRDS("../../clean_data/calles/calle_rename_adj_df.rds")
 #collision from raw (need to populate 0)
 collision_calle <- readRDS("../../clean_data/collision/collision_calle_df.rds")
 #covariates
@@ -15,9 +15,10 @@ road_type <- readRDS("../../clean_data/road_type/road_type_calle.rds")
 
 ses_100 <- readRDS("../../clean_data/SES/ses_calle100m.rds")
 
+
 # 1. collision~feature+cov+rd_type------------
 
-## 3.1 Prepare features---------------------
+## 1.1 Set features, join collision---------------------
 ### features to tertile
 features <-  c(
   "trees",
@@ -43,7 +44,7 @@ features <-  c(
   "traffic_fines_tot"
 )
 
-#features to iterate
+#features to iterate (for models using categorical var)
 all_features <-  c(
   "trees",
   "grade",
@@ -69,8 +70,18 @@ all_features <-  c(
 )
 
 ##  (choose one below)-------
+### Continuous var (adjusted counts)-----------
+calle_cont <- calle_rename_adj_df %>% 
+  dplyr::select(codigocl, all_of(features)) %>% 
+  left_join(collision_calle 
+    %>% rename(codigocl = CodigoCL), 
+    by = "codigocl") %>% 
+  mutate(
+    across(injury:total, ~replace_na(., 0))  #need to populate 0!
+  )
+
 ### Zeros, nonzero Tertiles, factored------
-calle_tertile <- calle_rename_df %>% 
+calle_tertile <- calle_rename_adj_df %>% 
   dplyr::select(codigocl, st_dir, all_of(features)) %>% 
   mutate(
     across(all_of(features), ~na_if(., 0)), #turn to NA so that it doesn't get computed
@@ -86,7 +97,7 @@ calle_tertile <- calle_rename_df %>%
   )
 
 ### Binary ------------------
-calle_yn <- calle_rename_df %>% 
+calle_yn <- calle_rename_adj_df %>% 
   dplyr::select(codigocl, st_dir, all_of(features)) %>%
   mutate(
     across(all_of(features), ~if_else(. >0, 1, 0)),
@@ -101,7 +112,7 @@ calle_yn <- calle_rename_df %>%
 
 levels(calle_yn$trees)
 
-## 3.2 Covar (100m buffer) + rd_type + SES--------------
+## 1.2 Covar (100m buffer) + rd_type + SES--------------
 collision_covar_rd_100 <- covar_100 %>%
   mutate(
     across(c(pop_density, starts_with("pct")), ~ scale(.x)[,1])
@@ -115,9 +126,9 @@ collision_covar_rd_100 <- covar_100 %>%
   drop_na(road_type2)
 
 
-## 3.3 Model ---------------
+## 1.3 Model ---------------
 ### function -------------
-fit_feature <- glm.nb(death ~ trees + pct_apt + pct_home + pct_unoccu + pop_density + pct_male + pct_yr_0_9 + pct_yr_10_19 + pct_yr_30_39 + pct_yr_40_49 + pct_yr_50_59 + pct_yr_60_69 + pct_yr_70_79 + pct_yr_80_plus + road_type2 +ses_cat_r, data = collision_covar_rd_100)
+fit_feature <- glm.nb(total ~trees + pct_apt + pct_home + pct_unoccu + pop_density + pct_male + pct_yr_0_9 + pct_yr_10_19 + pct_yr_30_39 + pct_yr_40_49 + pct_yr_50_59 + pct_yr_60_69 + pct_yr_70_79 + pct_yr_80_plus + road_type2 +ses_cat_r, data = collision_covar_rd_100)
 
 summary(fit_feature)
 
@@ -131,23 +142,24 @@ df_RR <- df %>%
   )
 
 fit_features_x <- function(predictor, data){
-  formula <- as.formula(paste("ped_collision ~", predictor, "+ pct_apt + pct_home + pct_unoccu + pop_density + pct_male + pct_yr_0_9 + pct_yr_10_19 + pct_yr_30_39 + pct_yr_40_49 + pct_yr_50_59 + pct_yr_60_69 + pct_yr_70_79 + pct_yr_80_plus + road_type2"))
+  formula <- as.formula(paste("total ~", predictor, "+ pct_apt + pct_home + pct_unoccu + pop_density + pct_male + pct_yr_0_9 + pct_yr_10_19 + pct_yr_30_39 + pct_yr_40_49 + pct_yr_50_59 + pct_yr_60_69 + pct_yr_70_79 + pct_yr_80_plus + road_type2"))
   
   model <- glm.nb(formula,  data = data)
   return(model)
 }
   
 test <- fit_features_x("area_median", collision_covar_rd_100)
+
 summary(test)
 
 ### interate -------------
-fit_allfeatures <- map(all_features, \(x) fit_features_x(x, data = collision_covar_rd_100))
+fit_allfeatures <- map(features, \(x) fit_features_x(x, data = collision_covar_rd_100))
 
 feature_df <- map_df(fit_allfeatures,
   \(x) tidy(x, conf.int = TRUE, exponentiate = TRUE))
 #took 20min or something  
 
-## 3.3 summarise RR -----------------------
+## 1.4 summarise RR -----------------------
 feature_RR <- feature_df %>%
   mutate(
     RR_95CI = paste0(round(estimate,2)," (", round(conf.low,2), ",", round(conf.high, 2), ")"),
@@ -170,7 +182,7 @@ feature_RR <- feature_df %>%
 
 saveRDS(feature_RR, file = "st_feature_cov100_rdtype_RR.rds")
  
-## 3.4 visualize --------------
+## 1.5 visualize --------------
 source("../../functions/plot_facet_RR.R")
 feature_covar100 <- readRDS("st_feature_covar100_RR.rds")
 
