@@ -56,15 +56,21 @@ zero <- feature_collision %>%
   mutate(
     zero = if_else(value ==0, 1, 0)
   ) %>% 
-  summarise(zero = sum(zero)) 
+  summarise(
+    zero = sum(zero),
+    median = median(value),
+    mean = mean(value)
+    ) 
 
 
-# ## long form for plot (TOO BIG of a table)------------------
+## long form for plot (TOO BIG of a table)------------------
 # feature_collision_long <- feature_collision %>% 
 #   pivot_longer(cols = -c(codigocl, injury:log_total), names_to = "feature", values_to = "value")
 
-# 3. Calculate Lowess (area_median)-----------
+# 3. Try area_median---------------
 ## note that lowess$x is sorted in ascending order, so not in original order, cannot join with codigocl!!
+
+## 3.1 calculate lowess -----------------
 lowess <- lowess(
   feature_collision$log_area_median, 
   feature_collision$total)
@@ -82,14 +88,14 @@ lowess_df <- data.frame(
   # ) %>%
   distinct()
 
-## matching rows for plot --------------
+## matching rows for plot 
 feature_colli <- lowess_df %>% 
   left_join(feature_collision, by = "log_area_median") %>% 
   distinct(log_area_median, .keep_all = TRUE) %>% 
   filter(total_smooth >=0,
     log_total_smooth >=0)
 
-# 4. Lowess plot---------------
+## 3.2 Lowess plot---------------
 
 ggplot(feature_colli, aes(x = log_area_median)) +
   geom_point(aes(y = total), color = "blue")+
@@ -101,13 +107,13 @@ ggplot(feature_colli, aes(x = log_area_median)) +
     sec.axis = sec_axis(~log10(.+1), name = "Log(count)")
   )
 
-# 5. Apply other feature----------
-lowess_df <- function(exposure, outcome){
-  x <- feature_collision[[exposure]]
-  y <- feature_collision[[outcome]]
+# 4. Apply other feature----------
+lowess_df <- function(data, exposure, outcome){
+  x <- data[[exposure]]
+  y <- data[[outcome]]
   
   log_outcome <- paste0("log_", outcome)
-  log_y <- feature_collision[[log_outcome]]
+  log_y <- data[[log_outcome]]
   
   lowess <- lowess(x, y)
   lowess_log <- lowess(x, log_y)
@@ -116,46 +122,94 @@ lowess_df <- function(exposure, outcome){
   log_col_sm <- paste0(log_outcome, "_sm") 
   
   lowess_df <- tibble(
-    lowess$x,
     lowess$y,
     lowess_log$y,
     .name_repair = ~c(
       exposure, 
       col_sm,
       log_col_sm
-  )) %>% 
-    distinct()
+  )) 
   
-  feature_colli <- lowess_df %>% 
-    left_join(feature_collision, by = exposure) %>% 
-    distinct(!!sym(exposure), .keep_all = TRUE) %>% 
+  #because lowess$x is sorted ascending order
+  feature_collision2 <- feature_collision %>% 
+    arrange(!!sym(exposure))
+  
+  feature_lowess <- feature_collision2 %>% 
+    bind_cols(lowess_df) %>% 
     filter(
       if_all(ends_with("_sm"), ~.x>=0)
-    )
+    ) 
   
-  return(feature_colli)
+  return(feature_lowess)
 }
 
+#test !!sym()
 # apply_distinct <- function(data, col_name) {
 #   data %>%
 #     distinct(!!sym(col_name))
 # }
 # 
 # s <- apply_distinct(lowess_df, "log_area_median")
-# 
-
-sidewalk <- lowess_df("log_area_sidewalk", "total")
 
 
 lowess_plot <- function(data, exposure, outcome){
   
+  log_outcome <- paste0("log_", outcome)
+  outcome_sm <- paste0(outcome, "_sm")
+  log_outcome_sm <- paste0("log_", outcome, "_sm")
   
-  ggplot(feature_colli, aes(x = log_area_median)) +
-  geom_point(aes(y = total), color = "blue")+
-  geom_point(aes(y = log_total), color = "orange")+
-  geom_line(aes(y = total_smooth), color = "blue")+  #some are negative!! so axis value taking log problmatic 
-  geom_line(aes(y=log_total_smooth), color = "orange")+
-  scale_y_continuous(
-    name = "count",
-    sec.axis = sec_axis(~log10(.+1), name = "Log(count)")
-  )
+  title <- paste0("Lowess plot for ", exposure, " and ", "collision (", outcome, ")")
+  
+  scale_y <- max(data[[outcome]])/max(data[[log_outcome]])
+  
+  ggplot(data, aes(x = !!sym(exposure))) +
+    geom_point(aes(y = !!sym(outcome)), size = 0.8, alpha = 0.6, color = "#fb5858")+
+    geom_point(aes(y = !!sym(log_outcome)), size = 0.8, alpha = 0.6, color = "orange")+
+    geom_line(aes(y = !!sym(outcome_sm)), linewidth = 1.5, alpha = 0.5, color = "#fb5858")+  #some are negative!! so axis value taking log problmatic 
+    geom_line(aes(y=!!sym(log_outcome_sm)), linewidth = 1.5, alpha = 0.5, color = "orange")+
+    scale_y_continuous(
+      name = "count",
+      sec.axis = sec_axis(~./scale_y, name = "Log(count)"),
+      limits = c(0, NA)
+    )+
+    labs(
+      title = title
+    )+
+    theme_minimal()+
+    theme(
+      plot.title = element_text(size = 13, face = "bold"),
+      panel.grid = element_blank(),
+      text = element_text(size = 11)
+    )
+}
+
+## 4.1 area_sidewalk ----------
+data <- feature_collision %>% 
+  filter(total > 0)
+
+sidewalk <- lowess_df(data, "log_area_sidewalk", "total") 
+
+lowess_plot(sidewalk, "log_area_sidewalk", "total")
+
+# note the character string or eval string
+# lowess_plot <- function(data, exposure, outcome){
+# 
+#   ggplot(data, aes(x = {{exposure}})) +
+#     geom_point(aes(y = {{outcome}}), color = "blue")+
+#     geom_point(aes(y = log_total), color = "orange")+
+#     geom_line(aes(y = total_sm), color = "blue")+  #some are negative!! so axis value taking log problmatic
+#     geom_line(aes(y=log_total_sm), color = "orange")+
+#     scale_y_continuous(
+#       name = "count",
+#       sec.axis = sec_axis(~log10(.+1), name = "Log(count)")
+#     )
+# }
+# 
+# lowess_plot(sidewalk, log_area_sidewalk, total)
+
+## 4.2 road_width -------------
+data <- feature_collision
+
+road_width <- lowess_df(data, "road_width", "total")
+
+lowess_plot(road_width, "road_width", "total")
