@@ -1,6 +1,7 @@
 library(tidyverse)
-library(MASS)
 library(broom)
+
+options(scipen = 999)
 
 # 0. import data----------------
 #features(area adjusted, except for a few var)
@@ -34,6 +35,7 @@ features <-  c(
 )
 
 # 2. Join collision, log collision ----------------
+## 2.1 w or w/o jitter-----------
 feature_collision <- calle_rename_adj_df %>% 
   dplyr::select(codigocl, all_of(features)) %>% 
   left_join(collision_calle 
@@ -51,7 +53,7 @@ feature_collision_j <- feature_collision %>%
   )
 
 
-## zero count in feature-----------
+## 2.2 zero and descrp stat in feature-----------
 zero <- feature_collision %>% 
   dplyr::select(area_median:bus_routes) %>% 
   pivot_longer(cols = everything(), names_to = "feature", values_to = "value") %>% 
@@ -62,15 +64,28 @@ zero <- feature_collision %>%
   summarise(
     zero = sum(zero),
     median = median(value),
-    mean = mean(value)
+    mean = mean(value),
+    sd = sd(value),
+    IQR = IQR(value),
+    min = min(value),
+    max = max(value)
     ) 
 
+## 2.3 distribution (hard to see anything but 0)-----------
+data_plot <- feature_collision %>% 
+  dplyr::select(area_median:bus_routes) %>% 
+  pivot_longer(cols = everything(), names_to = "feature", values_to = "value")
 
-## long form for plot (TOO BIG of a table)------------------
+ggplot(data_plot, aes(x = value))+
+  geom_density()+
+  facet_wrap(~feature, scales = "free")
+
+
+## DON'T: long form for plot (TOO BIG of a table)------------------
 # feature_collision_long <- feature_collision %>% 
 #   pivot_longer(cols = -c(codigocl, injury:log_total), names_to = "feature", values_to = "value")
 
-# 3. Try area_median---------------
+# 3. Try area_median (No Need to Run)---------------
 ## note that lowess$x is sorted in ascending order, so not in original order, cannot join with codigocl!!
 
 ## 3.1 calculate lowess -----------------
@@ -165,10 +180,10 @@ lowess_plot <- function(data, exposure, outcome){
   scale_y <- max(data[[outcome]])/max(data[[log_outcome]])
   
   ggplot(data, aes(x = !!sym(exposure))) +
-    geom_point(aes(y = !!sym(outcome)), size = 0.8, alpha = 0.6, color = "#fb5858")+
-    geom_point(aes(y = !!sym(log_outcome)), size = 0.8, alpha = 0.6, color = "orange")+
-    geom_line(aes(y = !!sym(outcome_sm)), linewidth = 1.5, alpha = 0.5, color = "#fb5858")+  #some are negative!! so axis value taking log problmatic 
-    geom_line(aes(y=!!sym(log_outcome_sm)), linewidth = 1.5, alpha = 0.5, color = "orange")+
+    geom_point(aes(y = !!sym(outcome)), size = 0.3, alpha = 0.6, color = "#0096FF")+
+    geom_point(aes(y = !!sym(log_outcome)*scale_y), size = 0.3, alpha = 0.6, color = "#808080")+
+    geom_line(aes(y = !!sym(outcome_sm)), linewidth = 1, alpha = 0.8, color = "blue")+  
+    geom_line(aes(y=!!sym(log_outcome_sm)*scale_y), linewidth = 1, alpha = 0.8, color = "black")+
     scale_y_continuous(
       name = "count",
       sec.axis = sec_axis(~./scale_y, name = "Log(count)"),
@@ -177,24 +192,32 @@ lowess_plot <- function(data, exposure, outcome){
     labs(
       title = title
     )+
-    theme_minimal()+
+    theme_bw()+
     theme(
-      plot.title = element_text(size = 13, face = "bold"),
-      panel.grid = element_blank(),
+      plot.title = element_text(size = 13, face = "bold", margin = margin(b = 10)),
+      #panel.grid = element_blank(),
       text = element_text(size = 11)
     )
 }
 
+#geom_smooth didn't work well with this
+
 ## 4.1 area_median (repeat)-------
-data <- feature_collision
+data <- feature_collision %>% 
+  filter(area_median <= mean(area_median) + 3 *sd(area_median)) 
+#remove 1
 
 median <- lowess_df(data, "log_area_median", "total")
 
 lowess_plot(median, "log_area_median", "total")
 
 ## 4.2 area_sidewalk ----------
-data <- feature_collision 
-  #filter(total > 0)
+data <- feature_collision %>% 
+  filter(area_sidewalk <= mean(area_sidewalk) + 3*sd(area_sidewalk)) 
+  #filter(area_sidewalk <= quantile(area_sidewalk, 3/4) + 1.5 *IQR(area_sidewalk)) 
+
+# to filter outliers, not helping much tho  
+# filter(area_sidewalk <= quantile(area_sidewalk, 3/4) + 1.5 *IQR(area_sidewalk)) 
 
 sidewalk <- lowess_df(data, "log_area_sidewalk", "total") 
 
@@ -217,16 +240,17 @@ lowess_plot(sidewalk, "log_area_sidewalk", "total")
 # lowess_plot(sidewalk, log_area_sidewalk, total)
 
 ## 4.3 road_width -------------
-data <- feature_collision %>% 
-  filter(total > 0)
+data <- feature_collision 
+  #filter(road_width <= mean(road_width) + 3*sd(road_width))
 
-road_width <- lowess_df(data, "road_width", "total")
+road_width <- lowess_df(data, "log_road_width", "total")
 
-lowess_plot(road_width, "road_width", "total")
+lowess_plot(road_width, "log_road_width", "total")
 
 ## 4.4 num_lanes_total----------
-data <- feature_collision 
-  #filter(num_lanes_total <20)
+data <- feature_collision %>% 
+  filter(num_lanes_total <= mean(num_lanes_total)+3*sd(num_lanes_total))
+  
 
 num_lane <- lowess_df(data, "log_num_lanes_total", "total")
 
@@ -234,7 +258,7 @@ lowess_plot(num_lane, "log_num_lanes_total", "total")
 
 ## 4.5 bus_route ------------
 data <- feature_collision %>% 
-  filter(bus_routes < 10)
+  filter(bus_routes <= mean(bus_routes)+3*sd(bus_routes))
 
 bus_routes <- lowess_df(data, "log_bus_routes", "total")
 
