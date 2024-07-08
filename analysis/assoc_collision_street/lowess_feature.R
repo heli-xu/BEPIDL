@@ -43,7 +43,10 @@ feature_collision <- calle_rename_adj_df %>%
     across(injury:total, ~replace_na(., 0)),  #need to populate 0!
     across(injury:total, ~log10(.x +1), .names = "log_{.col}"), #pseudo count for 0 count
     #lowess does not work with many repeated values
-    across(area_median:bus_routes, ~log10(.x +1), .names = "log_{.col}"),
+    across(area_median:bus_routes, ~log10(.x +1), .names = "log_{.col}"))
+
+feature_collision_j <- feature_collision %>% 
+  mutate(
     across(log_area_median:log_bus_routes, ~if_else(.x == 0, jitter(.x), .x))
   )
 
@@ -125,16 +128,15 @@ lowess_df <- function(data, exposure, outcome){
     lowess$y,
     lowess_log$y,
     .name_repair = ~c(
-      exposure, 
       col_sm,
       log_col_sm
   )) 
   
   #because lowess$x is sorted ascending order
-  feature_collision2 <- feature_collision %>% 
+  data_arranged <- data %>% 
     arrange(!!sym(exposure))
   
-  feature_lowess <- feature_collision2 %>% 
+  feature_lowess <- data_arranged %>% 
     bind_cols(lowess_df) %>% 
     filter(
       if_all(ends_with("_sm"), ~.x>=0)
@@ -183,9 +185,16 @@ lowess_plot <- function(data, exposure, outcome){
     )
 }
 
-## 4.1 area_sidewalk ----------
-data <- feature_collision %>% 
-  filter(total > 0)
+## 4.1 area_median (repeat)-------
+data <- feature_collision
+
+median <- lowess_df(data, "log_area_median", "total")
+
+lowess_plot(median, "log_area_median", "total")
+
+## 4.2 area_sidewalk ----------
+data <- feature_collision 
+  #filter(total > 0)
 
 sidewalk <- lowess_df(data, "log_area_sidewalk", "total") 
 
@@ -207,9 +216,26 @@ lowess_plot(sidewalk, "log_area_sidewalk", "total")
 # 
 # lowess_plot(sidewalk, log_area_sidewalk, total)
 
-## 4.2 road_width -------------
-data <- feature_collision
+## 4.3 road_width -------------
+data <- feature_collision %>% 
+  filter(total > 0)
 
 road_width <- lowess_df(data, "road_width", "total")
 
 lowess_plot(road_width, "road_width", "total")
+
+## 4.4 num_lanes_total----------
+data <- feature_collision 
+  #filter(num_lanes_total <20)
+
+num_lane <- lowess_df(data, "log_num_lanes_total", "total")
+
+lowess_plot(num_lane, "log_num_lanes_total", "total")
+
+## 4.5 bus_route ------------
+data <- feature_collision %>% 
+  filter(bus_routes < 10)
+
+bus_routes <- lowess_df(data, "log_bus_routes", "total")
+
+lowess_plot(bus_routes, "log_bus_routes", "total")
