@@ -197,18 +197,7 @@ feature_RR %>%
     plot.title.position = "plot"
   )
 
-# subset by road_type----------------
-  arterial <- collision_covar_rd_100 %>% 
-    filter(road_type == "Arterial")
-  
-  collector <- collision_covar_rd_100 %>% 
-    filter(road_type == "Collector") 
-  
-  local <- collision_covar_rd_100 %>% 
-    filter(road_type == "Local")
-  
-  other <- collision_covar_rd_100 %>% 
-    filter(road_type == "Other")
+
   
   
   
