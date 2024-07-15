@@ -1,5 +1,4 @@
 library(tidyverse)
-library(sf)
 library(MASS)
 library(broom)
 
@@ -40,7 +39,35 @@ other <- road_type %>%
   rename(codigocl = CodigoCL) %>% 
   left_join(calle_rename_adj_df, by = "codigocl")
 
-# 2. Join collision - feature, cov---------------------
+## *descrp stat---------
+#use features_ter + st_dir below
+fea <- c("st_dir", features_ter)
+feature_descrp <- function(data){
+  data %>% 
+    dplyr::select(all_of(fea)) %>% 
+    pivot_longer(cols = everything(), names_to = "feature", values_to = "value") %>% 
+    group_by(feature) %>% 
+    mutate(
+      zero = if_else(value ==0, 1, 0)
+    ) %>% 
+    drop_na() %>%  ##important, since it's long form can drop easily
+    summarise(
+      total = nrow(data),
+      zero = sum(zero),
+      median = median(value),
+      mean = mean(value),
+      sd = sd(value),
+      IQR = IQR(value), 
+      min = min(value),
+      max = max(value)
+    ) 
+}
+arterial_stat <- feature_descrp(arterial)
+collector_stat <- feature_descrp(collector)
+local_stat <- feature_descrp(local)
+other_stat <- feature_descrp(other)
+
+# 2. Prepare feature, cov---------------------
 ## 2.1 features-----------
 ### tertile-------
 features_ter <-  c(
@@ -319,7 +346,7 @@ art_yn_RR <- feature_df %>%
     statistic
   )
 
-save(art_yn_RR, file = "gis_rdtype_stratified/art_yn_RR.rds")
+saveRDS(art_yn_RR, file = "gis_rdtype_stratified/art_yn_RR.rds")
 
 ### 3.2.2 collector-----------
 fit_allfea_col <- map(features, \(x) fit_feature_strat(x, data = collector_collision))
@@ -353,9 +380,9 @@ fit_allfea_loc <- map(features, \(x) fit_feature_strat(x, data = local_collision
 feature_loc_df <- map_df(fit_allfea_loc,
   \(x) tidy(x, conf.int = TRUE, exponentiate = TRUE))
 
-loc_yn_RR <- feature_col_df %>% 
+loc_yn_RR <- feature_loc_df %>% 
   mutate(
-    road_type = "collector",
+    road_type = "local",
     across(where(is.numeric), ~round(., 4)),
     RR_95CI = paste0(estimate," (", conf.low, ",", conf.high, ")")
   ) %>% 
@@ -430,6 +457,8 @@ col_ter_RR <- feature_col_df %>%
     statistic
   )
 
+saveRDS(col_ter_RR, file = "gis_rdtype_stratified/col_ter_RR.rds")
+
 ### 3.3.3 local-------
 features <- features[!features == "yield_signs"]
 # error in index 16 in tidy(), feature[[16]] is yield sign
@@ -456,6 +485,8 @@ loc_ter_RR <- feature_loc_df %>%
     p.value,
     statistic
   )
+
+saveRDS(loc_ter_RR, file = "gis_rdtype_stratified/loc_ter_RR.rds")
 
 ### 3.3.4 other-----------
 fit_allfea_oth <- map(features, \(x) fit_feature_strat(x, data = other_collision))
