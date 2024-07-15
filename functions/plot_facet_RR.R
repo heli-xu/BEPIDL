@@ -34,7 +34,7 @@ plot_facet_RR <- function(data){
       title = "Pedestrian Collision and Street Features",
       x = "RR (95%CI)",
       y = "Street Features",
-      caption = "'st_dir' compares 'double' relative to 'one' direction. \nFor other street features, data are separated into zeros and nonzero tertiles for analysis.\n Comparisons are relative to the 'Low' category."
+      caption = "For each street feature, data are separated into zeros and nonzero tertiles for analysis.\n Comparisons are relative to the 'Low' category."
     )+
     theme(
       plot.title = element_text(size = 13, face = "bold", hjust = 0),
