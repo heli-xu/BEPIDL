@@ -409,5 +409,54 @@ saveRDS(art_ter_RR, file = "gis_rdtype_stratified/art_ter_RR.rds")
 ### 3.3.2 collector--------
 fit_allfea_col <- map(features, \(x) fit_feature_strat(x, data = collector_collision))
 
-feature_col_df <- map_df(fit_allfea_art,
+feature_col_df <- map_df(fit_allfea_col,
   \(x) tidy(x, conf.int = TRUE, exponentiate = TRUE))
+
+col_ter_RR <- feature_col_df %>%
+  mutate(
+    road_type = "collector",
+    across(where(is.numeric), ~round(., 4)),
+    RR_95CI = paste0(estimate," (", conf.low, ",", conf.high, ")")
+  ) %>% 
+  dplyr::select(
+    road_type,
+    term,
+    RR_95CI,
+    estimate,
+    std.error,
+    conf.low,
+    conf.high,
+    p.value,
+    statistic
+  )
+
+### 3.3.3 local-------
+features <- features[!features == "yield_signs"]
+# error in index 16 in tidy(), feature[[16]] is yield sign
+
+fit_allfea_loc <- map(features, \(x) fit_feature_strat(x, data = local_collision))
+
+feature_loc_df <-
+  map_df(fit_allfea_loc, \(x) tidy(x, conf.int = TRUE, exponentiate = TRUE))
+
+loc_ter_RR <- feature_loc_df %>% 
+  mutate(
+    road_type = "local",
+    across(where(is.numeric), ~round(., 4)),
+    RR_95CI = paste0(estimate," (", conf.low, ",", conf.high, ")")
+  ) %>% 
+  dplyr::select(
+    road_type,
+    term,
+    RR_95CI,
+    estimate,
+    std.error,
+    conf.low,
+    conf.high,
+    p.value,
+    statistic
+  )
+
+### 3.3.4 other-----------
+fit_allfea_oth <- map(features, \(x) fit_feature_strat(x, data = other_collision))
+#did not converge
