@@ -67,6 +67,10 @@ collector_stat <- feature_descrp(collector)
 local_stat <- feature_descrp(local)
 other_stat <- feature_descrp(other)
 
+fea_stat_rd <- bind_rows(arterial_stat, collector_stat, local_stat, other_stat)
+
+write_csv(fea_stat_rd, file = "gis_rdtype_stratified/fea_stat_rd.csv")
+
 # 2. Prepare feature, cov---------------------
 ## 2.1 features-----------
 ### tertile-------
