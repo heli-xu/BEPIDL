@@ -85,6 +85,7 @@ saveRDS(prYgisN, file = "predictY_gisN.rds")
 #csv deleted
 #write_csv(predictY_gisN, file = "st_predictY_gisN.csv")
 
+## map visual top 500-----------
 prYgisN_top500 <- prYgisN %>%
   arrange(desc(diff_all)) %>% 
   head(500) %>% 
@@ -118,6 +119,7 @@ saveRDS(gisYprN, file = "gisY_predictN.rds")
 #csv deleted
 #write_csv(gisY_predictN, file = "st_gisY_predictN.csv")
 
+## map visual top 500 --------------
 gisYprN_top500 <- gisYprN %>% 
   arrange(diff_all) %>% 
   head(500) %>% 
