@@ -11,11 +11,16 @@ calle_rename_adj_df <- readRDS("../../clean_data/calles/calle_rename_adj_df.rds"
 #collision from raw (need to populate 0)
 collision_calle <- readRDS("../../clean_data/collision/collision_calle_df.rds")
 #covariates
-covar_100 <- readRDS("../../clean_data/SES/covar_calle100m.rds")
+covar_100 <- readRDS("../../clean_data/covar_mzn/covar_calle100m.rds")
 #road_type
 road_type <- readRDS("../../clean_data/road_type/road_type_calle.rds")
 
-ses_100 <- readRDS("../../clean_data/SES/ses_calle100m.rds")
+ses_100 <- readRDS("../../clean_data/covar_mzn/ses_calle100m.rds")
+
+#population from 500m buffer(var name from age_dwelling.R)
+pop500 <- readRDS("../../clean_data/covar_mzn/covar_calle500m.rds") %>% 
+  dplyr::select(CodigoCL, TP27_PERSO) 
+
 
 # 1. feature stratify by road type -----------------
 arterial <- road_type %>% 
@@ -148,7 +153,21 @@ features_cont <-  c(
   #"traffic_fines_tot" does not converge
 )
 
-## 2.2 functions to join by var type -----------
+## 2.2 Covar-----------
+pop <- pop500 %>% 
+  mutate(pop_yr = TP27_PERSO *5)  #2015-2019
+
+covar <- covar_100 %>%
+  left_join(pop, by = "CodigoCL") %>% 
+  mutate(
+    across(starts_with("pct"), ~ scale(.x)[,1])
+    #removed pop_density, because offset by total pop
+  ) %>% 
+  left_join(ses_100, by = "CodigoCL") %>% 
+  mutate(ses_cat_r = factor(ses_cat, levels = rev(levels(ses_cat)))) %>% 
+  rename(codigocl = CodigoCL)   
+
+## 2.3 functions to join by var type -----------
 # calle_cont <- calle_rename_adj_df %>% 
 #   dplyr::select(codigocl, all_of(features)) %>% 
 #   left_join(collision_calle 
@@ -157,16 +176,7 @@ features_cont <-  c(
 #   mutate(
 #     across(injury:total, ~replace_na(., 0))  #need to populate 0!
 #   )
-### covar------------
-covar <- covar_100 %>%
-  mutate(
-    across(c(pop_density, starts_with("pct")), ~ scale(.x)[,1])
-  ) %>% 
-  left_join(ses_100, by = "CodigoCL") %>% 
-  mutate(ses_cat_r = factor(ses_cat, levels = rev(levels(ses_cat)))) %>% 
-  rename(codigocl = CodigoCL) 
 
-### merging-----------
 merge_calle_cont <- function(data){
   data2 <- data %>%
     dplyr::select(codigocl, all_of(features_cont)) %>%
@@ -218,21 +228,21 @@ merge_calle_yn <- function(data){
 }
 
 ## choose one of below
-## 2.3 join covar-cont ---------------
+### 2.3.1 join covar-cont ---------------
 #assign features_cont
 arterial_collision <- merge_calle_cont(arterial)
 collector_collision <- merge_calle_cont(collector)
 local_collision <- merge_calle_cont(local)
 other_collision <- merge_calle_cont(other)
 
-## 2.4 join covar-yn --------
+### 2.3.2 join covar-yn --------
 #assign features_yn
 arterial_collision <- merge_calle_yn(arterial)
 collector_collision <- merge_calle_yn(collector)
 local_collision <- merge_calle_yn(local)
 other_collision <- merge_calle_yn(other)
 
-## 2.5 join covar-ter-----------
+### 2.3.3 join covar-ter-----------
 arterial_collision <- merge_calle_tertile(arterial)
 collector_collision <- merge_calle_tertile(collector)
 local_collision <- merge_calle_tertile(local)
@@ -240,13 +250,13 @@ other_collision <- merge_calle_tertile(other)
 
 # 3. Model: collision-feature ------------------
 ## test(no need to run)
-fit_feature <- glm.nb(total ~trees + pct_apt + pct_home + pct_unoccu + pop_density + pct_male + pct_yr_0_9 + pct_yr_10_19 + pct_yr_30_39 + pct_yr_40_49 + pct_yr_50_59 + pct_yr_60_69 + pct_yr_70_79 + pct_yr_80_plus +ses_cat_r, data = local_collision)
+fit_feature <- glm.nb(total ~trees + offset(log(pop_yr)) + pct_apt + pct_home + pct_unoccu + pct_male + pct_yr_0_9 + pct_yr_10_19 + pct_yr_30_39 + pct_yr_40_49 + pct_yr_50_59 + pct_yr_60_69 + pct_yr_70_79 + pct_yr_80_plus +ses_cat_r, data = local_collision)
 
 summary(fit_feature)
 ##end
 
 fit_feature_strat <- function(predictor, data){
-  formula <- as.formula(paste("total ~", predictor, "+ pct_apt + pct_home + pct_unoccu + pop_density + pct_male + pct_yr_0_9 + pct_yr_10_19 + pct_yr_30_39 + pct_yr_40_49 + pct_yr_50_59 + pct_yr_60_69 + pct_yr_70_79 + pct_yr_80_plus + ses_cat_r"))
+  formula <- as.formula(paste("total ~", predictor, "+ offset(log(pop_yr)) + pct_apt + pct_home + pct_unoccu + pct_male + pct_yr_0_9 + pct_yr_10_19 + pct_yr_30_39 + pct_yr_40_49 + pct_yr_50_59 + pct_yr_60_69 + pct_yr_70_79 + pct_yr_80_plus + ses_cat_r"))
   
   model <- glm.nb(formula,  data = data)
   return(model)
