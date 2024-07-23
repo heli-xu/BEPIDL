@@ -207,7 +207,8 @@ calle_rename_df <- calle_df %>%
 saveRDS(calle_rename_df, file = "calles/calle_rename_df.rds")
 
 
-# Adjust by roadway area -------------------------
+# Adjust by calle area -------------------------
+# calle_area = roadway + sidewalk
 ## calle_rename_adj_df.rds--------------------
 calle_rename_df <- readRDS("calles/calle_rename_df.rds")
 
@@ -217,7 +218,7 @@ calle_rename_adj_df <- calle_rename_df %>%
     !area_roadway == 0,
     !road_width == 0
     )%>% #remember! otherwise will generate NaN/Inf
-  mutate(across(-c(codigocl, area_calle, trees, grade, road_width, st_dir), ~.x/area_roadway))
+  mutate(across(-c(codigocl, grade, road_width, num_lanes_total, st_dir), ~.x/area_calle))
 
 saveRDS(calle_rename_adj_df, file = "calles/calle_rename_adj_df.rds")
 #ignored, need rerun
