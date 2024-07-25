@@ -4,6 +4,8 @@ library(leaflet)
 library(glue)
 library(ggplot2)
 
+sf_use_s2(FALSE)
+
 # 0. Import data ------------------------------------
 ses <- st_read("../../data/SES/SHP_MGN2018_INTGRD_MANZ/MGN_ANM_MANZANA.shp")
 
@@ -63,7 +65,6 @@ mzn_buffer100 <- ses2 %>%
   st_transform(crs = st_crs(buffer100m)) %>% 
   st_join(buffer100m, .predicate = st_intersects)
 
-## Sum by st -----------
 ## Sum by street ------------
 
 covar_calle100m <- mzn_buffer100 %>% 
