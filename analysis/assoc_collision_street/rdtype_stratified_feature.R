@@ -83,49 +83,50 @@ features_ter <-  c(
   "trees",
   "grade",
   "area_median",
-  "area_sidewalk",
+  #"area_sidewalk",  #Y/N
   "road_width",
-  "road_marks",
+ # "road_marks", remove across board b/c low completion data
   "warning_signs",
   "road_signs",
   "traffic_lights",
   #"st_dir",  only 1,2 directions
-  "num_lanes_total",
+  ##"num_lanes_total", # 4 categories, but not tertile, derived 'num_lane' will be added
   "pedxwalk_signs",
   "school_zone_signs",
-  "stop_signs_v",
-  "stop_signs",
+  "stop_signs_v", # SR 01
+  #"stop_signs", #related signs
   "yield_signs",
   "total_st_signs",
   "bus_routes",
-  "brt_routes",
-  "bike_length",
+  "bus_stops", #added 
+  #"brt_routes",  Y/N
+  #"bike_length",  Y/N
   "traffic_fines_tot"
 )
 
 ### yn---------
 features_yn <-  c(
-  "trees",
+  #"trees",
   #"grade", std error huge
-  "area_median",
+  #"area_median",
   "area_sidewalk",
   #"road_width", all >0, exclude
-  "road_marks",
-  "warning_signs",
-  "road_signs",
-  "traffic_lights",
-  # "st_dir", # not 1 and 0 , will be added for iterating
+  # "road_marks", remove across board
+  # "warning_signs",
+  # "road_signs",
+  # "traffic_lights",
+  ## "st_dir", # not 1 and 0 , but will be added for iterating
   #"num_lanes_total",  all >0, exclude
-  "pedxwalk_signs",
-  "school_zone_signs",
-  "stop_signs_v",
-  "stop_signs",
-  "yield_signs",
-  "total_st_signs",
-  "bus_routes",
+  # "pedxwalk_signs",
+  # "school_zone_signs",
+  # "stop_signs_v",
+  # "stop_signs",
+  # "yield_signs",
+  # "total_st_signs",
+  # "bus_routes",
   "brt_routes",
-  "bike_length",
-  "traffic_fines_tot"
+  "bike_length"
+  # "traffic_fines_tot"
 )
 
 ### cont-----------
@@ -193,15 +194,22 @@ merge_calle_cont <- function(data){
 
 merge_calle_tertile <- function(data){
   data2 <-data %>%
-    dplyr::select(codigocl, st_dir, all_of(features_ter)) %>%
+    dplyr::select(codigocl, num_lanes_total, all_of(features_ter)) %>%
     mutate(
       across(all_of(features_ter), ~ na_if(., 0)),
       #turn to NA so that it doesn't get computed
       across(all_of(features_ter), ~ ntile(., 3), .names = "{.col}"),
       across(all_of(features_ter), ~ replace_na(., 0)),
       #turn it back 0
-      across(-codigocl, ~ factor(., levels = c("1", "0", "2", "3")))
-    ) %>%
+      across(-c(codigocl,num_lanes_total), ~ factor(., levels = c("1", "0", "2", "3"))),
+      num_lane = case_when(
+        num_lanes_total == 1 ~ "1",  #also numeric -> character
+        num_lanes_total == 2 ~ "2",
+        num_lanes_total %in% c(3, 4) ~ "3-4",
+        num_lanes_total >= 5 ~ "5+"
+      ),
+      num_lane = factor(num_lane, levels = c("2", "1", "3-4", "5+"))
+    ) %>% 
     left_join(collision_calle
       %>% rename(codigocl = CodigoCL),
       by = "codigocl") %>%
@@ -262,7 +270,7 @@ fit_feature_strat <- function(predictor, data){
   return(model)
 }
 
-test <- fit_feature_strat("grade", arterial_collision)
+test <- fit_feature_strat("trees", arterial_collision)
 #features[[6,7, 8,10**, 13,14, 16]] as cont var
 #Warning: fitted rates numerically 0 occurred
 #**Error: no valid set of coefficients has been found: please supply starting values
@@ -420,7 +428,7 @@ fit_allfea_oth <- map(features, \(x) fit_feature_strat(x, data = other_collision
 
 ## 3.3 Tertile -----------
 ### 3.3.1 arterial--------
-features <- c("st_dir", features_ter)
+features <- c("num_lane", features_ter)
 
 fit_allfea_art <- map(features, \(x) fit_feature_strat(x, data = arterial_collision))
 
@@ -474,15 +482,34 @@ col_ter_RR <- feature_col_df %>%
 saveRDS(col_ter_RR, file = "gis_rdtype_stratified/col_ter_RR.rds")
 
 ### 3.3.3 local-------
-features <- features[!features == "yield_signs"]
+features <- features[!features %in% c("yield_signs", "grade", "road_width", "road_signs")]
 # error in index 16 in tidy(), feature[[16]] is yield sign
+# SE huge, this usually can't be helped by removing covar
+# "grade" removing covar still diverge with pop offset
+# "road_width" and "road_signs": alternation limit reached
 
-fit_allfea_loc <- map(features, \(x) fit_feature_strat(x, data = local_collision))
+##after adding offset, trees and area_median etc are showing error:
+##Error in glm.fitter(x = X, y = Y, weights = w, etastart = eta, offset = offset,  : NA/NaN/Inf in 'x'
+##likely due to 0 in features, because num_lane no problem
+test <- fit_feature_strat("area_median", local_collision)
+
+#try removing age (not enough) 
+fit_feature_strat_sub <- function(predictor, data){
+  formula <- as.formula(paste("total ~", predictor, "+ offset(log(pop_yr)) + pct_apt + pct_home + pct_unoccu + pct_male + ses_cat_r")) 
+  
+  model <- glm.nb(formula,  data = data)
+  cli::cli_alert_success("modeling collision ~ {predictor} completed.")
+  return(model)
+}
+
+test <- fit_feature_strat_sub(features[[5]], local_collision)
+summary(test)
+fit_allfea_loc <- map(features, \(x) fit_feature_strat_sub(x, data = local_collision))
 
 feature_loc_df <-
   map_df(fit_allfea_loc, \(x) tidy(x, conf.int = TRUE, exponentiate = TRUE))
 
-loc_ter_RR <- feature_loc_df %>% 
+ loc_ter_RR <- feature_loc_df %>% 
   mutate(
     road_type = "local",
     across(where(is.numeric), ~round(., 4)),
@@ -505,3 +532,48 @@ saveRDS(loc_ter_RR, file = "gis_rdtype_stratified/loc_ter_RR.rds")
 ### 3.3.4 other-----------
 fit_allfea_oth <- map(features, \(x) fit_feature_strat(x, data = other_collision))
 #did not converge
+
+## try individual feature
+# test <- fit_feature_strat("num_lane", other_collision)
+# summary(test)
+# below are the ones without warnings
+
+tree <- fit_feature_strat(features_ter[[1]], other_collision)
+summary(tree)
+
+median <- fit_feature_strat(features_ter[[3]], other_collision)
+
+road_sign <- fit_feature_strat(features_ter[[6]], other_collision)
+
+traffic_light <- fit_feature_strat(features_ter[[7]], other_collision)
+summary(traffic_light)
+tidy(traffic_light,  exponentiate = T)
+
+st_sign <- fit_feature_strat(features_ter[[12]], other_collision)
+
+bus_route <- fit_feature_strat(features_ter[[13]], other_collision)
+
+## try leaving out covar (keep age compo cause warnings)
+fit_feature_strat_sub <- function(predictor, data){
+  formula <- as.formula(paste("total ~", predictor, "+ offset(log(pop_yr)) + pct_apt + pct_home + pct_unoccu + pct_male + ses_cat_r"))
+  
+  model <- glm.nb(formula,  data = data)
+  cli::cli_alert_success("modeling collision ~ {predictor} completed.")
+  return(model)
+}
+
+test <- fit_feature_strat_sub(features[[8]], other_collision)
+summary(test)
+tidy(test, conf.int = TRUE, exponentiate = TRUE)
+# they work
+
+features <- features[!features %in% c("pedxwalk_signs", "school_zone_signs", "yield_signs")]
+# gives high SE
+
+fit_allfea_oth <- map(features, \(x) fit_feature_strat_sub(x, data = other_collision))
+
+feature_oth_df <-
+  map_df(fit_allfea_oth, \(x) tidy(x, conf.int = TRUE, exponentiate = TRUE))
+
+test_df <- tidy(fit_allfea_oth[[8]], conf.int = TRUE, exponentiate = TRUE )
+
