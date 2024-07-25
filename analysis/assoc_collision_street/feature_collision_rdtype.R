@@ -15,59 +15,39 @@ road_type <- readRDS("../../clean_data/road_type/road_type_calle.rds")
 
 ses_100 <- readRDS("../../clean_data/SES/ses_calle100m.rds")
 
+#population from 800m buffer
+pop800 <- readRDS("../../clean_data/covar_mzn/pop_calle800m.rds") %>% 
+  mutate(pop_yr = pop *5)  #2015-2019
 
 # 1. collision~feature+cov+rd_type------------
 
 ## 1.1 Set features, join collision---------------------
 ### features to tertile
-features <-  c(
+features_ter <-  c(
   "trees",
   "grade",
   "area_median",
-  "area_sidewalk",
+  #"area_sidewalk",  #Y/N
   "road_width",
-  "road_marks",
+  # "road_marks", remove across board b/c low completion data
   "warning_signs",
   "road_signs",
   "traffic_lights",
   #"st_dir",  only 1,2 directions
-  "num_lanes_total",
+  ##"num_lanes_total", # 4 categories, but not tertile, derived 'num_lane' will be added
   "pedxwalk_signs",
   "school_zone_signs",
-  "stop_signs_v",
-  "stop_signs",
+  "stop_signs_v", # SR 01
+  #"stop_signs", #related signs
   "yield_signs",
   "total_st_signs",
   "bus_routes",
-  "brt_routes",
-  "bike_length",
+  "bus_stops", #added 
+  #"brt_routes",  Y/N
+  #"bike_length",  Y/N
   "traffic_fines_tot"
 )
 
-#features to iterate (for models using categorical var)
-all_features <-  c(
-  "trees",
-  "grade",
-  "area_median",
-  "area_sidewalk",
-  "road_width",
-  "road_marks",
-  "warning_signs",
-  "road_signs",
-  "traffic_lights",
-  "st_dir",
-  "num_lanes_total",
-  "pedxwalk_signs",
-  "school_zone_signs",
-  "stop_signs_v",
-  "stop_signs",
-  "yield_signs",
-  "total_st_signs",
-  "bus_routes",
-  "brt_routes",
-  "bike_length",
-  "traffic_fines_tot"
-)
 
 ##  (choose one below)-------
 ### Continuous var (adjusted counts)-----------
@@ -82,12 +62,19 @@ calle_cont <- calle_rename_adj_df %>%
 
 ### Zeros, nonzero Tertiles, factored------
 calle_tertile <- calle_rename_adj_df %>% 
-  dplyr::select(codigocl, st_dir, all_of(features)) %>% 
+  dplyr::select(codigocl, num_lanes_total, all_of(features_ter)) %>% #add num_lanes_total
   mutate(
-    across(all_of(features), ~na_if(., 0)), #turn to NA so that it doesn't get computed
-    across(all_of(features), ~ntile(., 3), .names = "{.col}"),
-    across(all_of(features), ~replace_na(., 0)), #turn it back 0
-    across(-codigocl, ~factor(., levels = c("1", "0", "2", "3")))
+    across(all_of(features_ter), ~na_if(., 0)), #turn to NA so that it doesn't get computed
+    across(all_of(features_ter), ~ntile(., 3), .names = "{.col}"),
+    across(all_of(features_ter), ~replace_na(., 0)), #turn it back 0
+    across(all_of(features_ter), ~factor(., levels = c("1", "0", "2", "3"))),
+    num_lane = case_when(
+      num_lanes_total == 1 ~ "1",  #also numeric -> character
+      num_lanes_total == 2 ~ "2",
+      num_lanes_total %in% c(3, 4) ~ "3-4",
+      num_lanes_total >= 5 ~ "5+"
+    ),
+    num_lane = factor(num_lane, levels = c("2", "1", "3-4", "5+"))
   ) %>% 
   left_join(collision_calle 
             %>% rename(codigocl = CodigoCL), 
@@ -114,8 +101,9 @@ levels(calle_yn$trees)
 
 ## 1.2 Covar (100m buffer) + rd_type + SES--------------
 collision_covar_rd_100 <- covar_100 %>%
+  left_join(pop800, by = "CodigoCL") %>% 
   mutate(
-    across(c(pop_density, starts_with("pct")), ~ scale(.x)[,1])
+    across(starts_with("pct"), ~ scale(.x)[,1])
   ) %>% 
   left_join(ses_100, by = "CodigoCL") %>% 
   mutate(ses_cat_r = factor(ses_cat, levels = rev(levels(ses_cat)))) %>% 
@@ -128,12 +116,9 @@ collision_covar_rd_100 <- covar_100 %>%
 
 ## 1.3 Model ---------------
 ### function -------------
-fit_feature <- glm.nb(total ~trees + pct_apt + pct_home + pct_unoccu + pop_density + pct_male + pct_yr_0_9 + pct_yr_10_19 + pct_yr_30_39 + pct_yr_40_49 + pct_yr_50_59 + pct_yr_60_69 + pct_yr_70_79 + pct_yr_80_plus + road_type2 +ses_cat_r, data = collision_covar_rd_100)
+fit_feature <- glm.nb(total ~trees + offset(log(pop_yr)) + pct_apt + pct_home + pct_unoccu + pct_male + pct_yr_0_9 + pct_yr_10_19 + pct_yr_30_39 + pct_yr_40_49 + pct_yr_50_59 + pct_yr_60_69 + pct_yr_70_79 + pct_yr_80_plus + road_type2 + ses_cat_r, data = collision_covar_rd_100) #remove pop_density!
 
 summary(fit_feature)
-
-fit_feature <- glm.nb(injury ~ trees + pct_apt + pct_home + pct_unoccu + pop_density + pct_male + pct_yr_0_9 + pct_yr_10_19 + pct_yr_30_39 + pct_yr_40_49 + pct_yr_50_59 + pct_yr_60_69 + pct_yr_70_79 + pct_yr_80_plus + road_type2 +ses_cat_r, data = collision_covar_rd_100)
-
 
 df <- tidy(fit_feature, conf.int = TRUE, exponentiate = TRUE)
 df_RR <- df %>% 
@@ -142,9 +127,10 @@ df_RR <- df %>%
   )
 
 fit_features_x <- function(predictor, data){
-  formula <- as.formula(paste("total ~", predictor, "+ pct_apt + pct_home + pct_unoccu + pop_density + pct_male + pct_yr_0_9 + pct_yr_10_19 + pct_yr_30_39 + pct_yr_40_49 + pct_yr_50_59 + pct_yr_60_69 + pct_yr_70_79 + pct_yr_80_plus + road_type2"))
+  formula <- as.formula(paste("total ~", predictor, "+ offset(log(pop_yr)) + pct_apt + pct_home + pct_unoccu + pct_male + pct_yr_0_9 + pct_yr_10_19 + pct_yr_30_39 + pct_yr_40_49 + pct_yr_50_59 + pct_yr_60_69 + pct_yr_70_79 + pct_yr_80_plus + road_type2 + ses_cat_r"))
   
   model <- glm.nb(formula,  data = data)
+  cli::cli_alert_success("modeling collision ~ {predictor} completed.")
   return(model)
 }
   
@@ -153,6 +139,8 @@ test <- fit_features_x("area_median", collision_covar_rd_100)
 summary(test)
 
 ### interate -------------
+features <- c("num_lane", features_ter)
+
 fit_allfeatures <- map(features, \(x) fit_features_x(x, data = collision_covar_rd_100))
 
 feature_df <- map_df(fit_allfeatures,
@@ -162,36 +150,48 @@ feature_df <- map_df(fit_allfeatures,
 ## 1.4 summarise RR -----------------------
 feature_RR <- feature_df %>%
   mutate(
-    RR_95CI = paste0(round(estimate,2)," (", round(conf.low,2), ",", round(conf.high, 2), ")"),
-    tertile = str_sub(term, -1),
-    predictor = str_sub(term, end = -2),
-    category = case_match(
-      tertile,
-      ")" ~ "Low (ref)",
-      "0" ~ "Zero",
-      "2" ~ "Medium",
-      "3" ~ "High",
-      .default = "(Covariates)"
-    ),
-    category = case_match(
-      term,
-      "st_dir2" ~ "Double",
-      .default = category
-    )
-  ) 
+    across(where(is.numeric), ~round(., 4)),
+    RR_95CI = paste0(round(estimate,2)," (", round(conf.low,2), ",", round(conf.high, 2), ")")) %>% 
+  dplyr::select(
+    term,
+    RR_95CI,
+    estimate,
+    std.error,
+    conf.low,
+    conf.high,
+    p.value,
+    statistic
+  )
 
 saveRDS(feature_RR, file = "st_feature_cov100_rdtype_RR.rds")
  
 ## 1.5 visualize --------------
 source("../../functions/plot_facet_RR.R")
-feature_covar100 <- readRDS("st_feature_covar100_RR.rds")
 
-feature_RR %>% 
-  filter(!term == "(Intercept)",
-    !category == "(Covariates)") %>% 
+fea_plot_RR <- feature_RR %>% 
+  mutate(
+    #note the modification for num_lane
+    tertile = if_else(term %in% c("num_lane1","num_lane3-4", "num_lane5+"), 
+      str_sub(term, 9), str_sub(term,-1)),
+    predictor = case_when(
+      term %in% c("num_lane1","num_lane3-4", "num_lane5+") ~ "num_lane",
+      .default = str_sub(term, end = -2)
+    )) %>%
+  filter(predictor %in% features) %>%
+  mutate(
+    category = case_match(tertile,
+    ")" ~ "Low (ref)",
+    "0" ~ "Zero",
+    "2" ~ "Medium",
+    "3" ~ "High",
+    .default = tertile)
+    )
+
+fea_plot_RR %>% 
   plot_facet_RR()+
   labs(
-    subtitle = "Adjusted for types of dwellings, population density, age groups, sex composition \nand road types (100m)"
+    subtitle = "Offset by population within 800m from each street. Adjusted for types of dwellings,\nage groups, sex composition, road types and SES within 100m from streets.",
+    caption = "For 'num_lane', the comparison is relative to 2 lanes. \nFor other street features, data are separated into zeros and nonzero tertiles for analysis.\n Comparisons are relative to the 'Low' category."
   )+
   theme(
     plot.title.position = "plot"
