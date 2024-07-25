@@ -17,10 +17,9 @@ road_type <- readRDS("../../clean_data/road_type/road_type_calle.rds")
 
 ses_100 <- readRDS("../../clean_data/covar_mzn/ses_calle100m.rds")
 
-#population from 500m buffer(var name from age_dwelling.R)
-pop500 <- readRDS("../../clean_data/covar_mzn/covar_calle500m.rds") %>% 
-  dplyr::select(CodigoCL, TP27_PERSO) 
-
+#population from 800m buffer
+pop800 <- readRDS("../../clean_data/covar_mzn/pop_calle800m.rds") %>% 
+  mutate(pop_yr = pop *5)  #2015-2019
 
 # 1. feature stratify by road type -----------------
 arterial <- road_type %>% 
@@ -44,37 +43,6 @@ other <- road_type %>%
   rename(codigocl = CodigoCL) %>% 
   left_join(calle_rename_adj_df, by = "codigocl")
 
-## *descrp stat---------
-#use features_ter + st_dir below
-fea <- c("st_dir", features_ter)
-feature_descrp <- function(data){
-  data %>% 
-    dplyr::select(all_of(fea)) %>% 
-    pivot_longer(cols = everything(), names_to = "feature", values_to = "value") %>% 
-    group_by(feature) %>% 
-    mutate(
-      zero = if_else(value ==0, 1, 0)
-    ) %>% 
-    drop_na() %>%  ##important, since it's long form can drop easily
-    summarise(
-      total = nrow(data),
-      zero = sum(zero),
-      median = median(value),
-      mean = mean(value),
-      sd = sd(value),
-      IQR = IQR(value), 
-      min = min(value),
-      max = max(value)
-    ) 
-}
-arterial_stat <- feature_descrp(arterial)
-collector_stat <- feature_descrp(collector)
-local_stat <- feature_descrp(local)
-other_stat <- feature_descrp(other)
-
-fea_stat_rd <- bind_rows(arterial_stat, collector_stat, local_stat, other_stat)
-
-write_csv(fea_stat_rd, file = "gis_rdtype_stratified/fea_stat_rd.csv")
 
 # 2. Prepare feature, cov---------------------
 ## 2.1 features-----------
@@ -155,8 +123,6 @@ features_cont <-  c(
 )
 
 ## 2.2 Covar-----------
-pop <- pop500 %>% 
-  mutate(pop_yr = TP27_PERSO *5)  #2015-2019
 
 covar <- covar_100 %>%
   left_join(pop, by = "CodigoCL") %>% 

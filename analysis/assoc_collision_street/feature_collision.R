@@ -13,23 +13,7 @@ covar_100 <- readRDS("../../clean_data/SES/covar_calle100m.rds")
 
 # 1. collision ~ feature ---------------------------
 
-## 1.1 feature descrp stat ------------------------------
-feature_stat <- calle_rename_df %>% 
-  pivot_longer(cols = -codigocl, names_to = "feature", values_to = "value") %>% 
-  #count(codigocl)
-  group_by(feature) %>% 
-  summarise(
-    mean = mean(value),
-    sd = sd(value),
-    min = min(value),
-    max = max(value),
-    median = median(value),
-    IQR = IQR(value, na.rm = TRUE)
-  )
-
-write_csv(feature_stat, file = "st_feature_descrpt_stat.csv")
-
-## 1.2 Prepare features --------------
+## 1.1 Prepare features --------------
 ### features to tertile
 features <-  c(
   "trees",
@@ -80,7 +64,7 @@ all_features <-  c(
   "traffic_fines_tot"
 )
 
-### Zeroes, nonzero Tertiles, factored--------------
+## 1.2 tertile, factor, join collision-------------
 #interesting how NAs are useful here
 calle_tertile <- calle_rename_df %>% 
   dplyr::select(codigocl, st_dir, all_of(features), ped_collision) %>% 
