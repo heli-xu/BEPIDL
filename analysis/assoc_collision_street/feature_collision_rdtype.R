@@ -49,6 +49,8 @@ features_ter <-  c(
   "traffic_fines_tot"
 )
 
+features_ter <- c("area_sidewalk", "brt_routes", "bike_length", features_ter)
+
 ## YN---------
 features_yn <-  c(
   "trees", # just to see
@@ -127,7 +129,7 @@ levels(calle_yn$trees)
 
 # 3. Join Covar w rd_type + SES--------------
 ## 3.1 tertile-----------
-collision_covar_rd_100 <- covar_100 %>%
+collision_covar_rd_ter <- covar_100 %>%
   left_join(pop800, by = "CodigoCL") %>% 
   mutate(
     across(starts_with("pct"), ~ scale(.x)[,1])
@@ -182,7 +184,9 @@ summary(test)
 ## 4.1 Tertiles -------------
 features <- c("num_lane", features_ter)
 
-fit_allfeatures <- map(features, \(x) fit_features_x(x, data = collision_covar_rd_100))
+features <- c("area_sidewalk", "brt_routes", "bike_length")
+
+fit_allfeatures <- map(features, \(x) fit_features_x(x, data = collision_covar_rd_ter))
 
 feature_df <- map_df(fit_allfeatures,
   \(x) tidy(x, conf.int = TRUE, exponentiate = TRUE))
@@ -204,7 +208,7 @@ feature_RR <- feature_df %>%
     statistic
   )
 
-saveRDS(feature_RR, file = "st_feature_cov100_rdtype_RR.rds")
+saveRDS(feature_RR, file = "st_feature_rdtype_ter_RR_x.rds")
  
 ### visualize --------------
 source("../../functions/plot_facet_RR.R")
@@ -264,7 +268,7 @@ feature_yn_RR <- feature_yn_df %>%
     statistic
   )
 
-saveRDS(feature_RR, file = "st_feature_cov100_rdtype_RR.rds")
+saveRDS(feature_yn_RR, file = "st_feature_rdtype_yn_RR.rds")
 
 ### visualize --------------
 source("../../functions/plot_facet_RR.R")
