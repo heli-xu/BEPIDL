@@ -63,22 +63,26 @@ arterial <- road_type %>%
   filter(road_type2 == "Arterial") %>% 
   #filter(!CodigoCL == "CL100437") %>% #huge st, but after adj area looks ok
   rename(codigocl = CodigoCL) %>% 
-  left_join(calle_rename_adj_df, by = "codigocl")
+  left_join(calle_rename_adj_df, by = "codigocl") %>% 
+  drop_na()
 
 collector <- road_type %>% 
   filter(road_type2 == "Collector") %>% 
   rename(codigocl = CodigoCL) %>% 
-  left_join(calle_rename_adj_df, by = "codigocl")
+  left_join(calle_rename_adj_df, by = "codigocl") %>% 
+  drop_na()
 
 local <- road_type %>% 
   filter(road_type2 == "Local") %>% 
   rename(codigocl = CodigoCL) %>% 
-  left_join(calle_rename_adj_df, by = "codigocl")
+  left_join(calle_rename_adj_df, by = "codigocl") %>% 
+  drop_na()
 
 other <- road_type %>% 
   filter(road_type2 == "Other") %>% 
   rename(codigocl = CodigoCL) %>% 
-  left_join(calle_rename_adj_df, by = "codigocl")
+  left_join(calle_rename_adj_df, by = "codigocl") %>% 
+  drop_na()
 
 
 arterial_stat <- feature_descrp(arterial)
