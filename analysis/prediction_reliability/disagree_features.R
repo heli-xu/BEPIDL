@@ -1,6 +1,7 @@
 library(tidyverse)
 library(leaflet)
 library(ggplot2)
+library(sf)
 
 # 0. import data -------
 calle_geo <- readRDS("../../clean_data/calles/calle_shapefile.rds")
@@ -85,6 +86,15 @@ saveRDS(prYgisN, file = "predictY_gisN.rds")
 #csv deleted
 #write_csv(predictY_gisN, file = "st_predictY_gisN.csv")
 
+prYgisN_geo <- calle_geo %>% 
+  left_join(predictY_gisN %>% 
+      rename(CodigoCL = codigocl), 
+    by = "CodigoCL") %>% 
+  drop_na(diff_all) %>% 
+  select(-diff_all)
+
+st_write(prYgisN_geo, "predictY_gisN.shp")
+
 ## map visual top 500-----------
 prYgisN_top500 <- prYgisN %>%
   arrange(desc(diff_all)) %>% 
@@ -118,6 +128,16 @@ saveRDS(gisYprN, file = "gisY_predictN.rds")
 
 #csv deleted
 #write_csv(gisY_predictN, file = "st_gisY_predictN.csv")
+
+gisYprN_geo <- calle_geo %>% 
+  left_join(gisYprN %>% 
+      rename(CodigoCL = codigocl), 
+    by = "CodigoCL") %>% 
+  drop_na(diff_all) %>% 
+  select(-diff_all)
+
+st_write(gisYprN_geo, "gisY_predictN.shp")
+
 
 ## map visual top 500 --------------
 gisYprN_top500 <- gisYprN %>% 
