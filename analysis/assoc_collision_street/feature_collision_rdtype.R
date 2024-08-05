@@ -10,11 +10,11 @@ calle_rename_adj_df <- readRDS("../../clean_data/calles/calle_rename_adj_df.rds"
 #collision from raw (need to populate 0)
 collision_calle <- readRDS("../../clean_data/collision/collision_calle_df.rds")
 #covariates
-covar_100 <- readRDS("../../clean_data/SES/covar_calle100m.rds")
+covar_100 <- readRDS("../../clean_data/covar_mzn/covar_calle100m.rds")
 #road_type
 road_type <- readRDS("../../clean_data/road_type/road_type_calle.rds")
 
-ses_100 <- readRDS("../../clean_data/SES/ses_calle100m.rds")
+ses_100 <- readRDS("../../clean_data/covar_mzn/ses_calle100m.rds")
 
 #population from 800m buffer
 pop800 <- readRDS("../../clean_data/covar_mzn/pop_calle800m.rds") %>% 
@@ -28,7 +28,7 @@ features_ter <-  c(
   "trees",
   "grade",
   "area_median",
-  #"area_sidewalk",  #Y/N
+  "area_sidewalk",  #Y/N
   "road_width",
   # "road_marks", remove across board b/c low completion data
   "warning_signs",
@@ -44,12 +44,11 @@ features_ter <-  c(
   "total_st_signs",
   "bus_routes",
   "bus_stops", #added 
-  #"brt_routes",  Y/N
-  #"bike_length",  Y/N
+  "brt_routes",  #Y/N
+  "bike_length",  #Y/N
   "traffic_fines_tot"
 )
 
-features_ter <- c("area_sidewalk", "brt_routes", "bike_length", features_ter)
 
 ## YN---------
 features_yn <-  c(
@@ -184,8 +183,6 @@ summary(test)
 ## 4.1 Tertiles -------------
 features <- c("num_lane", features_ter)
 
-features <- c("area_sidewalk", "brt_routes", "bike_length")
-
 fit_allfeatures <- map(features, \(x) fit_features_x(x, data = collision_covar_rd_ter))
 
 feature_df <- map_df(fit_allfeatures,
@@ -208,7 +205,7 @@ feature_RR <- feature_df %>%
     statistic
   )
 
-saveRDS(feature_RR, file = "st_feature_rdtype_ter_RR_x.rds")
+saveRDS(feature_RR, file = "st_feature_rdtype_ter_RR.rds")
  
 ### visualize --------------
 source("../../functions/plot_facet_RR.R")
@@ -270,8 +267,11 @@ feature_yn_RR <- feature_yn_df %>%
 
 saveRDS(feature_yn_RR, file = "st_feature_rdtype_yn_RR.rds")
 
+feature_yn_RR <- readRDS("st_feature_rdtype_yn_RR.rds")
+
 ### visualize --------------
 source("../../functions/plot_facet_RR.R")
+features <- c("st_dir", features_yn)
 
 fea_plot_RR <- feature_yn_RR %>% 
   mutate(
@@ -284,8 +284,8 @@ fea_plot_RR <- feature_yn_RR %>%
 fea_plot_RR %>% 
   plot_facet_RR()+
   labs(
-    subtitle = "Offset by population within 800m from each street. Adjusted for types of dwellings,\nage groups, sex composition, road types and SES within 100m from streets.",
-    caption ="'st_dir' is included as 1 and 2 directions, relative to 1. \nOther street features are considered yes/no for analysis. Comparisons are relative to the 'no' category."
+    subtitle = "Offset by population within 800m from each street. \nAdjusted for types of dwellings, age groups, sex composition, \nroad types and SES within 100m from streets.",
+    caption ="'st_dir' is included as 1 and 2 directions, relative to 1. \nOther street features are considered yes/no for analysis.\n Comparisons are relative to the 'no' category."
   )+
   theme(
     plot.title.position = "plot"
