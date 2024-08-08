@@ -84,7 +84,7 @@ predict24_calle_adj <- predict24_calle %>%
   left_join(calle_area, by = "CodigoCL") %>% 
   mutate(across(-CodigoCL, ~.x/area_calle))
 
-saveRDS(predict24_calle_adj, file = "calle_predict24_adj.rds")
+saveRDS(predict24_calle_adj, file = "calle_predict24_1519adj.rds")
 #gitignored
 
 # 3. Aggregate to ZAT  -----------------------

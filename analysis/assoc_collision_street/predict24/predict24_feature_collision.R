@@ -4,7 +4,7 @@ library(MASS)
 library(broom)
 
 # 0. import data----------------
-predict24_calle <- readRDS("../../../clean_data/predict24/calle_predict24_2015_19.rds")
+predict24_calle_adj <- readRDS("../../../clean_data/predict24/calle_predict24_1519adj.rds")
 #collision from raw (need to populate 0)
 collision_calle <- readRDS("../../../clean_data/collision/collision_calle_df.rds")
 #covariates
@@ -18,14 +18,6 @@ ses_100 <- readRDS("../../../clean_data/covar_mzn/ses_calle100m.rds")
 pop800 <- readRDS("../../../clean_data/covar_mzn/pop_calle800m.rds") %>% 
   mutate(pop_yr = pop *5)  #2015-2019
 
-calle_area <- readRDS("../../../clean_data/calles/calle_rename_df.rds") %>%
-  dplyr::select(codigocl, area_calle) %>% 
-  rename(CodigoCL = codigocl)
-
-predict24_calle_adj <- predict24_calle %>% 
-  left_join(calle_area, by = "CodigoCL") %>% 
-  mutate(across(-CodigoCL, ~.x/area_calle))
-  
 
 # 1. Prep features-------------------
 ## tertile/YN (all counts)---------
@@ -83,7 +75,7 @@ count_zero <- calle_tertile %>%
   dplyr::select(-CodigoCL)
 
 ## 2.2 YN --------------------
-calle_yn <- predict24_calle %>% 
+calle_yn <- predict24_calle_adj %>% 
   dplyr::select(CodigoCL, all_of(features)) %>% 
   mutate(
     across(all_of(features), ~if_else(. >0, 1, 0)),
@@ -165,7 +157,7 @@ feature_RR <- feature_df %>%
     statistic
   )
 
-saveRDS(feature_RR, file = "predict24/feature_cov100_rdtype_RR.rds")
+saveRDS(feature_RR, file = "feature_ter_RR.rds")
 
 ### visualize --------------
 source("../../../functions/plot_facet_RR.R")
@@ -187,7 +179,7 @@ fea_plot_RR %>%
   plot_facet_RR()+
   labs(
     subtitle = "Offset by population within 800m from each street. Adjusted for types of dwellings,\nage groups, sex composition, road types and SES within 100m from streets.",
-    caption = "For street features, data are separated into zeros and nonzero tertiles for analysis.\n Comparisons are relative to the 'Low' category."
+    caption = "Values of street features are separated into zeros and nonzero tertiles for analysis.\n Comparisons are relative to the 'Low' category."
   )+
   theme(
     plot.title.position = "plot"
@@ -198,3 +190,42 @@ fit_allfeatures <- map(features, \(x) fit_features_x(x, data = collision_covar_r
 
 feature_yn_df <- map_df(fit_allfeatures,
   \(x) tidy(x, conf.int = TRUE, exponentiate = TRUE))
+
+saveRDS(feature_yn_RR, file = "feature_yn_RR.rds")
+
+### summarise RR -----------------------
+feature_yn_RR <- feature_yn_df %>%
+  mutate(
+    across(where(is.numeric), ~round(., 4)),
+    RR_95CI = paste0(round(estimate,2)," (", round(conf.low,2), ",", round(conf.high, 2), ")")) %>% 
+  dplyr::select(
+    term,
+    RR_95CI,
+    estimate,
+    std.error,
+    conf.low,
+    conf.high,
+    p.value,
+    statistic
+  )
+
+### visualize --------------
+source("../../functions/plot_facet_RR.R")
+
+fea_plot_RR <- feature_yn_RR %>% 
+  mutate(
+    tertile = str_sub(term,-1),
+    predictor = str_sub(term, end = -2)
+  ) %>%
+  filter(predictor %in% features) %>%
+  mutate(category = "")
+
+fea_plot_RR %>% 
+  plot_facet_RR()+
+  labs(
+    subtitle = "Offset by population within 800m from each street. Adjusted for types of dwellings,\nage groups, sex composition, road types and SES within 100m from streets.",
+    caption = "Street features are considered yes/no for analysis.\n Comparisons are relative to the 'no' category."
+  )+
+  theme(
+    plot.title.position = "plot"
+  )
