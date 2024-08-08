@@ -6,12 +6,16 @@ sf_use_s2(FALSE)
 
 # 0. import data--------
 predict_200k <- read_csv("../../data/AI_prediction2024/predictions_200k.csv")
+##only keep 2015-2019
+predict_yr <- predict_200k %>% 
+  filter(Date %in% 2015:2019)
+
 calle_geo <- readRDS("../../clean_data/calles/calle_shapefile.rds")
 calle_zat_xwalk <- readRDS("../calle_zat_xwalk.rds")
 zat_shapefile <- readRDS("../../clean_data/ZAT/zat_shapefile.rds") 
 
 # 1. Link image coordinates ------------------
-predict_sf <- st_as_sf(predict_200k, coords = c("Latitude", "Longitude"),  
+predict_sf <- st_as_sf(predict_yr, coords = c("Latitude", "Longitude"),  
                        #googlemap api use lat first, but longitude is x, lat is y
                        #note confusing column names
                        crs = st_crs(4326)) 
@@ -51,9 +55,12 @@ leaflet() %>%
 count <- calle_predict_sf %>%
   st_drop_geometry() %>%
   count(CodigoCL)
-#9900 NA
 
-## summarise ---------
+count %>% filter(is.na(CodigoCL))
+#9900 NA all years
+#4502 NA 2015-2019
+
+## summarise calle_predict24 ---------
 calle_predict24 <- calle_predict_sf %>% 
   drop_na(CodigoCL) %>% 
   st_drop_geometry() %>% 
@@ -65,6 +72,20 @@ calle_predict24 <- calle_predict_sf %>%
 
 saveRDS(calle_predict24, file = "calle_predict24.rds")
 #gitignored, need rerunning for new device
+
+saveRDS(calle_predict24, file = "calle_predict24_2015_19.rds")
+
+## adjust by calle area-------------------
+calle_area <- readRDS("../calles/calle_rename_df.rds") %>%
+  dplyr::select(codigocl, area_calle) %>% 
+  rename(CodigoCL = codigocl)
+
+predict24_calle_adj <- predict24_calle %>% 
+  left_join(calle_area, by = "CodigoCL") %>% 
+  mutate(across(-CodigoCL, ~.x/area_calle))
+
+saveRDS(predict24_calle_adj, file = "calle_predict24_adj.rds")
+#gitignored
 
 # 3. Aggregate to ZAT  -----------------------
 zat_geo <- zat_shapefile %>% st_zm()

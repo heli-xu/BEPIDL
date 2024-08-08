@@ -75,3 +75,5 @@ analysis/prediction_reliability/predictY_gisN.rds
 clean_data/predict24/calle_predict24.rds
 clean_data/predict24/w_road_info/predict24_road_clus_geo.rds
 clean_data/calles/calle_rename_adj_df.rds
+clean_data/predict24/calle_predict24_2015_19.rds
+clean_data/predict24/calle_predict24_adj.rds
