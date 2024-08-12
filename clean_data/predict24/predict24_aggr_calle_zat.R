@@ -116,4 +116,4 @@ predict24_zat3 <- predict24_zat2 %>%
   ) %>% 
   select(-areakm2)
 
-saveRDS(predict24_zat3, file = "zat_predict24.rds")  
+saveRDS(predict24_zat3, file = "zat_predict24_1519.rds")  
