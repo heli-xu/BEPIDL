@@ -9,16 +9,17 @@ library(patchwork)
 sf_use_s2(FALSE)
 
 # 0. import data-----------------
-#prediction data only
-predict24_zat <- readRDS("zat_predict24.rds")
+#prediction data, year 2015-19 only
+predict24_zat <- readRDS("zat_predict24_1519.rds")
 
 #prediction with road network characteristics
-predict24_road_zat <- readRDS("w_road_info/predict24_road_info_zat.rds")
+#predict24_road_zat <- readRDS("w_road_info/predict24_road_info_zat.rds")
 
 zat_shapefile <- readRDS("../ZAT/zat_shapefile.rds")
 
 ## with some var from calle
 calle_indicators <- readRDS("../aggr_hclust_geo/calle_2_zat_rep.rds")
+
 ## with some var from zat
 zat_indicators <- readRDS("../ZAT/zat_std2n.rds")
 
@@ -75,6 +76,8 @@ predict24_road_zat <- predict24_zat %>%
       select(ZAT, road_length_log, INTDENS), by = "ZAT")
 
 saveRDS(predict24_road_zat, file = "w_road_info/predict24_road_info_zat.rds")
+
+
 # 3. Clustering ---------------
 ## D0: indicators ----------
 D0 <- dist(predict24_road_zat)

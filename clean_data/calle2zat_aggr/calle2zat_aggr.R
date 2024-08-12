@@ -187,12 +187,12 @@ calle_rename_df <- readRDS("../calles/calle_rename_df.rds")
 
 calle_zat_xwalk <- readRDS("../calle_zat_xwalk.rds")
 
-zat_std2n <- readRDS("ZAT/zat_std2n.rds")
+zat_std2n <- readRDS("../ZAT/zat_std2n.rds")
 
 ## 2.1 Link calle to ZAT w replicates----------------
 
 rep_calle_zat <- calle_rename_df %>%
-  select(CodigoCL, area_calle, area_roadway, area_median, area_sidewalk,
+  select(CodigoCL = codigocl, area_calle, area_roadway, area_median, area_sidewalk,
     road_width, road_marks, road_signs, pedxwalk_signs) %>% 
   left_join(calle_zat_xwalk, by = "CodigoCL") %>% 
   drop_na(ZAT) %>% #still need to remove NA here
