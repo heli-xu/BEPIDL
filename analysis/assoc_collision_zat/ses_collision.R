@@ -11,25 +11,10 @@ ses_zat <- readRDS("../../clean_data/ses/ses_zat.rds")
 ses_zat %>% filter(is.na(ses_cat))
 
 # covar
-pop <- read_xlsx("../../data/pop_zat.xlsx")
-zat <- read_xlsx("../../data/ZAT/ZAT_INDICADORES.xlsx")
-
-pop_density <- pop %>% 
-  left_join(zat %>% 
-              dplyr::select(ZAT, area_m2 = `Area M2`), 
-            by = "ZAT") %>% 
-  mutate(pop_density = (POBD2021 / area_m2)*100) %>% 
-  dplyr::select(ZAT, pop_density)
-
-saveRDS(pop_density, file = "../../clean_data/ZAT/pop_density2021.rds")
+pop_density <- readRDS("../../clean_data/ZAT/pop_density2021.rds")
   
 # offset
-traffic <- readRDS("../../data/zat_denom.rds")
-
-traffic <- traffic %>% 
-  mutate(walk_pubt = total_walk + total_pubt)
-
-saveRDS(traffic, file = "../../clean_data/ZAT/walk_pubt.rds")
+traffic <- readRDS("../../clean_data/ZAT/walk_pubt.rds")
 
 # 1. SES distribution ---------------------
 #ses_zat %>% filter(is.na(ses_cat))
