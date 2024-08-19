@@ -106,3 +106,10 @@ ses_zat_geo %>%
             values = ~ses_cat,
             title = "Average SES Level",
             opacity = 1)
+
+
+# 3. Poverty Index ----------
+ipm <- read_csv("../../data/ZAT/BE_vars.csv") %>% 
+  dplyr::select(ZAT, MEANIPM)
+
+saveRDS(ipm, file = "ipm_zat.rds")
