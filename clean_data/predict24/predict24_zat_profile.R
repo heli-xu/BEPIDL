@@ -75,7 +75,7 @@ predict24_road_zat <- predict24_zat %>%
   left_join(zat_indicators %>% 
       select(ZAT, road_length_log, INTDENS), by = "ZAT")
 
-saveRDS(predict24_road_zat, file = "w_road_info/predict24_road_info_zat.rds")
+saveRDS(predict24_road_zat, file = "w_road_info/2015_19/predict24_road_info_zat1519.rds")
 
 
 # 3. Clustering ---------------
@@ -88,15 +88,15 @@ plot(tree, hang = -1, label = FALSE,
      xlab = "", sub = "",
      main = "Ward dendrogram with D0 only")
 
-rect.hclust(tree, k = 5, border = 1:5)
-legend("topright", legend = paste("cluster", 1:5),
-       fill = 1:5, bty = "n", border = "white")
+rect.hclust(tree, k = 4, border = 1:4)
+legend("topright", legend = paste("cluster", 1:4),
+       fill = 1:4, bty = "n", border = "white")
 
 ## D1: nb distance---------------
 D1 <- as.dist(dist_link3)
 
 range.alpha <- seq(0,1, 0.05)
-k <- 5
+k <- 4
 
 cr <- choicealpha(D0, D1, range.alpha, k, graph = FALSE)
 
@@ -105,34 +105,34 @@ plot(cr)
 
 ## Mix -------
 tree <- hclustgeo(D0, D1, alpha = 0.4)
-p5_nbdist <- cutree(tree, 5)
+p4_nbdist <- cutree(tree, 4)
 
 # 4. Summarize zat_cluster -------------------------
 pr_zat_cluster <- data.frame(
   ZAT = predict24_road_zat$ZAT,
-  clus = p5_nbdist
+  clus = p4_nbdist
 )
 
-saveRDS(pr_zat_cluster, file = "pr_zat_cluster_rd.rds")
+saveRDS(pr_zat_cluster, file = "w_road_info/2015_19/pr_zat_cluster_rd.rds")
 
 # 5. Visualize ----------------------
 ## 5.1 prep data ------------
 source("../../functions/get_cluster.R")
 source("../../functions/cluster_plot.R")
 
-predict_cluster <- get_cluster(predict24_road_zat, p5_nbdist)
+predict_cluster <- get_cluster(predict24_road_zat, p4_nbdist)
 
 predict_cluster_geo <- zat_shapefile %>% 
   st_zm() %>% 
   left_join(pr_zat_cluster, by = "ZAT") %>% 
   drop_na(clus)
 
-saveRDS(predict_cluster, file = "w_road_info/predict24_road_info_cluster.rds")
-saveRDS(predict_cluster_geo, file = "w_road_info/predict24_road_clus_geo.rds")
+saveRDS(predict_cluster, file = "w_road_info/2015_19/predict24_road_info_cluster.rds")
+saveRDS(predict_cluster_geo, file = "w_road_info/2015_19/predict24_road_clus_geo.rds")
 #clus_geo ignored, need rerunning for new device
 
 ## 5.2 assemble plots -----------------
-pal <- c("#225ea8","#41b6c4","#a1dab4", "#ffdb00","orange")
+pal <- c("#225ea8","#41b6c4","#a1dab4", "#ffdb00")
 map <- ggplot()+
   geom_sf(data = zat_shapefile %>% st_zm(), linewidth = 0.1)+
   geom_sf(data = predict_cluster_geo, color = "grey", linewidth = 0.1, aes(fill = factor(clus)))+
@@ -141,22 +141,46 @@ map <- ggplot()+
   theme_minimal()+
   theme(
     panel.grid = element_blank(),
-    axis.text = element_blank(),
-    legend.position = "inside",
-    legend.position.inside = c(0.9,0.2),
-    legend.title.position = "top"
+    axis.text = element_blank()
+    # legend.position = "inside",
+    # legend.position.inside = c(0.9,0.2),
+    # legend.title.position = "top"
   )
 
-#modify ncol for cluster_plot()
-var_plot <- cluster_plot(predict_cluster)+
-  facet_wrap(~clus, ncol = 3)
+### plot all indicators together---------
+var_plot <- cluster_plot(predict_cluster)
 
 (var_plot | map ) + 
-  plot_annotation('Hierarchical Clustering with Indicators and Neighborhood Constraint', 
-                  subtitle = 'AI-detected Street Features and Selected Road Network Characteristics, Bogotá',
+  plot_annotation('AI-detected Street Features and Selected Road Network Characteristics, Bogotá', 
                   theme=theme(plot.title=element_text(size=14, face = "bold", hjust=0.5),
                               plot.subtitle = element_text(size = 10, face = "bold", hjust = 0.5)))+
   plot_layout(widths = c(1.5, 1), heights = unit(18, units = "cm"))
 
+### separate road characteristics and features-------
+var_plot1 <- predict_cluster %>% 
+  filter(str_detect(indicator, "width|length|INTDENS|area")) %>% 
+  cluster_plot()+
+  labs(
+    y = "",
+    title = "Road characteristics"
+  )+
+  theme(
+    plot.title = element_text(size = 10)
+  )
+
+var_plot2 <- predict_cluster %>% 
+  filter(!str_detect(indicator, "width|length|INTDENS|area")) %>% 
+  cluster_plot()+
+  labs(
+    title = "Street features"
+  )+
+  theme(
+    plot.title = element_text(size = 10)
+  )
 
 
+(var_plot2 | (var_plot1/map + plot_layout(heights = c(1, 3))))+ 
+  plot_annotation('AI-detected Street Features and Selected Road Network Characteristics, Bogotá',
+    theme=theme(plot.title=element_text(size=14, face = "bold", hjust=0.5))
+    )+
+  plot_layout(widths = c(1.5, 1), heights = unit(16, units = "cm"))
