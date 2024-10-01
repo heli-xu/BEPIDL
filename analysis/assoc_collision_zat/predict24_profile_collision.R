@@ -281,7 +281,7 @@ profile_covar_rd <- ses_zat %>%
   dplyr::select(ZAT, ses_cat) %>% 
   mutate(ses_cat_r = factor(ses_cat, levels = rev(levels(ses_cat)))) %>% 
   left_join(profile, by = "ZAT") %>% 
-  mutate(clus = factor(clus, levels = c(3,1, 2, 4))) %>% 
+  mutate(clus = factor(clus, levels = c(2,1,3,4))) %>% 
   #drop_na(clus) %>% 
   left_join(col_ped_zat, by = "ZAT") %>% 
   left_join(traffic %>% 
@@ -298,7 +298,7 @@ profile_covar_rd <- ses_zat %>%
 ### using IPM---------
 profile_ipm_covar <- profile %>% 
   left_join(ipm, by = "ZAT") %>% 
-  mutate(clus = factor(clus, levels = c(3,1, 2, 4))) %>% 
+  mutate(clus = factor(clus, levels = c(2,1,3,4))) %>% 
   #drop_na(clus) %>% 
   left_join(col_ped_zat, by = "ZAT") %>% 
   left_join(traffic %>% 
@@ -312,6 +312,24 @@ profile_ipm_covar <- profile %>%
   ) %>% 
   filter(walk_pubt > 0)
 
+### produce a table with everything
+profile_all_covar <- ses_zat %>% 
+  dplyr::select(ZAT, ses_cat) %>% 
+  mutate(ses_cat_r = factor(ses_cat, levels = rev(levels(ses_cat)))) %>% 
+  left_join(profile, by = "ZAT") %>% 
+  mutate(clus = factor(clus, levels = c(2,1,3,4))) %>% 
+  #drop_na(clus) %>% 
+  left_join(col_ped_zat, by = "ZAT") %>% 
+  left_join(traffic %>% 
+      dplyr::select(ZAT, walk_pubt), 
+    by = "ZAT") %>% 
+  left_join(pop_density, by = "ZAT") %>% 
+  left_join(rd_type_zat, by = "ZAT") %>%  
+  drop_na() %>% 
+  filter(walk_pubt > 0) %>% 
+  left_join(ipm, by = "ZAT")
+
+write_csv(profile_all_covar, file = "predict24_profile/2015_19/profile_all_covar_unscaled.csv")
 
 ## 5.2 Model ------------
 ### injury ----------
@@ -359,9 +377,9 @@ prof_covar_rd_RR <- bind_rows(injury_co3_df, death_co3_df, total_co3_df) %>%
     RR_95CI = paste0(round(estimate,2)," (", round(conf.low,2), ",", round(conf.high, 2), ")")) %>%
   mutate(predictor = case_match(
     term,
-    "(Intercept)" ~ "profile_3",
+    "(Intercept)" ~ "profile_2",
     "clus1" ~ "profile_1",
-    "clus2" ~ "profile_2",
+    "clus3" ~ "profile_3",
     "clus4" ~ "profile_4",
     # "ses_cat_r5" ~ "ses_5",
     # "ses_cat_r4" ~ "ses_4",
@@ -372,11 +390,11 @@ prof_covar_rd_RR <- bind_rows(injury_co3_df, death_co3_df, total_co3_df) %>%
   ),
     .before = "term") 
 
-saveRDS(prof_covar_rd_RR, file = "predict24_profile/2015_19/profile_ses_RR_ref3.rds")
+saveRDS(prof_covar_rd_RR, file = "predict24_profile/2015_19/profile_ses_RR_ref2.rds")
 
-saveRDS(prof_covar_rd_RR, file = "predict24_profile/2015_19/profile_ipm_RR_ref3.rds")
+saveRDS(prof_covar_rd_RR, file = "predict24_profile/2015_19/profile_ipm_RR_ref2.rds")
 
-prof_covar_RR_csv <- prof_ses_covar_rd_RR %>% 
+prof_covar_RR_csv <- prof_covar_rd_RR %>% 
   dplyr::select(
     predictor,
     term,
@@ -386,24 +404,26 @@ prof_covar_RR_csv <- prof_ses_covar_rd_RR %>%
   ) %>% 
   rename(z_value = statistic)
 
-write_csv(prof_covar_RR_csv, file = "predict24_profile/2015_19/zat_profile_predict1519_ses_ref3_RR.csv")
+write_csv(prof_covar_RR_csv, file = "predict24_profile/2015_19/zat_profile_predict1519_ses_ref2_RR.csv")
 
-write_csv(prof_covar_RR_csv, file = "predict24_profile/2015_19/zat_profile_predict1519_ipm_ref3_RR.csv")
+write_csv(prof_covar_RR_csv, file = "predict24_profile/2015_19/zat_profile_predict1519_ipm_ref2_RR.csv")
 
 ## 5.4 visualize --------
 #prof_ses_covar_rd_RR <- readRDS("predict24_profile/profile_rd_covar2_RR.rds")
 source("../../functions/plot_RR.R")
 
-prof_ses_covar_rd_RR %>% 
+#ipm_RR <- readRDS("predict24_profile/2015_19/profile_ipm_RR_ref3.rds")
+
+prof_covar_rd_RR%>% 
   filter(!predictor == "(Covariates)") %>% 
   plot_RR(., predictor)+
   facet_grid(vars(outcome), switch = "y")+
   labs(
     title = "Pedestrian Collision and Neighborhood (ZAT) Profiles in Bogotá",
-    subtitle = "Adjusted for ZAT-level walking/public transit trips, SES, \nroad types and population density",
+    subtitle = "Adjusted for ZAT-level walking/public transit trips, SES (IPM), \nroad types and population density",
     x = "RR (95%CI)",
     y = "ZAT Profile",
-    caption = "All comparisons are relative to the profile 3."
+    caption = "All comparisons are relative to the profile 2."
   )+
   theme(
     plot.title.position = "plot"
