@@ -5,10 +5,10 @@ library(leaflet)
 sf_use_s2(FALSE)
 
 # 0. import data--------
-latlong <- read_delim("../../data/AI_prediction2024/puntos_calles_latlong.txt")
-predict_stat1 <- read_csv("../../data/AI_prediction2024/predictions_stat_1.csv")
+predict_mean <- read_csv("../../data/AI_prediction2024/predictions_mean.csv")
+
 ##only keep 2015-2019
-predict_yr <- predict_stat1 %>% 
+predict_yr <- predict_mean %>% 
   filter(Date %in% 2015:2019)
 
 calle_geo <- readRDS("../../clean_data/calles/calle_shapefile.rds")
@@ -69,10 +69,9 @@ calle_predict24 <- calle_predict_sf %>%
   ) %>% 
   rename_with(~ tolower(.x), .cols = -CodigoCL)
 
-saveRDS(calle_predict24, file = "calle_predict24.rds")
+saveRDS(calle_predict24, file = "calle_predict24_1519mean.rds")
 #gitignored, need rerunning for new device
 
-saveRDS(calle_predict24, file = "calle_predict24_2015_19.rds")
 
 ## adjust by calle area-------------------
 calle_area <- readRDS("../calles/calle_rename_df.rds") %>%
