@@ -4,7 +4,8 @@ library(leaflet)
 
 sf_use_s2(FALSE)
 
-# 0. import data--------
+# 1. try threshold=mean -------------
+## 1.1 import data--------
 predict_mean <- read_csv("../../data/AI_prediction2024/predictions_mean.csv")
 
 ##only keep 2015-2019
@@ -13,7 +14,7 @@ predict_yr <- predict_mean %>%
 
 calle_geo <- readRDS("../../clean_data/calles/calle_shapefile.rds")
 
-# 1. Link image coordinates ------------------
+## 1.2 Link image coordinates ------------------
 predict_sf <- st_as_sf(predict_yr, coords = c("Latitude", "Longitude"),  
                        #googlemap api use lat first, but longitude is x, lat is y
                        #note confusing column names
@@ -29,7 +30,7 @@ predict_sf %>%
     color = "#D37506",
     opacity = 0.6)
 
-# 2. Aggregate to street ---------
+## 1.3 Aggregate to street ---------
 calle_predict_sf <- predict_sf %>% 
   st_transform(crs = st_crs(calle_geo)) %>% 
   st_join(calle_geo,join= st_within) 
@@ -56,10 +57,9 @@ count <- calle_predict_sf %>%
   count(CodigoCL)
 
 count %>% filter(is.na(CodigoCL))
-#9900 NA all years
-#4502 NA 2015-2019
+#2903 NA 2015-2019
 
-## summarise calle_predict24 ---------
+## 1.4 summarise calle_predict24 ---------
 calle_predict24 <- calle_predict_sf %>% 
   drop_na(CodigoCL) %>% 
   st_drop_geometry() %>% 
@@ -69,49 +69,72 @@ calle_predict24 <- calle_predict_sf %>%
   ) %>% 
   rename_with(~ tolower(.x), .cols = -CodigoCL)
 
-saveRDS(calle_predict24, file = "calle_predict24_1519mean.rds")
+saveRDS(calle_predict24, file = "threshold_testing/calle_predict24_1519mean.rds")
 #gitignored, need rerunning for new device
 
+# 2. function to iterate --------
+aggr_pt2st <- function(data){
+  data1519 <- data |> 
+    filter(Date %in% 2015:2019)
+  
+  predict_sf <- st_as_sf(data1519, coords = c("Latitude", "Longitude"),  
+    #googlemap api use lat first, but longitude is x, lat is y
+    #note confusing column names
+    crs = st_crs(4326))
+  
+  cli::cli_alert_success("Linking image coordinates completed.")
+  
+  calle_predict_sf <- predict_sf |>  
+    st_transform(crs = st_crs(calle_geo)) |> 
+    st_join(calle_geo,join= st_within)
+  
+  cli::cli_alert_success("Aggregating to street completed.")
+  
+  sum_calle_predict24 <- calle_predict_sf |>  
+    drop_na(CodigoCL) |> 
+    st_drop_geometry() |>  
+    group_by(CodigoCL) |>  
+    summarise(
+      across(Sign_traffic:Potholes, ~sum(.x), .names = "{.col}")
+    ) |> 
+    rename_with(~ tolower(.x), .cols = -CodigoCL)
+  
+  cli::cli_alert_success("Summarizing predictions by street completed.")
+  
+  return(sum_calle_predict24)
+}
 
-## adjust by calle area-------------------
-calle_area <- readRDS("../calles/calle_rename_df.rds") %>%
-  dplyr::select(codigocl, area_calle) %>% 
-  rename(CodigoCL = codigocl)
+#check
+x <- aggr_pt2st(predict_mean)
 
-predict24_calle_adj <- predict24_calle %>% 
-  left_join(calle_area, by = "CodigoCL") %>% 
-  mutate(across(-CodigoCL, ~.x/area_calle))
+# 3. iterate -------------
+## load common `calle_geo` if not already in environment
+calle_geo <- readRDS("../../clean_data/calles/calle_shapefile.rds")
 
-saveRDS(predict24_calle_adj, file = "calle_predict24_1519adj.rds")
-#gitignored
+##median------------
+predict_median <- read_csv("../../data/AI_prediction2024/predictions_median.csv")
 
-# 3. Aggregate to ZAT  -----------------------
-zat_geo <- zat_shapefile %>% st_zm()
+calle_predict24_1519median <- aggr_pt2st(predict_median)
 
-predict24_zat <- predict_sf %>% 
-  st_transform(crs = st_crs(zat_geo)) %>% 
-  st_join(zat_geo,join= st_within) 
-## NO NEED to create replicates! use point to zat
+saveRDS(calle_predict24_1519median, file = "threshold_testing/calle_predict24_1519median.rds")
 
-predict24_zat2 <- predict24_zat %>% 
-  st_drop_geometry() %>% 
-  drop_na(ZAT) %>% 
-  rename_with(~ tolower(.x), .cols = -ZAT) %>% 
-  group_by(ZAT) %>% 
-  summarise(
-    across(sign_traffic:potholes, ~sum(.x), .names = "{.col}"),
-    .groups = "drop"
-  )
+##mode---------
+predict_mode <- read_csv("../../data/AI_prediction2024/predictions_mode.csv") 
 
-# 4. Standardize -------------------
-zat_area <- readRDS("../ZAT/zat_std2n.rds") %>% 
-  select(ZAT, areakm2)
+calle_predict24_1519mode <- aggr_pt2st(predict_mode)
 
-predict24_zat3 <- predict24_zat2 %>% 
-  left_join(zat_area, by = "ZAT") %>% 
-  mutate(
-    across(sign_traffic:potholes, ~.x/areakm2)
-  ) %>% 
-  select(-areakm2)
+saveRDS(calle_predict24_1519mode, file = "threshold_testing/calle_predict24_1519mode.rds")
 
-saveRDS(predict24_zat3, file = "zat_predict24_1519.rds")  
+##q_25--------
+predict_q25 <- read_csv("../../data/AI_prediction2024/predictions_q_25.csv")
+
+calle_predict24_1519q25 <- aggr_pt2st(predict_q25)
+
+saveRDS(calle_predict24_1519q25, file = "threshold_testing/calle_predict24_1519q25.rds")
+
+##q_75------------
+predict_q75 <- read_csv("../../data/AI_prediction2024/predictions_q_75.csv")
+
+calle_predict24_1519q75 <- aggr_pt2st(predict_q75)
+
+saveRDS(calle_predict24_1519q75, file = "threshold_testing/calle_predict24_1519q75.rds")
