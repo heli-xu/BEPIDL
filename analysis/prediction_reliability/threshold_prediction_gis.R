@@ -1,7 +1,5 @@
 library(tidyverse)
-library(readr)
 library(sf)
-library(leaflet)
 library(ggplot2)
 library(caret)
 library(pROC)
@@ -12,12 +10,16 @@ sf_use_s2(FALSE)
 # 0. import data -----------------------
 gis_clean <- readRDS("../../clean_data/MLdata_GIS_CANVAS/gis_clean.rds")
 
+#updated data Nov2024#
 #prediction by street using different threshold
 calle_predict24mean <- readRDS("../../clean_data/predict24/threshold_testing/calle_predict24_1519mean.rds")
 calle_predict24median <- readRDS("../../clean_data/predict24/threshold_testing/calle_predict24_1519median.rds")
 calle_predict24mode <- readRDS("../../clean_data/predict24/threshold_testing/calle_predict24_1519mode.rds")
 calle_predict24q25 <- readRDS("../../clean_data/predict24/threshold_testing/calle_predict24_1519q25.rds")
 calle_predict24q75 <- readRDS("../../clean_data/predict24/threshold_testing/calle_predict24_1519q75.rds")
+#no threshold
+calle_predict312k <- readRDS("../../clean_data/predict24/predict_312k/calle_predict312k_1519.rds")
+
 
 calle_geo <- readRDS("../../clean_data/calles/calle_shapefile.rds")
 
@@ -105,6 +107,8 @@ pg_q25 <- thr_link_gis(calle_predict24q25)
 
 pg_q75 <- thr_link_gis(calle_predict24q75)
 
+pg_all <- thr_link_gis(calle_predict312k)
+
 ## 2.2 set variables ---------
 pr_variables <- c(
   "pr_sign_traffic_yn",
@@ -150,7 +154,7 @@ gis_variables <- c(
 )
 
 
-## Summary table -------------------------------------
+## 2.3 Summary table -------------------------------------
 source("../../functions/reliability_table.R")
 
 df_mean <- reliability_table(pr_variables, gis_variables, pg_mean) |> 
@@ -163,11 +167,14 @@ df_q25 <- reliability_table(pr_variables, gis_variables, pg_q25) |>
   mutate(threshold = "q25")
 df_q75 <- reliability_table(pr_variables, gis_variables, pg_q75) |> 
   mutate(threshold = "q75")
+df_keep <- reliability_table(pr_variables, gis_variables, pg_all) |> 
+  mutate(threshold = "keep all")
 
-df_all <- bind_rows(df_mean, df_median, df_mode, df_q25, df_q75)
+df_all <- bind_rows(df_mean, df_median, df_mode, df_q25, df_q75, df_keep)
 
+write_csv(df_all, file = "reliability_by_filtering_threshold.csv")
 
-## 5.5 Visualization---------------
+## 2.4 Visualization---------------
 source("../../functions/plot_kappa.R")
 
 colors <- c("#800000", "#d62728","#FF69B4", "#f7b6d2", "#9c27b0", "#673ab7", "#6c579d","#3f51b5", "#0000FF", "#2196f3", "#03a9f4", "#00bcd4", "#009688", "#008000", "#8bc34a", "#ffc107", "#ff9800", "#ff5722")
@@ -175,9 +182,9 @@ colors <- c("#800000", "#d62728","#FF69B4", "#f7b6d2", "#9c27b0", "#673ab7", "#6
 plot_kappa(df_all)+
   geom_point(aes(x = kappa_est, color = threshold), size = 2)+
   scale_color_manual(values = colors)+
-  facet_wrap(vars(var), switch = "y")+
+  facet_wrap(~threshold)+
   labs(
-    title = "Prediction2024 vs GIS by Year Groups",
+    title = "Prediction2024 vs GIS by Different Filtering Thresholds",
     subtitle = "Agreement between AI predictions and GIS data at the street level",
     caption = "Interpretations for the kappa statistic: < 0.2 slight agreement, \n0.2 - 0.4 fair agreement, 0.4 - 0.6 moderate agreement.",
     x = "Cohen's kappa (95%CI)",
