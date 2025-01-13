@@ -177,7 +177,11 @@ write_csv(df_all, file = "reliability_by_filtering_threshold.csv")
 ## 2.4 Visualization---------------
 source("../../functions/plot_kappa.R")
 
-colors <- c("#800000", "#d62728","#FF69B4", "#f7b6d2", "#9c27b0", "#673ab7", "#6c579d","#3f51b5", "#0000FF", "#2196f3", "#03a9f4", "#00bcd4", "#009688", "#008000", "#8bc34a", "#ffc107", "#ff9800", "#ff5722")
+#18colors for features
+#colors <- c("#800000", "#d62728","#FF69B4", "#f7b6d2", "#9c27b0", "#673ab7", "#6c579d","#3f51b5", "#0000FF", "#2196f3", "#03a9f4", "#00bcd4", "#009688", "#008000", "#8bc34a", "#ffc107", "#ff9800", "#ff5722")
+
+#6colors for thresholds
+colors <- c("#800000", "#d62728",  "#FF69B4", "#9c27b0","#ff5720","#ff9800")
 
 plot_kappa(df_all)+
   geom_point(aes(x = kappa_est, color = threshold), size = 2)+
