@@ -6,8 +6,12 @@ sf_use_s2(FALSE)
 
 # 0. import data--------
 predict_200k <- read_csv("../../data/AI_prediction2024/predictions_200k.csv")
+
+#updated dataset Nov2024
+predict_312k <- read_csv("../../data/AI_prediction2024/predictions_312k.csv")
+
 ##only keep 2015-2019
-predict_yr <- predict_200k %>% 
+predict_yr <- predict_312k %>% 
   filter(Date %in% 2015:2019)
 
 calle_geo <- readRDS("../../clean_data/calles/calle_shapefile.rds")
@@ -31,6 +35,7 @@ predict_sf %>%
     opacity = 0.6)
 
 # 2. Aggregate to street ---------
+## 2.1 Spatial join--------
 calle_predict_sf <- predict_sf %>% 
   st_transform(crs = st_crs(calle_geo)) %>% 
   st_join(calle_geo,join= st_within) 
@@ -57,10 +62,13 @@ count <- calle_predict_sf %>%
   count(CodigoCL)
 
 count %>% filter(is.na(CodigoCL))
-#9900 NA all years
-#4502 NA 2015-2019
+#200k data:
+#9900 NA all years, 4502 NA 2015-2019
+#312k data: 
+#2903 NA 2015-2019
 
-## summarise calle_predict24 ---------
+
+## 2.2 Summarize features by street  ---------
 calle_predict24 <- calle_predict_sf %>% 
   drop_na(CodigoCL) %>% 
   st_drop_geometry() %>% 
@@ -75,19 +83,23 @@ saveRDS(calle_predict24, file = "calle_predict24.rds")
 
 saveRDS(calle_predict24, file = "calle_predict24_2015_19.rds")
 
-## adjust by calle area-------------------
+saveRDS(calle_predict24, file = "predict_312k/calle_predict312k_1519.rds")
+
+# 3. Adjust by calle area-------------------
 calle_area <- readRDS("../calles/calle_rename_df.rds") %>%
   dplyr::select(codigocl, area_calle) %>% 
   rename(CodigoCL = codigocl)
 
-predict24_calle_adj <- predict24_calle %>% 
+predict24_calle_adj <- calle_predict24 %>% 
   left_join(calle_area, by = "CodigoCL") %>% 
   mutate(across(-CodigoCL, ~.x/area_calle))
 
 saveRDS(predict24_calle_adj, file = "calle_predict24_1519adj.rds")
 #gitignored
 
-# 3. Aggregate to ZAT  -----------------------
+saveRDS(predict24_calle_adj, file = "predict_312k/calle_predict312k_1519adj.rds")
+
+# 4. Aggregate to ZAT  -----------------------
 zat_geo <- zat_shapefile %>% st_zm()
 
 predict24_zat <- predict_sf %>% 
@@ -105,7 +117,7 @@ predict24_zat2 <- predict24_zat %>%
     .groups = "drop"
   )
 
-# 4. Standardize -------------------
+# 5. Standardize -------------------
 zat_area <- readRDS("../ZAT/zat_std2n.rds") %>% 
   select(ZAT, areakm2)
 
@@ -117,3 +129,5 @@ predict24_zat3 <- predict24_zat2 %>%
   select(-areakm2)
 
 saveRDS(predict24_zat3, file = "zat_predict24_1519.rds")  
+
+saveRDS(predict24_zat3, file = "predict_312k/zat_predict312k_1519.rds")
