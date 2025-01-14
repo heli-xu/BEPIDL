@@ -80,3 +80,4 @@ clean_data/predict24/calle_predict24_1519adj.rds
 clean_data/predict24/w_road_info/2015_19/predict24_road_clus_geo.rds
 clean_data/predict24/threshold_testing/
 clean_data/predict24/predict_312k/
+analysis/assoc_collision_zat/predict312k_profile/

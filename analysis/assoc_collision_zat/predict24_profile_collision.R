@@ -11,6 +11,9 @@ col_ped_zat <- readRDS("../../clean_data/collision/collision_zat_df.rds")
 # predict24_profile with road network characteristics - 2015-2019 only
 profile <- readRDS("../../clean_data/predict24/w_road_info/2015_19/pr_zat_cluster_rd.rds")
 
+#updated profile using predict312k w road info - 2015-19 only
+profile <- readRDS("../../clean_data/predict24/predict_312k/profile_w_road_info/pr312k_zat_cluster_rd.rds")
+
 # if not in profile, road type area as covar
 road_type <- readRDS("../../clean_data/road_type/rd_type_area_zat.rds")
 
@@ -32,7 +35,9 @@ source("../../functions/distr_stat.R")
 profile_distr <- distr_stat(profile, ZAT, clus) %>% 
   mutate(clus = factor(clus, levels = c(3, 2, 1, 4)))
 
-write_csv(profile_distr, file = "predict24_profile/2015_19/predict24_1519_descrp.csv")
+write_csv(profile_distr, file = "predict312k_profile/predict312k_1519_descrp.csv")
+
+# primary analysis at 5.
 
 # 2. Collision ~ profile ----------------------------------
 ## 2.1 join data -------------
@@ -269,7 +274,7 @@ prof_ses_covar_RR %>%
     plot.title.position = "plot"
   )
 
-# 5. Collision~everything+rd_type--------
+# *5. Collision~everything+rd_type--------
 ## 5.1 Join data ---------------
 rd_type_zat <- road_type %>% 
   dplyr::select(-c(Collector:total, pcta_Arterial, pcta_Rural, pcta_Pedestrian, pcta_Unknown, pcta_Projected))  
@@ -281,7 +286,7 @@ profile_covar_rd <- ses_zat %>%
   dplyr::select(ZAT, ses_cat) %>% 
   mutate(ses_cat_r = factor(ses_cat, levels = rev(levels(ses_cat)))) %>% 
   left_join(profile, by = "ZAT") %>% 
-  mutate(clus = factor(clus, levels = c(2,1,3,4))) %>% 
+  mutate(clus = factor(clus, levels = c(3,1,2,4))) %>%  #note the ref level
   #drop_na(clus) %>% 
   left_join(col_ped_zat, by = "ZAT") %>% 
   left_join(traffic %>% 
@@ -298,7 +303,7 @@ profile_covar_rd <- ses_zat %>%
 ### using IPM---------
 profile_ipm_covar <- profile %>% 
   left_join(ipm, by = "ZAT") %>% 
-  mutate(clus = factor(clus, levels = c(2,1,3,4))) %>% 
+  mutate(clus = factor(clus, levels = c(3,1,2,4))) %>% #note the ref level
   #drop_na(clus) %>% 
   left_join(col_ped_zat, by = "ZAT") %>% 
   left_join(traffic %>% 
@@ -329,7 +334,7 @@ profile_all_covar <- ses_zat %>%
   filter(walk_pubt > 0) %>% 
   left_join(ipm, by = "ZAT")
 
-write_csv(profile_all_covar, file = "predict24_profile/2015_19/profile_all_covar_unscaled.csv")
+write_csv(profile_all_covar, file = "predict312k_profile/profile312_all_covar_unscaled.csv")
 
 ## 5.2 Model ------------
 ### injury ----------
@@ -377,22 +382,18 @@ prof_covar_rd_RR <- bind_rows(injury_co3_df, death_co3_df, total_co3_df) %>%
     RR_95CI = paste0(round(estimate,2)," (", round(conf.low,2), ",", round(conf.high, 2), ")")) %>%
   mutate(predictor = case_match(
     term,
-    "(Intercept)" ~ "profile_2",
+    ## note to change below based on ref!
+    "(Intercept)" ~ "profile_3",
     "clus1" ~ "profile_1",
-    "clus3" ~ "profile_3",
+    "clus2" ~ "profile_2",
     "clus4" ~ "profile_4",
-    # "ses_cat_r5" ~ "ses_5",
-    # "ses_cat_r4" ~ "ses_4",
-    # "ses_cat_r3" ~ "ses_3",
-    # "ses_cat_r2" ~ "ses_2",
-    # "ses_cat_r1" ~ "ses_1",
     .default = "(Covariates)"
   ),
     .before = "term") 
 
-saveRDS(prof_covar_rd_RR, file = "predict24_profile/2015_19/profile_ses_RR_ref2.rds")
+saveRDS(prof_covar_rd_RR, file = "predict312k_profile/profile_ses_RR_ref3.rds")
 
-saveRDS(prof_covar_rd_RR, file = "predict24_profile/2015_19/profile_ipm_RR_ref2.rds")
+saveRDS(prof_covar_rd_RR, file = "predict312k_profile/profile_ipm_RR_ref3.rds")
 
 prof_covar_RR_csv <- prof_covar_rd_RR %>% 
   dplyr::select(
@@ -404,28 +405,81 @@ prof_covar_RR_csv <- prof_covar_rd_RR %>%
   ) %>% 
   rename(z_value = statistic)
 
-write_csv(prof_covar_RR_csv, file = "predict24_profile/2015_19/zat_profile_predict1519_ses_ref2_RR.csv")
+write_csv(prof_covar_RR_csv, file = "predict312k_profile/zat_profile_predict1519_ses_ref3_RR.csv")
 
-write_csv(prof_covar_RR_csv, file = "predict24_profile/2015_19/zat_profile_predict1519_ipm_ref2_RR.csv")
+write_csv(prof_covar_RR_csv, file = "predict312k_profile/zat_profile_predict1519_ipm_ref3_RR.csv")
 
 ## 5.4 visualize --------
-#prof_ses_covar_rd_RR <- readRDS("predict24_profile/profile_rd_covar2_RR.rds")
+
 source("../../functions/plot_RR.R")
+### ref=3 -------
+ses_RR <- readRDS("predict312k_profile/profile_ses_RR_ref3.rds")
+ipm_RR <- readRDS("predict312k_profile/profile_ipm_RR_ref3.rds")
 
-#ipm_RR <- readRDS("predict24_profile/2015_19/profile_ipm_RR_ref3.rds")
-
-prof_covar_rd_RR%>% 
+ses_RR %>% 
   filter(!predictor == "(Covariates)") %>% 
   plot_RR(., predictor)+
   facet_grid(vars(outcome), switch = "y")+
   labs(
     title = "Pedestrian Collision and Neighborhood (ZAT) Profiles in Bogotá",
-    subtitle = "Adjusted for ZAT-level walking/public transit trips, SES (IPM), \nroad types and population density",
+    subtitle = "Adjusted for road types, ZAT-level walking/public transit trips, SES, and \npopulation density",
+    x = "RR (95%CI)",
+    y = "ZAT Profile",
+    caption = "All comparisons are relative to the profile 3."
+  )+
+  theme(
+    plot.title = element_text(size = 12),
+    plot.title.position = "plot"
+  )
+
+ipm_RR %>% 
+  filter(!predictor == "(Covariates)") %>% 
+  plot_RR(., predictor)+
+  facet_grid(vars(outcome), switch = "y")+
+  labs(
+    title = "Pedestrian Collision and Neighborhood (ZAT) Profiles in Bogotá",
+    subtitle = "Adjusted for road types, ZAT-level walking/public transit trips, SES (IPM), \nand population density",
+    x = "RR (95%CI)",
+    y = "ZAT Profile",
+    caption = "All comparisons are relative to the profile 3."
+  )+
+  theme(
+    plot.title = element_text(size = 12),
+    plot.title.position = "plot"
+  )
+
+## ref =2-------
+ses_RR2 <- readRDS("predict312k_profile/profile_ses_RR_ref2.rds")
+ipm_RR2 <- readRDS("predict312k_profile/profile_ipm_RR_ref2.rds")
+
+ses_RR2 %>% 
+  filter(!predictor == "(Covariates)") %>% 
+  plot_RR(., predictor)+
+  facet_grid(vars(outcome), switch = "y")+
+  labs(
+    title = "Pedestrian Collision and Neighborhood (ZAT) Profiles in Bogotá",
+    subtitle = "Adjusted for road types, ZAT-level walking/public transit trips, SES, and \npopulation density",
     x = "RR (95%CI)",
     y = "ZAT Profile",
     caption = "All comparisons are relative to the profile 2."
   )+
   theme(
+    plot.title = element_text(size = 12),
     plot.title.position = "plot"
   )
 
+ipm_RR2 %>% 
+  filter(!predictor == "(Covariates)") %>% 
+  plot_RR(., predictor)+
+  facet_grid(vars(outcome), switch = "y")+
+  labs(
+    title = "Pedestrian Collision and Neighborhood (ZAT) Profiles in Bogotá",
+    subtitle = "Adjusted for road types, ZAT-level walking/public transit trips, SES (IPM), \nand population density",
+    x = "RR (95%CI)",
+    y = "ZAT Profile",
+    caption = "All comparisons are relative to the profile 2."
+  )+
+  theme(
+    plot.title = element_text(size = 12),
+    plot.title.position = "plot"
+  )
