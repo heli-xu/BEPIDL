@@ -158,7 +158,7 @@ var_plot <- cluster_plot(predict_cluster)
                               plot.subtitle = element_text(size = 10, face = "bold", hjust = 0.5)))+
   plot_layout(widths = c(1.5, 1), heights = unit(18, units = "cm"))
 
-### separate road characteristics and features-------
+### *separate road characteristics and features-------
 var_plot1 <- predict_cluster %>% 
   filter(str_detect(indicator, "width|length|INTDENS|area")) %>% 
   cluster_plot()+
@@ -182,7 +182,15 @@ var_plot2 <- predict_cluster %>%
 
 
 (var_plot2 | (var_plot1/map + plot_layout(heights = c(1, 3))))+ 
-  plot_annotation('AI-detected Street Features and Selected Road Network Characteristics, Bogotá',
-    theme=theme(plot.title=element_text(size=14, face = "bold", hjust=0.5))
+  plot_annotation('Neighborhood (ZAT) Built Environment Profiles, Bogotá',
+    subtitle = "Based on AI-detected Street Features and Selected Road Network Characteristics (2015-2019)",
+    theme=theme(plot.title=element_text(size=14, face = "bold", hjust=0.5),
+    plot.subtitle=element_text(size = 11, face = "bold", hjust = 0.5))
     )+
   plot_layout(widths = c(1.5, 1), heights = unit(16, units = "cm"))
+
+# 6. summary table (feature + clus)--------
+predict312k_fea_clus <- pr312k_zat_cluster_rd |> 
+  left_join(predict24_zat_312k, by = "ZAT")
+
+write.csv(predict312k_fea_clus, file = "predict_312k/zat_pr312k_all.csv")
