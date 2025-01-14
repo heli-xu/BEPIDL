@@ -286,7 +286,7 @@ profile_covar_rd <- ses_zat %>%
   dplyr::select(ZAT, ses_cat) %>% 
   mutate(ses_cat_r = factor(ses_cat, levels = rev(levels(ses_cat)))) %>% 
   left_join(profile, by = "ZAT") %>% 
-  mutate(clus = factor(clus, levels = c(3,1,2,4))) %>%  #note the ref level
+  mutate(clus = factor(clus, levels = c(2,1,3,4))) %>%  #note the ref level
   #drop_na(clus) %>% 
   left_join(col_ped_zat, by = "ZAT") %>% 
   left_join(traffic %>% 
@@ -303,7 +303,7 @@ profile_covar_rd <- ses_zat %>%
 ### using IPM---------
 profile_ipm_covar <- profile %>% 
   left_join(ipm, by = "ZAT") %>% 
-  mutate(clus = factor(clus, levels = c(3,1,2,4))) %>% #note the ref level
+  mutate(clus = factor(clus, levels = c(2,1,3,4))) %>% #note the ref level
   #drop_na(clus) %>% 
   left_join(col_ped_zat, by = "ZAT") %>% 
   left_join(traffic %>% 
@@ -317,7 +317,7 @@ profile_ipm_covar <- profile %>%
   ) %>% 
   filter(walk_pubt > 0)
 
-### produce a table with everything
+### full table with both----
 profile_all_covar <- ses_zat %>% 
   dplyr::select(ZAT, ses_cat) %>% 
   mutate(ses_cat_r = factor(ses_cat, levels = rev(levels(ses_cat)))) %>% 
@@ -383,17 +383,19 @@ prof_covar_rd_RR <- bind_rows(injury_co3_df, death_co3_df, total_co3_df) %>%
   mutate(predictor = case_match(
     term,
     ## note to change below based on ref!
-    "(Intercept)" ~ "profile_3",
+    "(Intercept)" ~ "profile_2",
     "clus1" ~ "profile_1",
-    "clus2" ~ "profile_2",
+    "clus3" ~ "profile_3",
     "clus4" ~ "profile_4",
     .default = "(Covariates)"
   ),
     .before = "term") 
 
 saveRDS(prof_covar_rd_RR, file = "predict312k_profile/profile_ses_RR_ref3.rds")
+saveRDS(prof_covar_rd_RR, file = "predict312k_profile/profile_ses_RR_ref2.rds")
 
 saveRDS(prof_covar_rd_RR, file = "predict312k_profile/profile_ipm_RR_ref3.rds")
+saveRDS(prof_covar_rd_RR, file = "predict312k_profile/profile_ipm_RR_ref2.rds")
 
 prof_covar_RR_csv <- prof_covar_rd_RR %>% 
   dplyr::select(
@@ -406,8 +408,10 @@ prof_covar_RR_csv <- prof_covar_rd_RR %>%
   rename(z_value = statistic)
 
 write_csv(prof_covar_RR_csv, file = "predict312k_profile/zat_profile_predict1519_ses_ref3_RR.csv")
+write_csv(prof_covar_RR_csv, file = "predict312k_profile/zat_profile_predict1519_ses_ref2_RR.csv")
 
 write_csv(prof_covar_RR_csv, file = "predict312k_profile/zat_profile_predict1519_ipm_ref3_RR.csv")
+write_csv(prof_covar_RR_csv, file = "predict312k_profile/zat_profile_predict1519_ipm_ref2_RR.csv")
 
 ## 5.4 visualize --------
 
