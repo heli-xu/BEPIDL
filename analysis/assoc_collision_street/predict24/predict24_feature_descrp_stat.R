@@ -1,8 +1,11 @@
 library(tidyverse)
 
 #0. import -----------
-predict24_calle_adj <- readRDS("../../../clean_data/calle_predict24_adj.rds")
+predict24_calle_adj <- readRDS("../../../clean_data/predict24/calle_predict24_1519adj.rds")
 road_type <- readRDS("../../../clean_data/road_type/road_type_calle.rds")
+
+##updated data Nov2024
+predict312k_calle_adj <- readRDS("../../../clean_data/predict24/predict_312k/calle_predict312k_1519adj.rds")
 
 # 1. set up function--------------
 feature_descrp <- function(data){
@@ -58,11 +61,18 @@ features <-  c(
 
 # 3. Feature stat ------------------------------
 ## 3.1 all roads-------------
+### predict200k----------
 feature_stat_all <- feature_descrp(predict24_calle_adj)
 
-write_csv(feature_stat_all, file = "feature_stat.csv")
+write_csv(feature_stat_all, file = "predict200k/feature_stat.csv")
+
+### predict312k----------
+feature_stat_all312 <- feature_descrp(predict312k_calle_adj)
+
+write_csv(feature_stat_all312, file = "predict312k/feature_stat312k.csv")
 
 ## 3.2 by road type -----------------
+### predict200k-----------
 arterial <- road_type %>% 
   filter(road_type2 == "Arterial") %>% 
   #filter(!CodigoCL == "CL100437") %>% #huge st, but after adj area looks ok
@@ -84,6 +94,44 @@ other <- road_type %>%
   left_join(predict24_calle_adj, by = "CodigoCL") %>% 
   drop_na()
 
+arterial_stat <- feature_descrp(arterial) %>% 
+  mutate(road_type = "arterial")
+
+collector_stat <- feature_descrp(collector) %>% 
+  mutate(road_type = "collector")
+
+local_stat <- feature_descrp(local) %>% 
+  mutate(road_type = "local")
+
+other_stat <- feature_descrp(other) %>% 
+  mutate(road_type = "other")
+
+fea_stat_rd <- bind_rows(arterial_stat, collector_stat, local_stat, other_stat)
+
+write_csv(fea_stat_rd, file = "predict200k/pr_fea_stat_rd.csv")
+
+### predict312k---------------
+arterial <- road_type %>% 
+  filter(road_type2 == "Arterial") %>% 
+  #filter(!CodigoCL == "CL100437") %>% #huge st, but after adj area looks ok
+  left_join(predict312k_calle_adj, by = "CodigoCL") %>% 
+  drop_na()
+
+collector <- road_type %>% 
+  filter(road_type2 == "Collector") %>% 
+  left_join(predict312k_calle_adj, by = "CodigoCL") %>% 
+  drop_na()
+
+local <- road_type %>% 
+  filter(road_type2 == "Local") %>% 
+  left_join(predict312k_calle_adj, by = "CodigoCL") %>% 
+  drop_na()
+
+other <- road_type %>% 
+  filter(road_type2 == "Other") %>% 
+  left_join(predict312k_calle_adj, by = "CodigoCL") %>% 
+  drop_na()
+
 
 arterial_stat <- feature_descrp(arterial) %>% 
   mutate(road_type = "arterial")
@@ -99,4 +147,4 @@ other_stat <- feature_descrp(other) %>%
 
 fea_stat_rd <- bind_rows(arterial_stat, collector_stat, local_stat, other_stat)
 
-write_csv(fea_stat_rd, file = "pr_fea_stat_rd.csv")
+write_csv(fea_stat_rd, file = "predict312k/feature_stat312k_rdtype.csv")
