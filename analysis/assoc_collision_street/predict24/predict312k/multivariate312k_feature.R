@@ -41,7 +41,7 @@ features <-  c(
   "sign_crossing",
   "crosswalk",
   #"pedxwalk_signs",
-  #"sign_school_zone", #removed bc correlated
+  "sign_school_zone", #removed bc correlated
   #"stop_signs_v",
   "sign_stop",  #rename
   "sign_yield",  #rename
@@ -117,6 +117,20 @@ pg_ter_covar <- covar_100 %>%
   right_join(pg_calle_ter, by = "CodigoCL") %>% 
   drop_na(road_type2)
 
+## 1.3 Characteristics by tertile---------
+
+pg_ter_covar |> 
+  select(all_of(features), pop_yr, pct_apt, pct_home, pct_unoccu, pct_male, pct_yr_0_9, pct_yr_10_19, pct_yr_30_39, pct_yr_40_49, pct_yr_50_59, pct_yr_60_69, pct_yr_70_79, pct_yr_80_plus, road_type2, ses_cat_r) |> 
+  gtsummary::tbl_summary(
+    by = road_type2,
+    statistic = list(
+      #all_continuous()~"{mean}({sd})",
+      all_categorical()~"{n}({p}%)"
+    ),
+    #digits = all_continuous() ~ 2,
+    missing = "no"
+  )
+#notworking
 
 # 2. Model-----------
 
