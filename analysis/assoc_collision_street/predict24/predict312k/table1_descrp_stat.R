@@ -1,0 +1,150 @@
+library(tidyverse)
+library(sf)
+library(MASS)
+library(broom)
+library(gtsummary)
+
+# 0. import data----------------
+predict312k_calle_adj <- readRDS("../../../../clean_data/predict24/calle_predict24_1519adj.rds")
+#additional road characteristics
+add_gis <- readRDS("../../../../clean_data/calles/calle_rename_adj_df.rds") %>% 
+  dplyr::select(CodigoCL = codigocl,
+    road_width, num_lanes_total, st_dir) 
+
+#collision from raw (need to populate 0)
+collision_calle <- readRDS("../../../../clean_data/collision/collision_calle_df.rds")
+#covariates
+covar_100 <- readRDS("../../../../clean_data/covar_mzn/covar_calle100m.rds")
+#road_type
+road_type <- readRDS("../../../../clean_data/road_type/road_type_calle.rds")
+
+ses_100 <- readRDS("../../../../clean_data/covar_mzn/ses_calle100m.rds")
+
+#population from 800m buffer
+pop800 <- readRDS("../../../../clean_data/covar_mzn/pop_calle800m.rds") %>% 
+  mutate(pop_yr = pop *5)  #2015-2019
+
+# 1. prepare feature, cov, collision-----------------
+features <-  c(
+  "trees",
+  #"grade",
+  "median", #remove "area_"
+  "median_barrier", #added
+  "sidewalk", #no "area_"
+  "sidewalk_obstruction",
+  #"road_width",
+  "lane_marking", #"road_marks"
+  #"warning_signs",
+  "sign_traffic",  #"road_signs"
+  "traffic_light", #no light"s"
+  #"st_dir",  only 1,2 directions
+  "lane_bus", #"num_lane_total"
+  "sign_crossing",
+  "crosswalk",
+  #"pedxwalk_signs",
+  #"sign_school_zone", #removed bc correlated
+  #"stop_signs_v",
+  "sign_stop",  #rename
+  "sign_yield",  #rename
+  #"total_st_signs",
+  "bus_stop",  #gis-routes
+  "brt_station", #gis-routes
+  "speed_bump",
+  "lane_bike", #gis-length
+  # "traffic_fines_tot"
+  ##GIS below:
+  # "st_dir",
+  #"num_lanes_total",
+  "road_width"
+)
+
+# 2. Characteristics by tertile---------
+## to add counts -----
+ter_descrp <- predict312k_calle_adj %>% 
+  left_join(add_gis, by = "CodigoCL") %>% 
+  #rerun because school zone removed from features
+  dplyr::select(CodigoCL, st_dir, num_lanes_total, all_of(features)) %>% 
+  drop_na() %>% 
+  mutate(
+    across(all_of(features), ~na_if(., 0), .names = "{.col}_ter"), #turn to NA so that it doesn't get computed
+    across(ends_with("_ter"), ~ntile(., 3)),
+    across(ends_with("_ter"), ~replace_na(., 0)), #turn it back 0
+    across(ends_with("_ter"), ~factor(., levels = c("0", "1", "2", "3"))), #*change level  for descrp stat** 
+    
+    # lane factors:
+    num_lane = case_when(
+      num_lanes_total == 1 ~ "1",  #also numeric -> character
+      num_lanes_total == 2 ~ "2",
+      num_lanes_total %in% c(3, 4) ~ "3-4",
+      num_lanes_total >= 5 ~ "5+"
+    ),
+    num_lane = factor(num_lane, levels = c("1", "2", "3-4", "5+")), #change level  for descrp stat 
+    st_dir = factor(st_dir)
+  ) %>% 
+  left_join(collision_calle, by = "CodigoCL") %>% 
+  mutate(
+    across(injury:total, ~replace_na(., 0))
+  )
+## join covar --------
+ter_cov_descrp <- covar_100 %>%
+  left_join(pop800, by = "CodigoCL") %>% 
+  # scaling NOT needed in descrp stat
+  # mutate(
+  #   across(starts_with("pct"), ~ scale(.x)[,1])
+  # ) %>%  #remove pop_density
+  left_join(ses_100, by = "CodigoCL") %>% 
+  mutate(ses_cat_r = factor(ses_cat, levels = rev(levels(ses_cat)))) %>% 
+  left_join(road_type, by = "CodigoCL") %>% 
+  mutate(road_type2 = factor(road_type2, levels = c("Local", "Arterial", "Collector", "Other"))) %>% 
+  #rename(codigocl = CodigoCL) %>% 
+  right_join(ter_descrp, by = "CodigoCL") %>% 
+  drop_na(road_type2) |> 
+  mutate(collision_yn = if_else(total>0, 1, 0))  # for table1 presented by outcome
+
+### descrp stat ---------------
+ter_var <- ter_cov_descrp |> 
+  select(ends_with("_ter")) |> 
+  colnames() |> 
+  head(-1)
+
+ter_cov_descrp2 <- ter_cov_descrp |>  
+  select(CodigoCL, all_of(ter_var), road_width, st_dir, num_lane, 
+    pop_yr, pct_apt, pct_home, pct_unoccu, 
+    pct_male, 
+    pct_yr_0_9, pct_yr_10_19, pct_yr_20_29, pct_yr_30_39, pct_yr_40_49, pct_yr_50_59, pct_yr_60_69, pct_yr_70_79, pct_yr_80_plus, #20-29 included here, not in model
+    road_type2, 
+    ses_cat_r,
+    collision_yn) |> 
+  mutate(
+    collision_yn = case_match(
+      collision_yn,
+      0 ~ "Collision = 0",
+      1 ~ "Collision > 0"
+    )
+  )
+
+ter_cov_descrp2 |>
+  select(-CodigoCL) |> 
+  tbl_summary(
+    by = collision_yn,
+    missing = "no"
+  )
+
+
+### by tertiles 
+descrp_by_ter <- function(feature, data){
+  feature_ter <- paste0(feature, "_ter")
+  data |> 
+    group_by(across(all_of(feature_ter))) |> 
+    summarize(
+      median = median(.data[[feature]]),
+      q1 = quantile(.data[[feature]], 0.25),
+      q3 = quantile(.data[[feature]], 0.75)
+    ) |> 
+    mutate(
+      feature = feature
+    ) |> 
+    rename(tertile = all_of(feature_ter))
+}
+
+result <- map_dfr(features, ~descrp_by_ter(.x, ter_cov_descrp2))
