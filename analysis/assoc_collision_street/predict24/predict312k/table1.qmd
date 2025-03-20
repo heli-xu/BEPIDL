@@ -1,3 +1,13 @@
+---
+title: "table1_descrp_stat"
+format: docx
+execute: 
+  warning: false
+  message: false
+editor: visual
+---
+
+```{r}
 library(tidyverse)
 library(sf)
 library(MASS)
@@ -23,7 +33,9 @@ ses_100 <- readRDS("../../../../clean_data/covar_mzn/ses_calle100m.rds")
 #population from 800m buffer
 pop800 <- readRDS("../../../../clean_data/covar_mzn/pop_calle800m.rds") %>% 
   mutate(pop_yr = pop *5)  #2015-2019
+```
 
+```{r}
 # 1. prepare feature, cov, collision-----------------
 features <-  c(
   "trees",
@@ -105,11 +117,12 @@ ter_cov_descrp <- covar_100 %>%
 ter_var <- ter_cov_descrp |> 
   select(ends_with("_ter")) |> 
   colnames() |> 
-  head(-1)
+  head(-1)## road_width not presented in tertile
 
 ter_cov_descrp2 <- ter_cov_descrp |>  
-  select(CodigoCL, all_of(ter_var), road_width, st_dir, num_lane, 
-    pop_yr, pct_apt, pct_home, pct_unoccu, 
+  select(CodigoCL, all_of(features), all_of(ter_var), st_dir, num_lane, 
+    pop, # NO NEED to use pop_yr here, confusing 
+    pct_apt, pct_home, pct_unoccu, 
     pct_male, 
     pct_yr_0_9, pct_yr_10_19, pct_yr_20_29, pct_yr_30_39, pct_yr_40_49, pct_yr_50_59, pct_yr_60_69, pct_yr_70_79, pct_yr_80_plus, #20-29 included here, not in model
     road_type2, 
@@ -121,30 +134,84 @@ ter_cov_descrp2 <- ter_cov_descrp |>
       0 ~ "Collision = 0",
       1 ~ "Collision > 0"
     )
-  )
+  ) 
 
 ter_cov_descrp2 |>
-  select(-CodigoCL) |> 
+  select(-CodigoCL, -features[-18]) |> 
   tbl_summary(
     by = collision_yn,
+    label  = list(
+      trees_ter = "Trees",
+      median_ter = "Median",
+      median_barrier_ter = "Median Barrier",
+      sidewalk_ter = "Sidewalk",
+      sidewalk_obstruction_ter = "Sidewalk Obstruction",
+      lane_marking_ter = "Lane Marking",
+      sign_traffic_ter = "Traffic Sign",
+      traffic_light_ter = "Traffic Light",
+      lane_bus_ter = "Bus Lane",
+      sign_crossing_ter = "Crossing Sign",
+      crosswalk_ter = "Crosswalk",
+      sign_stop_ter = "Stop Sign",
+      sign_yield_ter = "Yield Sign",
+      bus_stop_ter = "Bus Stop",
+      brt_station_ter = "BRT Station",
+      speed_bump_ter = "Speed Bump",
+      lane_bike_ter = "Bike Lane",
+      road_width = "Road Width",
+      st_dir = "Street Direction",
+      num_lane = "Number of Lanes",
+      pct_apt = "Apartment (% of Total Dwellings)",
+      pct_home = "House (% of Total Dwellings)",
+      pct_unoccu = "Unoccupied (% of Total Dwellings)",
+      pop = "Population",
+      pct_male = "Male Population (%)",
+      pct_yr_0_9 = "Population Age 0-9 (%)",
+      pct_yr_10_19 = "Population Age 10-19 (%)",
+      pct_yr_20_29 = "Population Age 20-29 (%)",
+      pct_yr_30_39 = "Population Age 30-39 (%)",
+      pct_yr_40_49 = "Population Age 40-49 (%)",
+      pct_yr_50_59 = "Population Age 50-59 (%)",
+      pct_yr_60_69 = "Population Age 60-69 (%)",
+      pct_yr_70_79 = "Population Age 70-79 (%)",
+      pct_yr_80_plus = "Population Age 80+ (%)",
+      road_type2 = "Road Type",
+      ses_cat_r = "Socioeconomic Status Category"
+    ),
     missing = "no"
-  )
+  ) |> 
+  bold_labels() |> 
+  as_flex_table() 
+```
 
+```{r}
 
-### by tertiles 
-descrp_by_ter <- function(feature, data){
+ter_cov_descrp2 |> 
+  select(-CodigoCL) |> 
+  filter(trees_ter != "0") |>
+  mutate(trees_ter = fct_drop(trees_ter)) |> 
+  tbl_summary(
+    by = "trees_ter",
+    include = "trees"
+  ) 
+
+tbl_summary_x <- function(feature, data){
   feature_ter <- paste0(feature, "_ter")
   data |> 
-    group_by(across(all_of(feature_ter))) |> 
-    summarize(
-      median = median(.data[[feature]]),
-      q1 = quantile(.data[[feature]], 0.25),
-      q3 = quantile(.data[[feature]], 0.75)
+    filter(.data[[feature_ter]] != "0") |> 
+    mutate(!!feature_ter := fct_drop(.data[[feature_ter]])) |> 
+    tbl_summary(
+      by = {{feature_ter}},
+      include = {{feature}}
     ) |> 
-    mutate(
-      feature = feature
-    ) |> 
-    rename(tertile = all_of(feature_ter))
+    modify_header(all_stat_cols() ~ "**{level}**") 
 }
 
-result <- map_dfr(features, ~descrp_by_ter(.x, ter_cov_descrp2))
+result <- map(features[-18], ~tbl_summary_x(.x, ter_cov_descrp2))
+
+tbl_stack(result) |> 
+  modify_spanning_header(all_stat_cols() ~ "**Area-adjusted Count of Street Features**") |> 
+  modify_footnote(all_stat_cols()~ "Median (Q1, Q3) of each nonzero tertile") |> 
+  bold_labels() |> 
+  as_flex_table()
+```
