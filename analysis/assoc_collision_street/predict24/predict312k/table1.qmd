@@ -112,7 +112,10 @@ ter_cov_descrp <- covar_100 %>%
   right_join(ter_descrp, by = "CodigoCL") %>% 
   drop_na(road_type2) |> 
   mutate(collision_yn = if_else(total>0, 1, 0))  # for table1 presented by outcome
+```
 
+## table1
+```{r}
 ### descrp stat ---------------
 ter_var <- ter_cov_descrp |> 
   select(ends_with("_ter")) |> 
@@ -184,6 +187,7 @@ ter_cov_descrp2 |>
   as_flex_table() 
 ```
 
+## table 2
 ```{r}
 
 ter_cov_descrp2 |> 
@@ -214,4 +218,28 @@ tbl_stack(result) |>
   modify_footnote(all_stat_cols()~ "Median (Q1, Q3) of each nonzero tertile") |> 
   bold_labels() |> 
   as_flex_table()
+```
+
+## fig 1-map of collision st
+```{r}
+calle_sf <- readRDS("../../../../clean_data/calles/calle_shapefile.rds")
+
+collision_sf <- collision_calle |> 
+  left_join(calle_sf, by = "CodigoCL") |> 
+  st_as_sf()
+
+analysis_sf <- ter_cov_descrp |> 
+  select(CodigoCL) |> 
+  left_join(calle_sf, by = "CodigoCL") |> 
+  st_as_sf()
+
+ggplot()+
+  geom_sf(data = analysis_sf)+
+  geom_sf(data = collision_sf, color = "red")+
+  theme_bw()+
+  theme(
+    panel.grid = element_blank(),
+    axis.text = element_blank(),
+    axis.ticks = element_blank()
+  )
 ```
