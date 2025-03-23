@@ -5,6 +5,12 @@ library(broom)
 
 # 0. import data----------------
 predict312k_calle_adj <- readRDS("../../../../clean_data/predict24/calle_predict24_1519adj.rds")
+
+#additional road characteristics
+add_gis <- readRDS("../../../../clean_data/calles/calle_rename_adj_df.rds") %>% 
+  dplyr::select(CodigoCL = codigocl,
+    road_width, num_lanes_total, st_dir) 
+
 #collision from raw (need to populate 0)
 collision_calle <- readRDS("../../../../clean_data/collision/collision_calle_df.rds")
 #covariates
@@ -46,25 +52,39 @@ features <-  c(
   "bus_stop",  #gis-routes
   "brt_station", #gis-routes
   "speed_bump",
-  "lane_bike" #gis-length
+  "lane_bike", #gis-length; here counts
  # "traffic_fines_tot"
+  ###GIS below:###
+  "road_width"
 )
 
 # 2. Join feature - collision --------
 ## 2.1 Zeroes, nonzero Tertiles, factored--------------
 calle_tertile <- predict312k_calle_adj %>% 
-  dplyr::select(CodigoCL, all_of(features)) %>% 
-  #drop_na()
+  left_join(add_gis, by = "CodigoCL") %>% 
+  #rerun because school zone removed from features
+  dplyr::select(CodigoCL, st_dir, num_lanes_total, all_of(features)) %>% 
+  drop_na() %>% 
   mutate(
     across(all_of(features), ~na_if(., 0)), #turn to NA so that it doesn't get computed
     across(all_of(features), ~ntile(., 3), .names = "{.col}"),
     across(all_of(features), ~replace_na(., 0)), #turn it back 0
-    across(all_of(features), ~factor(., levels = c("1", "0", "2", "3")))
+    across(all_of(features), ~factor(., levels = c("1", "0", "2", "3"))),
+    # lane factors:
+    num_lane = case_when(
+      num_lanes_total == 1 ~ "1",  #also numeric -> character
+      num_lanes_total == 2 ~ "2",
+      num_lanes_total %in% c(3, 4) ~ "3-4",
+      num_lanes_total >= 5 ~ "5+"
+    ),
+    num_lane = factor(num_lane, levels = c("2", "1", "3-4", "5+")),
+    st_dir = factor(st_dir)
   ) %>% 
   left_join(collision_calle, by = "CodigoCL") %>% 
   mutate(
     across(injury:total, ~replace_na(., 0))
   )
+
 
 ## zeros in feature count --------
 count_zero <- calle_tertile %>% 
@@ -103,6 +123,7 @@ collision_covar_rd_ter <- covar_100 %>%
   right_join(calle_tertile, by = "CodigoCL") %>% 
   drop_na(road_type2)
 
+
 ## 3.2 YN --------------
 collision_covar_rd_yn <- covar_100 %>%
   left_join(pop800, by = "CodigoCL") %>% 
@@ -134,8 +155,16 @@ fit_features_x <- function(predictor, data){
 test <- fit_features_x("median", collision_covar_rd_ter)
 summary(test)
 
+## complete data analysis----
+all_features <- c(features, "num_lane", "st_dir")
+
+collision_covar_rd_ter2 <- collision_covar_rd_ter |> 
+  select(CodigoCL, pop_yr, pct_apt, pct_home, pct_unoccu, pop_density, pct_male, pct_yr_0_9, pct_yr_10_19, pct_yr_30_39, pct_yr_40_49, pct_yr_50_59, pct_yr_60_69, pct_yr_70_79, pct_yr_80_plus, road_type2, ses_cat_r, all_of(all_features), total, injury, death) |> 
+  drop_na()
+# 43496->43342
+
 ##  4.1 tertiles-------------
-fit_allfeatures <- map(features, \(x) fit_features_x(x, data = collision_covar_rd_ter))
+fit_allfeatures <- map(all_features, \(x) fit_features_x(x, data = collision_covar_rd_ter2))
 
 feature_df <- map_df(fit_allfeatures,
   \(x) tidy(x, conf.int = TRUE, exponentiate = TRUE))
@@ -176,7 +205,7 @@ fea_plot_RR <- feature_RR %>%
       "sidewalk" ~ "Sidewalk",
       "sidewalk_obstruction" ~ "Sidewalk Obstruction",
       "lane_marking" ~ "Lane Marking",
-      "sign_traffic" ~ "Sign Traffic",
+      "sign_traffic" ~ "Traffic Sign",
       "traffic_light" ~ "Traffic Light",
       "lane_bus" ~ "Bus Lane",
       "sign_crossing" ~ "Crossing Sign",
