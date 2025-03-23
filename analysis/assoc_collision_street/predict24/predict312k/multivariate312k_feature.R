@@ -118,11 +118,16 @@ pg_ter_covar <- covar_100 %>%
   right_join(pg_calle_ter, by = "CodigoCL") %>% 
   drop_na(road_type2)
 
+### 1.2.3 Complete data analysis----
+pg_ter_covar2 <- pg_ter_covar |> 
+  select(CodigoCL, pop_yr, pct_apt, pct_home, pct_unoccu, pop_density, pct_male, pct_yr_0_9, pct_yr_10_19, pct_yr_30_39, pct_yr_40_49, pct_yr_50_59, pct_yr_60_69, pct_yr_70_79, pct_yr_80_plus, road_type2, ses_cat_r, all_of(features), st_dir, num_lane, total, injury, death) |> 
+  drop_na()
+# 43396->43342
 
 
 # 2. Model-----------
 
-multi_feature_ter <- glm.nb(total ~trees + median + median_barrier + sidewalk + sidewalk_obstruction + lane_marking + sign_traffic + traffic_light + lane_bus + sign_crossing + crosswalk + sign_stop + sign_yield + bus_stop + brt_station + speed_bump + lane_bike + road_width + st_dir + road_width + num_lane + offset(log(pop_yr)) + pct_apt + pct_home + pct_unoccu + pct_male + pct_yr_0_9 + pct_yr_10_19 + pct_yr_30_39 + pct_yr_40_49 + pct_yr_50_59 + pct_yr_60_69 + pct_yr_70_79 + pct_yr_80_plus + road_type2 + ses_cat_r, data = pg_ter_covar)
+multi_feature_ter <- glm.nb(total ~trees + median + median_barrier + sidewalk + sidewalk_obstruction + lane_marking + sign_traffic + traffic_light + lane_bus + sign_crossing + crosswalk + sign_stop + sign_yield + bus_stop + brt_station + speed_bump + lane_bike + road_width + st_dir + num_lane + offset(log(pop_yr)) + pct_apt + pct_home + pct_unoccu + pct_male + pct_yr_0_9 + pct_yr_10_19 + pct_yr_30_39 + pct_yr_40_49 + pct_yr_50_59 + pct_yr_60_69 + pct_yr_70_79 + pct_yr_80_plus + road_type2 + ses_cat_r, data = pg_ter_covar2)
 
 multi_feature_df <- tidy(multi_feature_ter, conf.int = TRUE, exponentiate = TRUE)
 
