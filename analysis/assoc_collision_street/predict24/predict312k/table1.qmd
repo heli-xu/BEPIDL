@@ -54,7 +54,7 @@ features <-  c(
   "sign_crossing",
   "crosswalk",
   #"pedxwalk_signs",
-  #"sign_school_zone", #removed bc correlated
+  "sign_school_zone", #removed bc correlated
   #"stop_signs_v",
   "sign_stop",  #rename
   "sign_yield",  #rename
@@ -114,9 +114,9 @@ ter_cov_descrp <- covar_100 %>%
   mutate(collision_yn = if_else(total>0, 1, 0))  # for table1 presented by outcome
 ```
 
-## table1
+## table1 (with school zone)
 ```{r}
-### descrp stat ---------------
+### complete case analysis ------
 ter_var <- ter_cov_descrp |> 
   select(ends_with("_ter")) |> 
   colnames() |> 
@@ -137,10 +137,12 @@ ter_cov_descrp2 <- ter_cov_descrp |>
       0 ~ "Collision = 0",
       1 ~ "Collision > 0"
     )
-  ) 
+  ) |> 
+  drop_na()
 
+### descrp stat-------
 ter_cov_descrp2 |>
-  select(-CodigoCL, -features[-18]) |> 
+  select(-CodigoCL, -features[-length(features)]) |> 
   tbl_summary(
     by = collision_yn,
     label  = list(
@@ -211,7 +213,7 @@ tbl_summary_x <- function(feature, data){
     modify_header(all_stat_cols() ~ "**{level}**") 
 }
 
-result <- map(features[-18], ~tbl_summary_x(.x, ter_cov_descrp2))
+result <- map(features[-length(features)], ~tbl_summary_x(.x, ter_cov_descrp2))
 
 tbl_stack(result) |> 
   modify_spanning_header(all_stat_cols() ~ "**Area-adjusted Count of Street Features**") |> 
@@ -222,6 +224,7 @@ tbl_stack(result) |>
 
 ## fig 1-map of collision st
 ```{r}
+#| fig-height: 9
 calle_sf <- readRDS("../../../../clean_data/calles/calle_shapefile.rds")
 
 collision_sf <- collision_calle |> 
@@ -234,12 +237,137 @@ analysis_sf <- ter_cov_descrp |>
   st_as_sf()
 
 ggplot()+
-  geom_sf(data = analysis_sf)+
-  geom_sf(data = collision_sf, color = "red")+
-  theme_bw()+
+  geom_sf(data = analysis_sf, aes(color = "Streets without collisions"), size = 0.5, fill = NA)+
+  geom_sf(data = collision_sf, aes(color = "Streets with collisions"), size = 0.5, fill = NA)+
+  scale_color_manual(values = c("Streets with collisions" = "#F76806", "Streets without collisions" = "#808080"))+
+  theme_minimal()+
+  labs(
+    color = ""
+  )+
   theme(
+    panel.background = element_rect(color = "black"),
     panel.grid = element_blank(),
     axis.text = element_blank(),
-    axis.ticks = element_blank()
+    axis.ticks = element_blank(),
+    legend.position = "inside",
+    legend.position.inside = c(0.8, 0.05)
   )
+```
+
+## fig 2-univariate analysis
+```{r}
+#| fig-height: 9
+pg_features <- c("st_dir", "num_lane", features)
+source("../../../../functions/plot_facet_RR.R")
+feature_RR <- readRDS("feature312k_ter_RR.rds")
+
+fea_plot_RR <- feature_RR %>%
+  mutate(tertile = str_sub(term,-1),
+    predictor = str_sub(term, end = -2)) %>% 
+  filter(predictor %in% features) %>% 
+  mutate(
+    predictor = case_match(
+      predictor,
+      "trees" ~ "Trees",
+      "median" ~ "Median",
+      "median_barrier" ~ "Median Barrier",
+      "sidewalk" ~ "Sidewalk",
+      "sidewalk_obstruction" ~ "Sidewalk Obstruction",
+      "lane_marking" ~ "Lane Marking",
+      "sign_traffic" ~ "Traffic Sign",
+      "traffic_light" ~ "Traffic Light",
+      "lane_bus" ~ "Bus Lane",
+      "sign_crossing" ~ "Crossing Sign",
+      "crosswalk" ~ "Crosswalk",
+      "sign_school_zone" ~ "School Zone Sign", #not in multivariate
+      "sign_stop" ~ "Stop Sign",
+      "sign_yield" ~ "Yield Sign",
+      "bus_stop" ~ "Bus Stop",
+      "brt_station" ~ "Brt Station",
+      "speed_bump" ~ "Speed Bump",
+      "lane_bike" ~ "Bike Lane",
+      "road_width" ~ "Road Width",
+      "st_dir" ~ "St. Directions",
+      "num_lane" ~ "Total Lanes"
+    ),
+    category = case_match(tertile,
+      ")" ~ "Low (ref)",
+      "0" ~ "Zero",
+      "2" ~ "Medium",
+      "3" ~ "High")
+  )
+
+fea_plot_RR %>% 
+  plot_facet_RR()+
+  labs(
+    subtitle = "Offset by population within 800m from each street. Adjusted for types of dwellings,\nage groups, sex composition, road types and SES within 100m from streets.",
+    caption = "Values of street features are separated into zeros and nonzero tertiles for analysis.\n Comparisons are relative to the 'Low' category."
+  )+
+  theme(
+    plot.title.position = "plot"
+  )
+```
+
+## fig 3-multivariatae analysis
+```{r}
+source("../../../../functions/plot_facet_RR.R")
+
+multi_feature_RR <- readRDS("multi_feature312k_ter_RR.rds")
+
+
+fea_plot_RR <- multi_feature_RR %>% 
+  mutate(
+    #note the modification for num_lane
+    tertile = if_else(term %in% c("num_lane1","num_lane3-4", "num_lane5+"), 
+      str_sub(term, 9), str_sub(term,-1)),
+    predictor = case_when(
+      term %in% c("num_lane1","num_lane3-4", "num_lane5+") ~ "num_lane",
+      .default = str_sub(term, end = -2)
+    )) %>%
+  filter(predictor %in% pg_features) %>%
+  mutate(
+    predictor = case_match(
+      predictor,
+      "trees" ~ "Trees",
+      "median" ~ "Median",
+      "median_barrier" ~ "Median Barrier",
+      "sidewalk" ~ "Sidewalk",
+      "sidewalk_obstruction" ~ "Sidewalk Obstruction",
+      "lane_marking" ~ "Lane Marking",
+      "sign_traffic" ~ "Sign Traffic",
+      "traffic_light" ~ "Traffic Light",
+      "lane_bus" ~ "Bus Lane",
+      "sign_crossing" ~ "Crossing Sign",
+      "crosswalk" ~ "Crosswalk",
+      #"sign_school_zone" ~ "School Zone Sign", #not in multivariate
+      "sign_stop" ~ "Stop Sign",
+      "sign_yield" ~ "Yield Sign",
+      "bus_stop" ~ "Bus Stop",
+      "brt_station" ~ "Brt Station",
+      "speed_bump" ~ "Speed Bump",
+      "lane_bike" ~ "Bike Lane",
+      "road_width" ~ "Road Width",
+      "st_dir" ~ "St. Directions",
+      "num_lane" ~ "Total Lanes"
+    ),
+    category = case_match(tertile,
+      ")" ~ "Low (ref)",
+      "0" ~ "Zero",
+      "2" ~ "Medium",
+      "3" ~ "High",
+      .default = tertile),
+    category = if_else(predictor == "st_dir", "double", category)
+  )
+
+fea_plot_RR %>% 
+  plot_facet_RR()+
+  scale_fill_manual(values = rep(c("#ffffff00", "#B6D0E2"), 20), guide = "none")+
+  labs(
+    subtitle = "Offset by population within 800m from each street. Adjusted for types of dwellings,\nage groups, sex composition, road types and SES within 100m from streets.",
+    caption = "'St. Directions' is included as 1 and 2 directions, relative to 1. \n'Total Lanes' is included as categories of total lane counts, relative to 2 lanes. \nOther street features are separated into zeros and nonzero tertiles for analysis.\n Comparisons are relative to the 'Low' category."
+  )+
+  theme(
+    plot.title.position = "plot"
+  )
+
 ```
