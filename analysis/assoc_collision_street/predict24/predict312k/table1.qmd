@@ -256,15 +256,22 @@ ggplot()+
 
 ## fig 2-univariate analysis
 ```{r}
-#| fig-height: 9
+#| fig-height: 8
+#| fig-width: 7.5
 pg_features <- c("st_dir", "num_lane", features)
 source("../../../../functions/plot_facet_RR.R")
 feature_RR <- readRDS("feature312k_ter_RR.rds")
 
 fea_plot_RR <- feature_RR %>%
-  mutate(tertile = str_sub(term,-1),
-    predictor = str_sub(term, end = -2)) %>% 
-  filter(predictor %in% features) %>% 
+  mutate(
+    #note the modification for num_lane
+    tertile = if_else(term %in% c("num_lane1","num_lane3-4", "num_lane5+"), 
+      str_sub(term, 9), str_sub(term,-1)),
+    predictor = case_when(
+      term %in% c("num_lane1","num_lane3-4", "num_lane5+") ~ "num_lane",
+      .default = str_sub(term, end = -2)
+    )) %>% 
+  filter(predictor %in% pg_features) %>% 
   mutate(
     predictor = case_match(
       predictor,
@@ -294,14 +301,16 @@ fea_plot_RR <- feature_RR %>%
       ")" ~ "Low (ref)",
       "0" ~ "Zero",
       "2" ~ "Medium",
-      "3" ~ "High")
+      "3" ~ "High",
+      .default = tertile),
+    category = if_else(predictor == "St. Directions", "2-way", category)
   )
 
 fea_plot_RR %>% 
   plot_facet_RR()+
   labs(
     subtitle = "Offset by population within 800m from each street. Adjusted for types of dwellings,\nage groups, sex composition, road types and SES within 100m from streets.",
-    caption = "Values of street features are separated into zeros and nonzero tertiles for analysis.\n Comparisons are relative to the 'Low' category."
+    caption = "'St. Directions' is included as '1-way' and '2-way', relative to '1-way'. \n'Total Lanes' is included as categories of total lane counts, relative to 2 lanes. \nOther street features are separated into zeros and nonzero tertiles for analysis.\n Comparisons are relative to the 'Low' category."
   )+
   theme(
     plot.title.position = "plot"
@@ -310,6 +319,8 @@ fea_plot_RR %>%
 
 ## fig 3-multivariatae analysis
 ```{r}
+#| fig-height: 8
+#| fig-width: 7.5
 source("../../../../functions/plot_facet_RR.R")
 
 multi_feature_RR <- readRDS("multi_feature312k_ter_RR.rds")
@@ -356,7 +367,7 @@ fea_plot_RR <- multi_feature_RR %>%
       "2" ~ "Medium",
       "3" ~ "High",
       .default = tertile),
-    category = if_else(predictor == "st_dir", "double", category)
+    category = if_else(predictor == "St. Directions", "2-way", category)
   )
 
 fea_plot_RR %>% 
@@ -364,7 +375,7 @@ fea_plot_RR %>%
   scale_fill_manual(values = rep(c("#ffffff00", "#B6D0E2"), 20), guide = "none")+
   labs(
     subtitle = "Offset by population within 800m from each street. Adjusted for types of dwellings,\nage groups, sex composition, road types and SES within 100m from streets.",
-    caption = "'St. Directions' is included as 1 and 2 directions, relative to 1. \n'Total Lanes' is included as categories of total lane counts, relative to 2 lanes. \nOther street features are separated into zeros and nonzero tertiles for analysis.\n Comparisons are relative to the 'Low' category."
+    caption = "'St. Directions' is included as '1-way' and '2-way', relative to '1-way'. \n'Total Lanes' is included as categories of total lane counts, relative to 2 lanes. \nOther street features are separated into zeros and nonzero tertiles for analysis.\n Comparisons are relative to the 'Low' category."
   )+
   theme(
     plot.title.position = "plot"
