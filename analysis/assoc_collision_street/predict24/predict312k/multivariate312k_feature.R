@@ -118,7 +118,7 @@ pg_ter_covar <- covar_100 %>%
   right_join(pg_calle_ter, by = "CodigoCL") %>% 
   drop_na(road_type2)
 
-### 1.2.3 Complete data analysis----
+### 1.2.3 Complete case analysis----
 pg_ter_covar2 <- pg_ter_covar |> 
   select(CodigoCL, pop_yr, pct_apt, pct_home, pct_unoccu, pop_density, pct_male, pct_yr_0_9, pct_yr_10_19, pct_yr_30_39, pct_yr_40_49, pct_yr_50_59, pct_yr_60_69, pct_yr_70_79, pct_yr_80_plus, road_type2, ses_cat_r, all_of(features), st_dir, num_lane, total, injury, death) |> 
   drop_na()

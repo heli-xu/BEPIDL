@@ -13,6 +13,7 @@ library(sf)
 library(MASS)
 library(broom)
 library(gtsummary)
+library(patchwork)
 
 # 0. import data----------------
 predict312k_calle_adj <- readRDS("../../../../clean_data/predict24/calle_predict24_1519adj.rds")
@@ -262,7 +263,7 @@ pg_features <- c("st_dir", "num_lane", features)
 source("../../../../functions/plot_facet_RR.R")
 feature_RR <- readRDS("feature312k_ter_RR.rds")
 
-fea_plot_RR <- feature_RR %>%
+fea_plot_RR1 <- feature_RR %>%
   mutate(
     #note the modification for num_lane
     tertile = if_else(term %in% c("num_lane1","num_lane3-4", "num_lane5+"), 
@@ -306,7 +307,7 @@ fea_plot_RR <- feature_RR %>%
     category = if_else(predictor == "St. Directions", "2-way", category)
   )
 
-fea_plot_RR %>% 
+fea_plot_RR1 %>% 
   plot_facet_RR()+
   labs(
     subtitle = "Offset by population within 800m from each street. Adjusted for types of dwellings,\nage groups, sex composition, road types and SES within 100m from streets.",
@@ -326,7 +327,7 @@ source("../../../../functions/plot_facet_RR.R")
 multi_feature_RR <- readRDS("multi_feature312k_ter_RR.rds")
 
 
-fea_plot_RR <- multi_feature_RR %>% 
+fea_plot_RR2 <- multi_feature_RR %>% 
   mutate(
     #note the modification for num_lane
     tertile = if_else(term %in% c("num_lane1","num_lane3-4", "num_lane5+"), 
@@ -345,7 +346,7 @@ fea_plot_RR <- multi_feature_RR %>%
       "sidewalk" ~ "Sidewalk",
       "sidewalk_obstruction" ~ "Sidewalk Obstruction",
       "lane_marking" ~ "Lane Marking",
-      "sign_traffic" ~ "Sign Traffic",
+      "sign_traffic" ~ "Traffic Sign",
       "traffic_light" ~ "Traffic Light",
       "lane_bus" ~ "Bus Lane",
       "sign_crossing" ~ "Crossing Sign",
@@ -370,7 +371,7 @@ fea_plot_RR <- multi_feature_RR %>%
     category = if_else(predictor == "St. Directions", "2-way", category)
   )
 
-fea_plot_RR %>% 
+fea_plot_RR2 %>% 
   plot_facet_RR()+
   scale_fill_manual(values = rep(c("#ffffff00", "#B6D0E2"), 20), guide = "none")+
   labs(
@@ -380,5 +381,113 @@ fea_plot_RR %>%
   theme(
     plot.title.position = "plot"
   )
+
+```
+
+## univariate-RR tables
+```{r}
+fea_plot_RR1 |> 
+  select(predictor, category, RR_95CI, p.value) |> 
+  knitr::kable()
+
+```
+
+## multivariate - RR tables
+```{r}
+fea_plot_RR2 |> 
+  select(predictor, category, RR_95CI, p.value) |> 
+  knitr::kable()
+
+```
+
+## Road-type stratified analysis
+```{r}
+#| fig-width: 9
+#| fig-height: 8
+art_ter_RR <- readRDS("rdtype_strat312k/multi_art_ter_RR.rds")
+col_ter_RR <- readRDS("rdtype_strat312k/multi_col_ter_RR.rds")
+
+rdtype_RR <- bind_rows(art_ter_RR, col_ter_RR) %>% 
+  mutate(
+    #note the modification for num_lane
+    tertile = if_else(term %in% c("num_lane1","num_lane3-4", "num_lane5+"), 
+      str_sub(term, 9), str_sub(term,-1)),
+    predictor = case_when(
+      term %in% c("num_lane1","num_lane3-4", "num_lane5+") ~ "num_lane",
+      .default = str_sub(term, end = -2)
+    )) %>%
+  filter(predictor %in% pg_features) %>%
+  mutate(
+    predictor = case_match(
+      predictor,
+      "trees" ~ "Trees",
+      "median" ~ "Median",
+      "median_barrier" ~ "Median Barrier",
+      "sidewalk" ~ "Sidewalk",
+      "sidewalk_obstruction" ~ "Sidewalk Obstruction",
+      "lane_marking" ~ "Lane Marking",
+      "sign_traffic" ~ "Traffic Sign",
+      "traffic_light" ~ "Traffic Light",
+      "lane_bus" ~ "Bus Lane",
+      "sign_crossing" ~ "Crossing Sign",
+      "crosswalk" ~ "Crosswalk",
+      #"sign_school_zone" ~ "School Zone Sign", #not in multivariate
+      "sign_stop" ~ "Stop Sign",
+      "sign_yield" ~ "Yield Sign",
+      "bus_stop" ~ "Bus Stop",
+      "brt_station" ~ "Brt Station",
+      "speed_bump" ~ "Speed Bump",
+      "lane_bike" ~ "Bike Lane",
+      "road_width" ~ "Road Width",
+      "st_dir" ~ "St. Directions",
+      "num_lane" ~ "Total Lanes"
+    ),
+    category = case_match(
+      tertile,
+      ")" ~ "Low (ref)",
+      "0" ~ "Zero",
+      "2" ~ "Medium",
+      "3" ~ "High",
+      .default = tertile
+    ),
+    category = if_else(predictor == "St. Directions", "2-way", category)
+  )
+
+p3_arterial <- rdtype_RR %>% 
+  filter(road_type == "arterial") %>% 
+  plot_facet_RR()+
+  scale_fill_manual(values = rep(c("#ffffff00", "#B6D0E2"), 20), guide = "none")+
+  labs(
+    title = "Arterial roads",
+    caption = ""
+  )+
+  theme(plot.title = element_text(size = 11, hjust = 0))
+
+p3_collector <- rdtype_RR %>% 
+  filter(road_type == "collector") %>% 
+  plot_facet_RR()+
+  scale_fill_manual(values = rep(c("#ffffff00", "#B6D0E2"), 20), guide = "none")+
+  labs(
+    y = "",
+    title = "Collector roads",
+    caption = "'St. Directions' is included as '1-way' and '2-way', relative to '1-way'. \n'Total Lanes' is included as categories of total lane counts, relative to 2 lanes. \nOther street features are separated into zeros and nonzero tertiles for analysis.\n Comparisons are relative to the 'Low' category."
+  )+
+  theme(plot.title = element_text(size = 11, hjust = 0))
+
+(p3_arterial|p3_collector) +
+  plot_annotation(
+    'Road type-stratified association of street features with pedestrian collisions in Bogotá',
+    theme=theme(plot.title=element_text(size=12, face = "bold"))
+  )
+
+```
+
+## road-type stratified RR tables
+```{r}
+rdtype_RR |> 
+  mutate(RR_95CI = paste0(round(estimate, 2)," (", round(conf.low, 2), ",", round(conf.high, 2), ")")
+  ) |> 
+  select(predictor, category, RR_95CI, p.value) |> 
+  knitr::kable()
 
 ```
