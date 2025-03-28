@@ -68,14 +68,71 @@ cor_matrix <- cor(pg_calle[,-1])
 
 cor_matrix[upper.tri(cor_matrix, diag = FALSE)] <- NA
 # 'FALSE' keep the diag 1, to filter it's better to keep TRUE, but for the look of table, I set as FALSE
+
+mx0.6 <- cor_matrix[cor_matrix > 0.6] # a vector of values >0.6
 # >0.6 only those with related variables
 ##school sign with traffic sign >0.6
 
+# format table
+cor_mx <- cor_matrix |> 
+  as_tibble() |> 
+  rename(
+    "Feature" = '...1', # check this might not be right (for read in csv)
+    "Trees" = "trees",
+    "Median" = "median",
+    "Median Barrier" = "median_barrier",
+    "Sidewalk" = "sidewalk",
+    "Sidewalk Obstruction" = "sidewalk_obstruction",
+    "Lane Marking" = "lane_marking",
+    "Traffic Sign" = "sign_traffic",
+    "Traffic Light" = "traffic_light",
+    "Bus Lane" = "lane_bus",
+    "Crossing Sign" = "sign_crossing",
+    "Crosswalk" = "crosswalk",
+    "School Zone Sign" = "sign_school_zone", 
+    "Stop Sign" = "sign_stop",
+    "Yield Sign" = "sign_yield",
+    "Bus Stop" = "bus_stop",
+    "BRT Station" = "brt_station",
+    "Speed Bump" = "speed_bump",
+    "Bike Lane" = "lane_bike",
+    "Road Width" = "road_width",
+    "St. Directions" = "st_dir",
+    "Total Lanes" = "num_lanes_total"
+  ) |> 
+  mutate(
+    across(-Feature, ~round(., 2)),
+    across(-Feature, ~as.character(.)),
+    across(-Feature, ~replace_na(., "")),
+    Feature = case_match(
+      Feature,
+      "trees" ~ "Trees",
+      "median" ~ "Median",
+      "median_barrier" ~ "Median Barrier",
+      "sidewalk" ~ "Sidewalk",
+      "sidewalk_obstruction" ~ "Sidewalk Obstruction",
+      "lane_marking" ~ "Lane Marking",
+      "sign_traffic" ~ "Traffic Sign",
+      "traffic_light" ~ "Traffic Light",
+      "lane_bus" ~ "Bus Lane",
+      "sign_crossing" ~ "Crossing Sign",
+      "crosswalk" ~ "Crosswalk",
+      "sign_school_zone" ~ "School Zone Sign",
+      "sign_stop" ~ "Stop Sign",
+      "sign_yield" ~ "Yield Sign",
+      "bus_stop" ~ "Bus Stop",
+      "brt_station" ~ "BRT Station",
+      "speed_bump" ~ "Speed Bump",
+      "lane_bike" ~ "Bike Lane",
+      "road_width" ~ "Road Width",
+      "st_dir" ~ "St. Directions",
+      "num_lanes_total" ~ "Total Lanes"
+    )
+  ) 
+
+write.csv(cor_mx, file = "correlation_matrix312k.csv", row.names = TRUE)
+
 ###school sign removed####
-
-mx0.6 <- cor_matrix[cor_matrix > 0.6] # a vector of values >0.6
-
-write.csv(cor_matrix, file = "correlation_matrix312k.csv", row.names = TRUE)
 
 ## 1.2 Tertiles --------
 ### 1.2.1 join prediction-GIS, collision ---------
