@@ -286,7 +286,7 @@ profile_covar_rd <- ses_zat %>%
   dplyr::select(ZAT, ses_cat) %>% 
   mutate(ses_cat_r = factor(ses_cat, levels = rev(levels(ses_cat)))) %>% 
   left_join(profile, by = "ZAT") %>% 
-  mutate(clus = factor(clus, levels = c(2,1,3,4))) %>%  #note the ref level
+  mutate(clus = factor(clus, levels = c(4,1,2,3))) %>%  #note the ref level
   #drop_na(clus) %>% 
   left_join(col_ped_zat, by = "ZAT") %>% 
   left_join(traffic %>% 
@@ -303,7 +303,7 @@ profile_covar_rd <- ses_zat %>%
 ### using IPM---------
 profile_ipm_covar <- profile %>% 
   left_join(ipm, by = "ZAT") %>% 
-  mutate(clus = factor(clus, levels = c(2,1,3,4))) %>% #note the ref level
+  mutate(clus = factor(clus, levels = c(4,1,2,3))) %>% #note the ref level
   #drop_na(clus) %>% 
   left_join(col_ped_zat, by = "ZAT") %>% 
   left_join(traffic %>% 
@@ -383,19 +383,21 @@ prof_covar_rd_RR <- bind_rows(injury_co3_df, death_co3_df, total_co3_df) %>%
   mutate(predictor = case_match(
     term,
     ## note to change below based on ref!
-    "(Intercept)" ~ "profile_2",
+    "(Intercept)" ~ "profile_4",
     "clus1" ~ "profile_1",
+    "clus2" ~ "profile_2",
     "clus3" ~ "profile_3",
-    "clus4" ~ "profile_4",
     .default = "(Covariates)"
   ),
     .before = "term") 
 
 saveRDS(prof_covar_rd_RR, file = "predict312k_profile/profile_ses_RR_ref3.rds")
 saveRDS(prof_covar_rd_RR, file = "predict312k_profile/profile_ses_RR_ref2.rds")
+saveRDS(prof_covar_rd_RR, file = "predict312k_profile/profile_ses_RR_ref4.rds")
 
 saveRDS(prof_covar_rd_RR, file = "predict312k_profile/profile_ipm_RR_ref3.rds")
 saveRDS(prof_covar_rd_RR, file = "predict312k_profile/profile_ipm_RR_ref2.rds")
+saveRDS(prof_covar_rd_RR, file = "predict312k_profile/profile_ipm_RR_ref4.rds")
 
 prof_covar_RR_csv <- prof_covar_rd_RR %>% 
   dplyr::select(
@@ -409,9 +411,12 @@ prof_covar_RR_csv <- prof_covar_rd_RR %>%
 
 write_csv(prof_covar_RR_csv, file = "predict312k_profile/zat_profile_predict1519_ses_ref3_RR.csv")
 write_csv(prof_covar_RR_csv, file = "predict312k_profile/zat_profile_predict1519_ses_ref2_RR.csv")
+write_csv(prof_covar_RR_csv, file = "predict312k_profile/zat_profile_predict1519_ses_ref4_RR.csv")
 
 write_csv(prof_covar_RR_csv, file = "predict312k_profile/zat_profile_predict1519_ipm_ref3_RR.csv")
 write_csv(prof_covar_RR_csv, file = "predict312k_profile/zat_profile_predict1519_ipm_ref2_RR.csv")
+write_csv(prof_covar_RR_csv, file = "predict312k_profile/zat_profile_predict1519_ipm_ref4_RR.csv")
+
 
 ## 5.4 visualize --------
 
@@ -452,7 +457,7 @@ ipm_RR %>%
     plot.title.position = "plot"
   )
 
-## ref =2-------
+### ref =2-------
 ses_RR2 <- readRDS("predict312k_profile/profile_ses_RR_ref2.rds")
 ipm_RR2 <- readRDS("predict312k_profile/profile_ipm_RR_ref2.rds")
 
@@ -482,6 +487,57 @@ ipm_RR2 %>%
     x = "RR (95%CI)",
     y = "ZAT Profile",
     caption = "All comparisons are relative to the profile 2."
+  )+
+  theme(
+    plot.title = element_text(size = 12),
+    plot.title.position = "plot"
+  )
+
+### ref =4 -----
+ses_RR4 <- readRDS("predict312k_profile/profile_ses_RR_ref4.rds")
+ipm_RR4 <- readRDS("predict312k_profile/profile_ipm_RR_ref4.rds")
+
+ses_RR4 %>% 
+  filter(!predictor == "(Covariates)") %>% 
+  mutate(predictor = case_match(
+    predictor,
+    "profile_1" ~ "Profile 1",
+    "profile_2" ~ "Profile 2",
+    "profile_3" ~ "Profile 3",
+    .default = predictor
+  )) %>% 
+  plot_RR(., predictor)+
+  facet_grid(vars(outcome), switch = "y")+
+  labs(
+    title = "Pedestrian Collision and Neighborhood (ZAT) Profiles in Bogotá",
+    subtitle = "Adjusted for road types, ZAT-level walking/public transit trips, SES, and \npopulation density",
+    x = "RR (95%CI)",
+    y = "ZAT Profile",
+    caption = "All comparisons are relative to the profile 4."
+  )+
+  theme(
+    plot.title = element_text(size = 12),
+    plot.title.position = "plot"
+  )
+
+
+ipm_RR4 %>% 
+  filter(!predictor == "(Covariates)") %>% 
+  mutate(predictor = case_match(
+    predictor,
+    "profile_1" ~ "Profile 1",
+    "profile_2" ~ "Profile 2",
+    "profile_3" ~ "Profile 3",
+    .default = predictor
+  )) %>% 
+  plot_RR(., predictor)+
+  facet_grid(vars(outcome), switch = "y")+
+  labs(
+    title = "Pedestrian Collision and Neighborhood (ZAT) Profiles in Bogotá",
+    subtitle = "Adjusted for road types, ZAT-level walking/public transit trips, SES (IPM), \nand population density",
+    x = "RR (95%CI)",
+    y = "ZAT Profile",
+    caption = "All comparisons are relative to the profile 4."
   )+
   theme(
     plot.title = element_text(size = 12),
