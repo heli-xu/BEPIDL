@@ -291,7 +291,7 @@ fea_plot_RR1 <- feature_RR %>%
       "sign_stop" ~ "Stop Sign",
       "sign_yield" ~ "Yield Sign",
       "bus_stop" ~ "Bus Stop",
-      "brt_station" ~ "Brt Station",
+      "brt_station" ~ "BRT Station",
       "speed_bump" ~ "Speed Bump",
       "lane_bike" ~ "Bike Lane",
       "road_width" ~ "Road Width",
@@ -318,7 +318,7 @@ fea_plot_RR1 %>%
   )
 ```
 
-## fig 3-multivariatae analysis
+## fig 3-multivariable analysis
 ```{r}
 #| fig-height: 8
 #| fig-width: 7.5
@@ -355,7 +355,7 @@ fea_plot_RR2 <- multi_feature_RR %>%
       "sign_stop" ~ "Stop Sign",
       "sign_yield" ~ "Yield Sign",
       "bus_stop" ~ "Bus Stop",
-      "brt_station" ~ "Brt Station",
+      "brt_station" ~ "BRT Station",
       "speed_bump" ~ "Speed Bump",
       "lane_bike" ~ "Bike Lane",
       "road_width" ~ "Road Width",
@@ -435,7 +435,7 @@ rdtype_RR <- bind_rows(art_ter_RR, col_ter_RR) %>%
       "sign_stop" ~ "Stop Sign",
       "sign_yield" ~ "Yield Sign",
       "bus_stop" ~ "Bus Stop",
-      "brt_station" ~ "Brt Station",
+      "brt_station" ~ "BRT Station",
       "speed_bump" ~ "Speed Bump",
       "lane_bike" ~ "Bike Lane",
       "road_width" ~ "Road Width",
@@ -487,7 +487,7 @@ p3_collector <- rdtype_RR %>%
 rdtype_RR |> 
   mutate(RR_95CI = paste0(round(estimate, 2)," (", round(conf.low, 2), ",", round(conf.high, 2), ")")
   ) |> 
-  select(predictor, category, RR_95CI, p.value) |> 
+  select( "road type" = road_type, predictor, category, RR_95CI, p.value) |> 
   knitr::kable()
 
 ```
