@@ -1,0 +1,68 @@
+---
+title: "Neighborhood Profile and Pedestrian Collisions"
+format: docx
+editor: visual
+---
+
+## ref = profile 4
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+#| fig-height: 5.5
+library(tidyverse)
+source("../../functions/plot_RR.R")
+
+ses_RR4 <- readRDS("predict312k_profile/profile_ses_RR_ref4.rds")
+ipm_RR4 <- readRDS("predict312k_profile/profile_ipm_RR_ref4.rds")
+
+plot_ses <- ses_RR4 %>% 
+  filter(!predictor == "(Covariates)") %>% 
+  mutate(predictor = case_match(
+    predictor,
+    "profile_1" ~ "Profile 1",
+    "profile_2" ~ "Profile 2",
+    "profile_3" ~ "Profile 3",
+    .default = predictor
+  ))
+
+plot_RR(plot_ses, predictor)+
+  facet_grid(vars(outcome), switch = "y")+
+  labs(
+    title = "Pedestrian Collision and Neighborhood (ZAT) Profiles in Bogotá",
+    subtitle = "Adjusted for road types, ZAT-level walking/public transit trips, SES, and \npopulation density",
+    x = "RR (95%CI)",
+    y = "ZAT Profile",
+    caption = "All comparisons are relative to the profile 4."
+  )+
+  theme(
+    plot.title = element_text(size = 11),
+    plot.subtitle = element_text(size = 10),
+    plot.title.position = "plot"
+  )
+
+
+plot_ipm <- ipm_RR4 %>% 
+  filter(!predictor == "(Covariates)") %>% 
+  mutate(predictor = case_match(
+    predictor,
+    "profile_1" ~ "Profile 1",
+    "profile_2" ~ "Profile 2",
+    "profile_3" ~ "Profile 3",
+    .default = predictor
+  ))
+
+plot_RR(plot_ipm, predictor)+
+  facet_grid(vars(outcome), switch = "y")+
+  labs(
+    title = "Pedestrian Collision and Neighborhood (ZAT) Profiles in Bogotá",
+    subtitle = "Adjusted for road types, ZAT-level walking/public transit trips, SES (IPM), \nand population density",
+    x = "RR (95%CI)",
+    y = "ZAT Profile",
+    caption = "All comparisons are relative to the profile 4."
+  )+
+  theme(
+    plot.title = element_text(size = 11),
+    plot.subtitle = element_text(size = 10),
+    plot.title.position = "plot"
+  )
+
+```
